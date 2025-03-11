@@ -12,20 +12,37 @@ export default async function handler(req, res) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: message }],
+    // Use gpt-3.5-turbo-instruct which supports logprobs
+    const response = await openai.completions.create({
+      model: 'gpt-3.5-turbo-instruct',
+      prompt: message,
       temperature: 0.7,
       max_tokens: 150,
-      logprobs: true,
-      top_logprobs: 5,
+      logprobs: 5, // Get top 5 token probabilities
     });
 
+    // Extract response text
+    const text = response.choices[0].text.trim();
+    
     // Extract token probabilities
-    const tokenProbabilities = response.choices[0].logprobs?.content || [];
+    const tokenLogprobs = response.choices[0].logprobs;
+    const tokenProbabilities = [];
+    
+    if (tokenLogprobs && tokenLogprobs.tokens) {
+      // Create an array of token objects with their probabilities
+      for (let i = 0; i < tokenLogprobs.tokens.length; i++) {
+        const token = tokenLogprobs.tokens[i];
+        const topLogprobs = tokenLogprobs.top_logprobs[i];
+        
+        tokenProbabilities.push({
+          token: token,
+          top_logprobs: topLogprobs
+        });
+      }
+    }
     
     return res.status(200).json({
-      text: response.choices[0].message.content,
+      text: text,
       tokenProbabilities: tokenProbabilities
     });
   } catch (error) {

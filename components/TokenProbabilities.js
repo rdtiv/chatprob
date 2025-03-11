@@ -1,5 +1,5 @@
 export default function TokenProbabilities({ probabilities, onClose }) {
-  if (!probabilities || probabilities.length === 0) {
+  if (!probabilities || Object.keys(probabilities).length === 0) {
     return (
       <div className="token-probabilities">
         <div className="probabilities-header">
@@ -16,6 +16,9 @@ export default function TokenProbabilities({ probabilities, onClose }) {
     return (Math.exp(logprob) * 100).toFixed(2) + '%';
   };
   
+  // Sort entries by probability (highest first)
+  const sortedEntries = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  
   return (
     <div className="token-probabilities">
       <div className="probabilities-header">
@@ -23,7 +26,7 @@ export default function TokenProbabilities({ probabilities, onClose }) {
         <button onClick={onClose} className="close-button">×</button>
       </div>
       <ul className="probabilities-list">
-        {Object.entries(probabilities).map(([token, logprob], index) => (
+        {sortedEntries.map(([token, logprob], index) => (
           <li 
             key={index} 
             className={index === 0 ? 'probability-item selected' : 'probability-item'}

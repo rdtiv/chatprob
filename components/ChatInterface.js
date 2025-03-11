@@ -43,10 +43,14 @@ export default function ChatInterface() {
 
       const data = await response.json();
       
+      // Add timestamp to the message
+      const timestamp = new Date().toISOString();
+      
       const aiMessage = { 
         role: 'assistant', 
         content: data.text,
-        tokenProbabilities: data.tokenProbabilities 
+        tokenProbabilities: data.tokenProbabilities,
+        timestamp: timestamp
       };
       
       setMessages(prev => [...prev, aiMessage]);
@@ -55,7 +59,8 @@ export default function ChatInterface() {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, there was an error processing your request.' 
+        content: 'Sorry, there was an error processing your request.',
+        timestamp: new Date().toISOString()
       }]);
     } finally {
       setIsLoading(false);
@@ -68,6 +73,9 @@ export default function ChatInterface() {
 
   return (
     <div className="chat-container">
+      <div className="chat-header">
+        <h2>OpenAI Chat</h2>
+      </div>
       <div className="messages-container">
         {messages.map((message, index) => (
           <Message 
@@ -82,7 +90,7 @@ export default function ChatInterface() {
       
       {selectedToken && (
         <TokenProbabilities 
-          probabilities={currentTokenProbs[selectedToken.index]?.top_logprobs || []} 
+          probabilities={currentTokenProbs[selectedToken.index]?.top_logprobs || {}} 
           onClose={() => setSelectedToken(null)}
         />
       )}
@@ -94,8 +102,11 @@ export default function ChatInterface() {
           onChange={(e) => setCurrentMessage(e.target.value)}
           placeholder="Type your message..."
           disabled={isLoading}
+          className="message-input"
         />
-        <button type="submit" disabled={isLoading}>Send</button>
+        <button type="submit" disabled={isLoading} className="send-button">
+          Send
+        </button>
       </form>
     </div>
   );

@@ -76,20 +76,37 @@ export default async function handler(req, res) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: message }],
+    // Use completions API instead of chat completions for logprobs support
+    const response = await openai.completions.create({
+      model: 'text-davinci-003', // This model supports logprobs
+      prompt: message,
       temperature: 0.7,
       max_tokens: 150,
-      logprobs: true,
-      top_logprobs: 5,
+      logprobs: 5, // Get top 5 token probabilities
     });
 
-    // Extract token probabilities
-    const tokenProbabilities = response.choices[0].logprobs?.content || [];
+    // Extract response text
+    const text = response.choices[0].text.trim();
+    
+    // Extract token probabilities - format is different from chat completions
+    const tokenLogprobs = response.choices[0].logprobs;
+    const tokenProbabilities = [];
+    
+    if (tokenLogprobs && tokenLogprobs.tokens) {
+      // Create an array of token objects with their probabilities
+      for (let i = 0; i < tokenLogprobs.tokens.length; i++) {
+        const token = tokenLogprobs.tokens[i];
+        const topLogprobs = tokenLogprobs.top_logprobs[i];
+        
+        tokenProbabilities.push({
+          token: token,
+          top_logprobs: topLogprobs
+        });
+      }
+    }
     
     return res.status(200).json({
-      text: response.choices[0].message.content,
+      text: text,
       tokenProbabilities: tokenProbabilities
     });
   } catch (error) {
@@ -167,10 +184,14 @@ export default function ChatInterface() {
 
       const data = await response.json();
       
+      // Add timestamp to the message
+      const timestamp = new Date().toISOString();
+      
       const aiMessage = { 
         role: 'assistant', 
         content: data.text,
-        tokenProbabilities: data.tokenProbabilities 
+        tokenProbabilities: data.tokenProbabilities,
+        timestamp: timestamp
       };
       
       setMessages(prev => [...prev, aiMessage]);
@@ -179,7 +200,8 @@ export default function ChatInterface() {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, there was an error processing your request.' 
+        content: 'Sorry, there was an error processing your request.',
+        timestamp: new Date().toISOString()
       }]);
     } finally {
       setIsLoading(false);
@@ -192,6 +214,9 @@ export default function ChatInterface() {
 
   return (
     <div className="chat-container">
+      <div className="chat-header">
+        <h2>OpenAI Chat</h2>
+      </div>
       <div className="messages-container">
         {messages.map((message, index) => (
           <Message 
@@ -206,7 +231,7 @@ export default function ChatInterface() {
       
       {selectedToken && (
         <TokenProbabilities 
-          probabilities={currentTokenProbs[selectedToken.index]?.top_logprobs || []} 
+          probabilities={currentTokenProbs[selectedToken.index]?.top_logprobs || {}} 
           onClose={() => setSelectedToken(null)}
         />
       )}
@@ -218,8 +243,11 @@ export default function ChatInterface() {
           onChange={(e) => setCurrentMessage(e.target.value)}
           placeholder="Type your message..."
           disabled={isLoading}
+          className="message-input"
         />
-        <button type="submit" disabled={isLoading}>Send</button>
+        <button type="submit" disabled={isLoading} className="send-button">
+          Send
+        </button>
       </form>
     </div>
   );
@@ -231,22 +259,22 @@ import { useState } from 'react';
 export default function Message({ message, onTokenClick }) {
   const { role, content, tokenProbabilities } = message;
   
-  // Split content into tokens if we have probability data
+  // Render content with actual tokens if we have probability data
   const renderContent = () => {
-    if (!tokenProbabilities || role !== 'assistant') {
+    if (!tokenProbabilities || role !== 'assistant' || tokenProbabilities.length === 0) {
       return <div className="message-text">{content}</div>;
     }
     
-    // Render clickable tokens
+    // Render the actual tokens from the API response
     return (
       <div className="message-text">
-        {content.split(' ').map((word, idx) => (
+        {tokenProbabilities.map((tp, idx) => (
           <span 
             key={idx}
             className="token"
-            onClick={() => onTokenClick(word, idx)}
+            onClick={() => onTokenClick(tp.token, idx)}
           >
-            {word}{' '}
+            {tp.token}
           </span>
         ))}
       </div>
@@ -268,7 +296,7 @@ export default function Message({ message, onTokenClick }) {
 
 // File: components/TokenProbabilities.js
 export default function TokenProbabilities({ probabilities, onClose }) {
-  if (!probabilities || probabilities.length === 0) {
+  if (!probabilities || Object.keys(probabilities).length === 0) {
     return (
       <div className="token-probabilities">
         <div className="probabilities-header">
@@ -285,6 +313,9 @@ export default function TokenProbabilities({ probabilities, onClose }) {
     return (Math.exp(logprob) * 100).toFixed(2) + '%';
   };
   
+  // Sort entries by probability (highest first)
+  const sortedEntries = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  
   return (
     <div className="token-probabilities">
       <div className="probabilities-header">
@@ -292,7 +323,7 @@ export default function TokenProbabilities({ probabilities, onClose }) {
         <button onClick={onClose} className="close-button">×</button>
       </div>
       <ul className="probabilities-list">
-        {Object.entries(probabilities).map(([token, logprob], index) => (
+        {sortedEntries.map(([token, logprob], index) => (
           <li 
             key={index} 
             className={index === 0 ? 'probability-item selected' : 'probability-item'}
@@ -350,10 +381,26 @@ main {
   height: 80vh;
 }
 
+.chat-header {
+  padding: 12px 20px;
+  background-color: #2563eb;
+  color: white;
+  text-align: center;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.chat-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 .message {
@@ -386,21 +433,22 @@ main {
   word-wrap: break-word;
 }
 
-.message-timestamp {
-  font-size: 0.7rem;
-  color: #999;
-  text-align: right;
-  margin-top: 4px;
-}
-
 .token {
   cursor: pointer;
-  position: relative;
+  display: inline-block;
+  margin-right: 2px;
 }
 
 .token:hover {
   background-color: rgba(37, 99, 235, 0.1);
   border-radius: 2px;
+}
+
+.message-timestamp {
+  font-size: 0.7rem;
+  color: #999;
+  text-align: right;
+  margin-top: 4px;
 }
 
 .message-form {
@@ -409,7 +457,7 @@ main {
   border-top: 1px solid #eaeaea;
 }
 
-.message-form input {
+.message-input {
   flex: 1;
   padding: 12px;
   border: 1px solid #ddd;
@@ -417,7 +465,7 @@ main {
   font-size: 1rem;
 }
 
-.message-form button {
+.send-button {
   padding: 0 20px;
   background-color: #2563eb;
   color: white;
@@ -429,7 +477,7 @@ main {
   font-weight: 500;
 }
 
-.message-form button:disabled {
+.send-button:disabled {
   background-color: #93c5fd;
   cursor: not-allowed;
 }
@@ -439,6 +487,7 @@ main {
   color: #666;
   font-style: italic;
   margin: 10px 0;
+  align-self: center;
 }
 
 .token-probabilities {
@@ -446,10 +495,11 @@ main {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 300px;
-  position: absolute;
-  right: 20px;
-  bottom: 100px;
-  z-index: 10;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
 }
 
 .probabilities-header {
@@ -458,6 +508,9 @@ main {
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #eaeaea;
+  background-color: #f8f9fa;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
 
 .probabilities-header h3 {
@@ -474,6 +527,10 @@ main {
   color: #666;
 }
 
+.close-button:hover {
+  color: #000;
+}
+
 .probabilities-list {
   list-style-type: none;
   padding: 8px 0;
@@ -486,6 +543,11 @@ main {
   justify-content: space-between;
   padding: 8px 16px;
   font-size: 0.9rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.probability-item:last-child {
+  border-bottom: none;
 }
 
 .probability-item.selected {
@@ -518,8 +580,11 @@ main {
   }
   
   .token-probabilities {
-    width: 280px;
-    right: 10px;
-    bottom: 80px;
+    width: 90%;
+    max-width: 350px;
+  }
+  
+  .message-input {
+    font-size: 16px; /* Prevents zoom on focus in iOS */
   }
 }
