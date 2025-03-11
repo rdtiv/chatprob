@@ -1,52 +1,73 @@
-# ChatProb 
+# ChatProb
 
-An instructive chat application that not only provides AI responses but also exposes token probabilities from the language model, offering unique insights into the model's decision-making process.
+An instructive chat application that visually exposes the inner workings of AI language models by revealing token probabilities, offering unprecedented transparency into how AI "thinks" when generating responses.
 
-Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8), this project aims to demystify AI by making language model internals transparent and understandable. By exposing the probability-based decision making process, we follow Hanselman's vision of making AI more approachable and less mystifying for everyday developers and users.
+Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8), this project transforms AI from a mysterious black box into an educational tool that helps users understand the probabilistic nature of language generation.
+
+## Core Innovation
+
+ChatProb makes AI more transparent by visualizing:
+
+1. **Token-level confidence**: Color-coded tokens show exactly how confident the model is about each word choice (green for high confidence, yellow for medium, red for low)
+2. **Alternative choices**: On hover, users can see the top 5 alternative words the model considered at each position
+3. **Decision transparency**: Probability percentages reveal the model's certainty in its choices and the viability of alternatives
+
+This approach demystifies AI by letting users literally see the model's "thought process" at work, creating a uniquely educational AI experience.
 
 ## Features
 
-- Real-time chat interface with GPT-3.5 Turbo
-- Token probability visualization for model responses
-- Context-aware conversations with message history support
-- Error handling and API failure recovery
-- Rate limiting and request validation
+- **Interactive Visualization**: Color-coded tokens with probability-based highlighting
+- **Hover Insights**: Tooltips showing alternative tokens and their probabilities
+- **Persistence**: Local storage for conversation history
+- **Responsive Design**: Smart positioning of tooltips to prevent screen overflow
+- **Error Handling**: Graceful recovery from API failures
+- **Clear Visual Language**: Intuitive color scheme representing confidence levels
+- **Temporal Context**: Timestamped messages for conversation tracking
 
-## Understanding Token Probabilities
+## Understanding AI Language Generation
 
-### How Language Models Work
-The GPT-3.5 model processes text as a sequence of tokens - small units of text that could be words, parts of words, or punctuation. For each position in the sequence, the model:
-1. Considers all possible next tokens
-2. Assigns probabilities to each possibility
-3. Selects the most appropriate token based on these probabilities and temperature setting
+### How Language Models Think
 
-### Token Probability Features
-Our application exposes these probabilities, showing:
-- Top 5 most likely tokens at each position
-- Probability scores for each token choice
-- Insight into model's decision-making process
-- Alternative paths the response could have taken
+When generating text, GPT-3.5 doesn't simply "know" the right words. Instead, it:
 
-This transparency helps understand:
-- Model confidence in its responses
-- Alternative word choices considered
-- Context interpretation by the model
-- Impact of temperature settings (0.7) on token selection
+1. Analyzes all previous context (the conversation history)
+2. For each position, computes probability scores for thousands of potential tokens
+3. Selects tokens based on these probabilities (influenced by temperature setting)
+4. Builds a response one token at a time in this probabilistic manner
 
-## Technical Stack
+### Visualization Components
 
-### Backend
-- Node.js
-- Next.js API Routes
-- OpenAI API (gpt-3.5-turbo-instruct model)
+Our application exposes this process through:
 
-### Frontend
-- Next.js
-- React
+- **Token-level Visualization**: The `Message.js` component renders individual tokens with color-coded backgrounds based on their probability
+- **Probability Tooltips**: The `TokenProbabilities.js` component provides detailed insights into alternative choices
+- **Color Gradient System**: Background colors dynamically calculated based on token probability
+- **Adaptive Positioning**: Smart tooltip placement that adjusts to viewport boundaries
 
-### API Integration
-- OpenAI Node.js SDK
-- Environment-based configuration for API keys
+These visualizations help understand:
+
+- When the model is confident versus uncertain
+- How context influences word choice probability
+- The range of alternatives the model considers viable
+- How seemingly small probability differences can lead to entirely different response paths
+
+## Technical Architecture
+
+### Frontend Components
+- **ChatInterface.js**: Main conversation container with message history and input handling
+- **Message.js**: Renders messages with token probability visualization
+- **TokenProbabilities.js**: Dynamic tooltip showing alternative token choices
+
+### Backend Integration
+- **chat.js API Handler**: Custom endpoint leveraging the OpenAI completions API with logprobs parameter
+- **OpenAI SDK**: Integration with gpt-3.5-turbo-instruct model for probability access
+- **Probability Processing**: Transformation of complex log probability values into user-friendly visualizations
+
+### Data Flow
+1. User messages are sent to the API with conversation context
+2. The API returns both the response text and token probability data
+3. The interface renders this data with interactive visualization
+4. Hover interactions reveal deeper probability insights
 
 ## Setup
 
@@ -69,23 +90,32 @@ npm run dev
 ## API Details
 
 The application uses a custom API endpoint (`/api/chat`) that:
-- Accepts POST requests with message history
-- Processes conversations with context
-- Returns both the AI response and token probabilities
+- Transforms conversation history into appropriate context
+- Requests completions with `logprobs: 5` parameter for probability data
+- Processes the complex probability response into usable frontend format
 - Uses temperature of 0.7 for balanced creativity
-- Limits responses to 150 tokens
-- Returns top 5 probability scores per token
+- Limits responses to 150 tokens for performance
+- Returns structured probability data alongside the response text
 
-## Security
+## Educational Value
 
-- API key stored in environment variables
-- Request method validation
-- Error handling and sanitization
-- No client-side exposure of API keys
+This project serves as:
+- A teaching tool for understanding how language models work
+- A demonstration of the probabilistic nature of AI text generation
+- An example of how to make complex AI concepts accessible through visualization
+- A practical implementation of AI transparency principles
+
+## Security and Performance
+
+- Environment-based API key storage
+- Throttled API requests
+- Smart hover delay (100ms) to prevent excessive tooltip rendering
+- Efficient color calculation with RGB interpolation
+- Optimized tooltip positioning calculations
 
 ## Contributing
 
-Feel free to submit issues and pull requests.
+Contributions that enhance the educational value or visualization capabilities are particularly welcome. Feel free to submit issues and pull requests.
 
 ## License
 
