@@ -15,21 +15,21 @@ const getBackgroundColor = (tokenData) => {
   const colors = {
     high: { r: 34, g: 197, b: 94 },    // Dark green (#22C55E)
     mid: { r: 234, g: 179, b: 8 },     // Yellow (#EAB308)
-    low: { r: 239, g: 68, b: 68 }      // Red (#EF4444)
+    low: { r: 139, g: 0, b: 0 }        // Dark red (#8B0000)
   };
   
   let finalColor;
   if (percentage >= 50) {
-    // Blend between high and mid
-    const ratio = (percentage - 50) / 50;
+    // Blend between high (100%) and mid (50%)
+    const ratio = (percentage - 50) / 50; // Will be 0 at 50% and 1 at 100%
     finalColor = {
       r: Math.round(colors.mid.r + (colors.high.r - colors.mid.r) * ratio),
       g: Math.round(colors.mid.g + (colors.high.g - colors.mid.g) * ratio),
       b: Math.round(colors.mid.b + (colors.high.b - colors.mid.b) * ratio)
     };
   } else {
-    // Blend between mid and low
-    const ratio = percentage / 50;
+    // Blend between mid (50%) and low (0%)
+    const ratio = percentage / 50; // Will be 0 at 0% and 1 at 50%
     finalColor = {
       r: Math.round(colors.low.r + (colors.mid.r - colors.low.r) * ratio),
       g: Math.round(colors.low.g + (colors.mid.g - colors.low.g) * ratio),
@@ -37,8 +37,8 @@ const getBackgroundColor = (tokenData) => {
     };
   }
   
-  // Calculate opacity based on percentage (0.1 to 0.4)
-  const opacity = 0.1 + (percentage / 100) * 0.3;
+  // Calculate opacity based on percentage (0.15 to 0.5)
+  const opacity = 0.15 + (percentage / 100) * 0.35;
   
   // Return rgba color
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
