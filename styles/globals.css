@@ -330,4 +330,38 @@ main {
     font-size: 0.9rem;
     margin-bottom: 1rem;
   }
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.toggle-completion-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #666;
+  transition: all 150ms ease;
+}
+
+.toggle-completion-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.toggle-icon {
+  font-size: 1rem;
+}
+
+.completion-counter {
+  font-size: 0.7rem;
 } 

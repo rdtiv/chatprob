@@ -44,19 +44,17 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message }) {
-  const { role, content, tokenProbabilities } = message;
+export default function Message({ message, onToggle }) {
+  const { role, completions, activeIndex = 0 } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef(null);
   
   const handleTokenMouseEnter = (token, index, event) => {
-    // Clear any existing timeout
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
     
-    // Set timeout for hover delay
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredToken({ token, index });
       setMousePosition({ x: event.clientX, y: event.clientY });
@@ -64,20 +62,24 @@ export default function Message({ message }) {
   };
   
   const handleTokenMouseLeave = () => {
-    // Clear hover timeout if it exists
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
     setHoveredToken(null);
   };
   
-  // Render content with actual tokens if we have probability data
   const renderContent = () => {
-    if (!tokenProbabilities || role !== 'assistant' || tokenProbabilities.length === 0) {
-      return <div className="message-text">{content}</div>;
+    if (!completions || role !== 'assistant') {
+      return <div className="message-text">{message.content}</div>;
+    }
+
+    const activeCompletion = completions[activeIndex];
+    const { text, tokenProbabilities } = activeCompletion;
+    
+    if (!tokenProbabilities || tokenProbabilities.length === 0) {
+      return <div className="message-text">{text}</div>;
     }
     
-    // Render the actual tokens from the API response
     return (
       <div className="message-text">
         {tokenProbabilities.map((tp, idx) => {
@@ -100,16 +102,28 @@ export default function Message({ message }) {
   
   return (
     <div className={`message ${role}-message`}>
-      <div className="message-role">{role === 'user' ? 'You' : 'AI'}</div>
+      <div className="message-header">
+        <div className="message-role">{role === 'user' ? 'You' : 'AI'}</div>
+        {completions && completions.length > 1 && (
+          <button 
+            onClick={onToggle}
+            className="toggle-completion-button"
+            title="Show alternative response"
+          >
+            <span className="toggle-icon">↻</span>
+            <span className="completion-counter">{activeIndex + 1}/{completions.length}</span>
+          </button>
+        )}
+      </div>
       {renderContent()}
       {message.timestamp && (
         <div className="message-timestamp">
           {new Date(message.timestamp).toLocaleTimeString()}
         </div>
       )}
-      {hoveredToken && (
+      {hoveredToken && completions && (
         <TokenProbabilities 
-          probabilities={tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
+          probabilities={completions[activeIndex].tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
           position={mousePosition}
           selectedToken={hoveredToken.token}
           onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}

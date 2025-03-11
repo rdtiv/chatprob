@@ -1,6 +1,6 @@
 # ChatProb
 
-An instructive chat application that visually exposes the inner workings of AI language models by revealing token probabilities, offering unprecedented transparency into how AI "thinks" when generating responses.
+An instructive chat application that visually exposes the inner workings of AI language models by revealing token probabilities and alternative responses, offering unprecedented transparency into how AI "thinks" when generating responses.
 
 Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8), this project transforms AI from a mysterious black box into an educational tool that helps users understand the probabilistic nature of language generation.
 
@@ -10,7 +10,8 @@ ChatProb makes AI more transparent by visualizing:
 
 1. **Token-level confidence**: Color-coded tokens show exactly how confident the model is about each word choice (green for high confidence, yellow for medium, red for low)
 2. **Alternative choices**: On hover, users can see the top 5 alternative words the model considered at each position
-3. **Decision transparency**: Probability percentages reveal the model's certainty in its choices and the viability of alternatives
+3. **Alternative responses**: For each prompt, the system generates multiple complete responses, demonstrating the non-deterministic nature of AI
+4. **Decision transparency**: Probability percentages reveal the model's certainty in its choices and the viability of alternatives
 
 This approach demystifies AI by letting users literally see the model's "thought process" at work, creating a uniquely educational AI experience.
 
@@ -18,6 +19,8 @@ This approach demystifies AI by letting users literally see the model's "thought
 
 - **Interactive Visualization**: Color-coded tokens with probability-based highlighting
 - **Hover Insights**: Tooltips showing alternative tokens and their probabilities
+- **Alternative Responses**: Toggle between different AI-generated responses for the same prompt
+- **Response Counter**: Visual indicator showing which alternative response is being displayed
 - **Persistence**: Local storage for conversation history
 - **Responsive Design**: Smart positioning of tooltips to prevent screen overflow
 - **Error Handling**: Graceful recovery from API failures
@@ -33,7 +36,8 @@ When generating text, GPT-3.5 doesn't simply "know" the right words. Instead, it
 1. Analyzes all previous context (the conversation history)
 2. For each position, computes probability scores for thousands of potential tokens
 3. Selects tokens based on these probabilities (influenced by temperature setting)
-4. Builds a response one token at a time in this probabilistic manner
+4. Generates multiple possible responses to demonstrate its non-deterministic nature
+5. Builds each response one token at a time in this probabilistic manner
 
 ### Visualization Components
 
@@ -41,6 +45,7 @@ Our application exposes this process through:
 
 - **Token-level Visualization**: The `Message.js` component renders individual tokens with color-coded backgrounds based on their probability
 - **Probability Tooltips**: The `TokenProbabilities.js` component provides detailed insights into alternative choices
+- **Response Toggle**: A dedicated UI control for switching between alternative responses
 - **Color Gradient System**: Background colors dynamically calculated based on token probability
 - **Adaptive Positioning**: Smart tooltip placement that adjusts to viewport boundaries
 
@@ -49,6 +54,7 @@ These visualizations help understand:
 - When the model is confident versus uncertain
 - How context influences word choice probability
 - The range of alternatives the model considers viable
+- How the same prompt can yield different but equally valid responses
 - How seemingly small probability differences can lead to entirely different response paths
 
 ## Technical Architecture
