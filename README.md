@@ -2,6 +2,8 @@
 
 An instructive chat application that not only provides AI responses but also exposes token probabilities from the language model, offering unique insights into the model's decision-making process.
 
+Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8), this project aims to demystify AI by making language model internals transparent and understandable. By exposing the probability-based decision making process, we follow Hanselman's vision of making AI more approachable and less mystifying for everyday developers and users.
+
 ## Features
 
 - Real-time chat interface with GPT-3.5 Turbo
