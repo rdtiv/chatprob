@@ -46,12 +46,12 @@ main {
 }
 
 .chat-header {
-  padding: 12px 20px;
-  background-color: #2563eb;
-  color: white;
-  text-align: center;
-  font-weight: 600;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-header h2 {
@@ -267,6 +267,26 @@ main {
   text-align: center;
   color: #666;
   font-style: italic;
+}
+
+.clear-chat-button {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clear-chat-button:hover {
+  background-color: #dc2626;
+}
+
+.clear-chat-button:focus {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
 }
 
 @media (max-width: 768px) {

@@ -15,12 +15,31 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  // Load messages from localStorage on component mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('chatMessages');
+    if (savedMessages) {
+      setMessages(JSON.parse(savedMessages));
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('chatMessages', JSON.stringify(messages));
+  }, [messages]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentMessage.trim()) return;
 
-    const userMessage = { role: 'user', content: currentMessage };
-    setMessages([...messages, userMessage]);
+    const userMessage = { 
+      role: 'user', 
+      content: currentMessage,
+      timestamp: new Date().toISOString()
+    };
+    
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setCurrentMessage('');
     setIsLoading(true);
 
@@ -30,7 +49,7 @@ export default function ChatInterface() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: currentMessage }),
+        body: JSON.stringify({ messages: updatedMessages }),
       });
 
       if (!response.ok) {
@@ -39,14 +58,11 @@ export default function ChatInterface() {
 
       const data = await response.json();
       
-      // Add timestamp to the message
-      const timestamp = new Date().toISOString();
-      
       const aiMessage = { 
         role: 'assistant', 
         content: data.text,
         tokenProbabilities: data.tokenProbabilities,
-        timestamp: timestamp
+        timestamp: new Date().toISOString()
       };
       
       setMessages(prev => [...prev, aiMessage]);
@@ -62,10 +78,18 @@ export default function ChatInterface() {
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+    localStorage.removeItem('chatMessages');
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-header">
         <h2>OpenAI Chat</h2>
+        <button onClick={clearChat} className="clear-chat-button">
+          Clear Chat
+        </button>
       </div>
       <div className="messages-container">
         {messages.map((message, index) => (
