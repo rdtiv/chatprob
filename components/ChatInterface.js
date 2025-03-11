@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Message from './Message';
-import TokenProbabilities from './TokenProbabilities';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentTokenProbs, setCurrentTokenProbs] = useState([]);
-  const [selectedToken, setSelectedToken] = useState(null);
-  
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -54,7 +50,6 @@ export default function ChatInterface() {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      setCurrentTokenProbs(data.tokenProbabilities);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
@@ -67,10 +62,6 @@ export default function ChatInterface() {
     }
   };
 
-  const handleTokenClick = (token, index) => {
-    setSelectedToken({ token, index });
-  };
-
   return (
     <div className="chat-container">
       <div className="chat-header">
@@ -80,20 +71,12 @@ export default function ChatInterface() {
         {messages.map((message, index) => (
           <Message 
             key={index} 
-            message={message} 
-            onTokenClick={handleTokenClick}
+            message={message}
           />
         ))}
         {isLoading && <div className="loading-indicator">OpenAI is thinking...</div>}
         <div ref={messagesEndRef} />
       </div>
-      
-      {selectedToken && (
-        <TokenProbabilities 
-          probabilities={currentTokenProbs[selectedToken.index]?.top_logprobs || {}} 
-          onClose={() => setSelectedToken(null)}
-        />
-      )}
       
       <form onSubmit={handleSubmit} className="message-form">
         <input
