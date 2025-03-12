@@ -56,20 +56,23 @@ export default function ChatInterface() {
         // For iOS, use regular fetch without streaming
         const response = await fetch('/api/stream', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-No-Stream': 'true'  // Signal server to not use streaming
+          },
           body: JSON.stringify({
             messages: [...messages, userMessage]
           })
         });
 
         if (!response.ok) throw new Error('Response was not ok');
-        const text = await response.text();
+        const data = await response.json();  // Expect JSON instead of text
         
         setMessages(prev => {
           const newMessages = [...prev];
           newMessages[newMessages.length - 1] = {
             ...newMessages[newMessages.length - 1],
-            content: text
+            content: data.content || data  // Handle both formats
           };
           return newMessages;
         });
