@@ -70,20 +70,32 @@ export default function ChatInterface() {
       const stream = await streamResponse;
       if (!stream.ok) throw new Error('Stream response was not ok');
       
-      const reader = stream.body.getReader();
-      const decoder = new TextDecoder();
-      let streamedContent = '';
-
       try {
+        // For iOS compatibility, use response.text() if ReadableStream is not available
+        if (!stream.body || !stream.body.getReader) {
+          const text = await stream.text();
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: text
+            };
+            return newMessages;
+          });
+          return;
+        }
+
+        const reader = stream.body.getReader();
+        const decoder = new TextDecoder();
+        let streamedContent = '';
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          // Handle both string and Uint8Array responses
-          const chunk = typeof value === 'string' ? value : decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
           streamedContent += chunk;
 
-          // Update the last message with streamed content
           setMessages(prev => {
             const newMessages = [...prev];
             newMessages[newMessages.length - 1] = {
@@ -93,8 +105,19 @@ export default function ChatInterface() {
             return newMessages;
           });
         }
-      } finally {
         reader.releaseLock();
+      } catch (streamError) {
+        console.error('Stream error:', streamError);
+        // Fallback to regular text response if streaming fails
+        const text = await stream.text();
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            content: text
+          };
+          return newMessages;
+        });
       }
 
       // Once streaming is done, get probability data
