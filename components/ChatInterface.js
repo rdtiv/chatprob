@@ -193,11 +193,12 @@ export default function ChatInterface() {
       right: 0,
       bottom: 0,
       overflowY: 'hidden',
-      paddingBottom: isIOS ? '20px' : 0, // Add padding for iOS Safari
+      paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 80px)' : 0, // Increased padding for iOS Safari
       backgroundColor: '#fff'
     }}>
       <div className="chat-header" style={{
         padding: '1rem',
+        paddingTop: isIOS ? 'env(safe-area-inset-top)' : '1rem', // Account for iOS notch
         borderBottom: '1px solid #eee',
         backgroundColor: '#fff',
         flexShrink: 0,
@@ -251,13 +252,14 @@ export default function ChatInterface() {
         padding: '1rem',
         borderTop: '1px solid #eee',
         backgroundColor: '#fff',
-        position: 'sticky',
-        bottom: 0,
+        position: 'fixed',
+        bottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 60px)' : 0, // Position above Safari UI
+        left: 0,
+        right: 0,
         display: 'flex',
         gap: '0.5rem',
         flexShrink: 0,
-        zIndex: 1,
-        marginBottom: isIOS ? 'env(safe-area-inset-bottom)' : 0 // Add safe area for iOS
+        zIndex: 2
       }}>
         <input
           type="text"
