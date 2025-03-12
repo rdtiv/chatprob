@@ -56,16 +56,30 @@ main {
 
 .chat-header {
   padding: 1rem;
-  background-color: #f3f4f6;
+  background: linear-gradient(to bottom, #ffffff, #f3f4f6);
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+}
+
+.chat-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.03), transparent);
 }
 
 .chat-header h2 {
   margin: 0;
   font-size: 1.5rem;
+  color: #1a1a1a;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .messages-container {
@@ -78,7 +92,7 @@ main {
 
 .message {
   margin-bottom: 16px;
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-radius: 8px;
   max-width: 80%;
   position: relative;
@@ -114,10 +128,7 @@ main {
 }
 
 .message-role {
-  font-weight: bold;
-  font-size: 0.8rem;
-  margin-bottom: 4px;
-  color: #666;
+  display: none;
 }
 
 .message-text {
@@ -352,9 +363,9 @@ main {
 
 .message-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-bottom: 4px;
+  min-height: 24px;
 }
 
 .toggle-completion-button {
@@ -382,4 +393,32 @@ main {
 
 .completion-counter {
   font-size: 0.7rem;
+}
+
+.refresh-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #2563eb;
+  transform: rotate(45deg);
+}
+
+.refresh-button:active {
+  transform: rotate(90deg);
+}
+
+.refresh-button:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 } 

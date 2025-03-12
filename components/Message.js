@@ -126,7 +126,6 @@ export default function Message({ message, onToggle }) {
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">
-            <div className="message-role">{role === 'user' ? 'You' : 'AI'}</div>
             {completions && completions.length > 1 && (
               <button 
                 onClick={handleToggle}
