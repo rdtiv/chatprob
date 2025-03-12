@@ -12,10 +12,14 @@ export default async function handler(req, res) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    // Format messages for the API - previous responses are already locked in
+    // Format messages for the API - lock in previous assistant responses
     const formattedPrompt = messages.map(msg => {
       if (msg.role === 'assistant') {
-        return `ASSISTANT: ${msg.content}`;
+        // Use the active completion if available, otherwise use content
+        const content = msg.completions ? 
+          msg.completions[msg.activeIndex || 0].text : 
+          msg.content;
+        return `ASSISTANT: ${content}`;
       }
       return `${msg.role.toUpperCase()}: ${msg.content}`;
     }).join('\n\n') + '\n\nASSISTANT:';
@@ -43,6 +47,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       completions: completions
     });
+
   } catch (error) {
     console.error('Error calling OpenAI API:', error);
     return res.status(500).json({ error: 'Error communicating with OpenAI' });

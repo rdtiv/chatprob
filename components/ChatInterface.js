@@ -30,63 +30,85 @@ export default function ChatInterface() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!currentMessage.trim()) return;
+    if (!currentMessage.trim() || isLoading) return;
 
-    const userMessage = { 
-      role: 'user', 
-      content: currentMessage,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Lock in the active completion for the previous assistant message if it exists
-    const updatedMessages = messages.map(msg => {
-      if (msg.role === 'assistant' && msg.completions) {
-        // Keep only the selected completion
-        return {
-          ...msg,
-          completions: [msg.completions[msg.activeIndex || 0]]
-        };
-      }
-      return msg;
-    });
-    
-    const messagesForAPI = [...updatedMessages, userMessage];
-    setMessages(messagesForAPI);
+    const userMessage = { role: 'user', content: currentMessage, timestamp: new Date().toISOString() };
+    setMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      // Start streaming response immediately
+      const streamResponse = fetch('/api/stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messages: messagesForAPI }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage]
+        })
       });
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+      // Start probability request in parallel
+      const probResponse = fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage]
+        })
+      });
+
+      // Add initial empty assistant message
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toISOString()
+      }]);
+
+      // Handle streaming response
+      const stream = await streamResponse;
+      if (!stream.ok) throw new Error('Stream response was not ok');
+      
+      const reader = stream.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        streamedContent += chunk;
+
+        // Update the last message with streamed content
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            content: streamedContent
+          };
+          return newMessages;
+        });
       }
 
-      const data = await response.json();
+      // Once streaming is done, get probability data
+      const probData = await (await probResponse).json();
       
-      const aiMessage = { 
-        role: 'assistant', 
-        completions: data.completions,
-        activeIndex: 0,
-        timestamp: new Date().toISOString()
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
+      // Update the message with probability data
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        newMessages[newMessages.length - 1] = {
+          ...lastMessage,
+          completions: probData.completions,
+          activeIndex: 0
+        };
+        return newMessages;
+      });
+
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        completions: [{
-          text: 'Sorry, there was an error processing your request.',
-          tokenProbabilities: []
-        }],
-        activeIndex: 0,
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, there was an error processing your request.',
         timestamp: new Date().toISOString()
       }]);
     } finally {
@@ -114,7 +136,7 @@ export default function ChatInterface() {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>Token Explorer</h2>
+        <h3>Token Probability Explorer & Alternative Messages</h3>
         <button 
           onClick={clearChat} 
           className="refresh-button"
