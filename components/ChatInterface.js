@@ -166,13 +166,29 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="chat-container">
-      <div className="chat-header">
-        <h3>Token Probability Explorer & Alternative Messages</h3>
+    <div className="chat-container" style={{
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      overflowY: 'hidden'
+    }}>
+      <div className="chat-header" style={{
+        padding: '1rem',
+        borderBottom: '1px solid #eee',
+        backgroundColor: '#fff',
+        flexShrink: 0
+      }}>
+        <h3 style={{ margin: 0 }}>Token Probability Explorer & Alternative Messages</h3>
         <button 
           onClick={clearChat} 
           className="refresh-button"
           title="Clear chat history"
+          style={{ padding: '0.5rem' }}
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
@@ -192,7 +208,13 @@ export default function ChatInterface() {
           </svg>
         </button>
       </div>
-      <div className="messages-container">
+      <div className="messages-container" style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '1rem',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '1rem'
+      }}>
         {messages.map((message, index) => (
           <Message 
             key={index}
@@ -203,7 +225,16 @@ export default function ChatInterface() {
         <div ref={messagesEndRef} />
       </div>
       
-      <form onSubmit={handleSubmit} className="message-form">
+      <form onSubmit={handleSubmit} className="message-form" style={{
+        padding: '1rem',
+        borderTop: '1px solid #eee',
+        backgroundColor: '#fff',
+        position: 'sticky',
+        bottom: 0,
+        display: 'flex',
+        gap: '0.5rem',
+        flexShrink: 0
+      }}>
         <input
           type="text"
           value={currentMessage}
@@ -211,8 +242,28 @@ export default function ChatInterface() {
           placeholder="Type your message..."
           disabled={isLoading}
           className="message-input"
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            borderRadius: '8px',
+            border: '1px solid #ddd',
+            fontSize: '16px' // Prevents zoom on iOS
+          }}
         />
-        <button type="submit" disabled={isLoading} className="send-button">
+        <button 
+          type="submit" 
+          disabled={isLoading} 
+          className="send-button"
+          style={{
+            padding: '0.75rem 1.5rem',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: '#007AFF',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '16px'
+          }}
+        >
           Send
         </button>
       </form>
