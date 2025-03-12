@@ -329,12 +329,13 @@ main {
 
 @media (max-width: 768px) {
   main {
-    padding: 10px;
+    padding: 0;
   }
   
   .chat-container {
-    height: calc(100vh - 100px);
+    height: 100vh;
     margin: 0;
+    border-radius: 0;
   }
   
   .message {
@@ -350,14 +351,8 @@ main {
     font-size: 16px;
   }
   
-  .app-title {
-    font-size: 2rem;
-    margin-bottom: 0.25rem;
-  }
-  
-  .app-subtitle {
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
+  .app-title, .app-subtitle {
+    display: none;
   }
 }
 
