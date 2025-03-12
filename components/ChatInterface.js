@@ -39,7 +39,7 @@ export default function ChatInterface() {
 
     try {
       // Start streaming response immediately
-      const streamResponse = fetch('/api/stream', {
+      const streamResponse = await fetch('/api/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,22 +71,27 @@ export default function ChatInterface() {
       const decoder = new TextDecoder();
       let streamedContent = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value);
-        streamedContent += chunk;
+          // Handle both string and Uint8Array responses
+          const chunk = typeof value === 'string' ? value : decoder.decode(value, { stream: true });
+          streamedContent += chunk;
 
-        // Update the last message with streamed content
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            ...newMessages[newMessages.length - 1],
-            content: streamedContent
-          };
-          return newMessages;
-        });
+          // Update the last message with streamed content
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: streamedContent
+            };
+            return newMessages;
+          });
+        }
+      } finally {
+        reader.releaseLock();
       }
 
       // Once streaming is done, get probability data
@@ -168,7 +173,6 @@ export default function ChatInterface() {
             onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
           />
         ))}
-        {isLoading && <div className="loading-indicator">OpenAI is thinking...</div>}
         <div ref={messagesEndRef} />
       </div>
       
