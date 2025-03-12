@@ -53,43 +53,28 @@ export default function ChatInterface() {
       }]);
 
       if (isIOS) {
-        // For iOS, use regular fetch without streaming
-        const response = await fetch('/api/stream', {
+        // For iOS, skip streaming and get final response directly
+        const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-No-Stream': 'true'  // Signal server to not use streaming
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [...messages, userMessage]
           })
         });
 
         if (!response.ok) throw new Error('Response was not ok');
-        const text = await response.text();
+        const data = await response.json();
         
-        try {
-          // Try parsing as JSON first
-          const data = JSON.parse(text);
-          setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
-              content: data.content || data
-            };
-            return newMessages;
-          });
-        } catch (e) {
-          // If not JSON, use as plain text
-          setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
-              content: text
-            };
-            return newMessages;
-          });
-        }
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          return [...prev.slice(0, -1), {
+            ...lastMessage,
+            content: data.completions[0],
+            completions: data.completions,
+            activeIndex: 0
+          }];
+        });
       } else {
         // For non-iOS, use streaming
         const streamResponse = await fetch('/api/stream', {
@@ -127,32 +112,30 @@ export default function ChatInterface() {
         } finally {
           reader.releaseLock();
         }
+
+        // Get probability data after streaming
+        const probResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [...messages, userMessage]
+          })
+        });
+
+        const probData = await probResponse.json();
+        
+        // Update the message with probability data
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          newMessages[newMessages.length - 1] = {
+            ...lastMessage,
+            completions: probData.completions,
+            activeIndex: 0
+          };
+          return newMessages;
+        });
       }
-
-      // Start probability request in parallel
-      const probResponse = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage]
-        })
-      });
-
-      // Once streaming is done, get probability data
-      const probData = await probResponse.json();
-      
-      // Update the message with probability data
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        newMessages[newMessages.length - 1] = {
-          ...lastMessage,
-          completions: probData.completions,
-          activeIndex: 0
-        };
-        return newMessages;
-      });
-
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
