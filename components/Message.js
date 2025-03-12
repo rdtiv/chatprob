@@ -45,9 +45,10 @@ const getBackgroundColor = (tokenData) => {
 };
 
 export default function Message({ message, onToggle }) {
-  const { role, completions, activeIndex = 0 } = message;
+  const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isFlipping, setIsFlipping] = useState(false);
   const hoverTimeoutRef = useRef(null);
   
   const handleTokenMouseEnter = (token, index, event) => {
@@ -67,17 +68,37 @@ export default function Message({ message, onToggle }) {
     }
     setHoveredToken(null);
   };
+
+  const handleToggle = () => {
+    setIsFlipping(true);
+    onToggle();
+    // Reset flip state after animation completes
+    setTimeout(() => setIsFlipping(false), 300);
+  };
   
   const renderContent = () => {
+    // Handle non-assistant messages or messages without completions
     if (!completions || role !== 'assistant') {
-      return <div className="message-text">{message.content}</div>;
+      return <div className="message-text">{content}</div>;
     }
 
-    const activeCompletion = completions[activeIndex];
+    // Add safety checks for completions array
+    if (!Array.isArray(completions) || completions.length === 0) {
+      return <div className="message-text">{content || 'No response available'}</div>;
+    }
+
+    // Ensure activeIndex is within bounds
+    const safeIndex = Math.min(Math.max(activeIndex, 0), completions.length - 1);
+    const activeCompletion = completions[safeIndex];
+    
+    if (!activeCompletion) {
+      return <div className="message-text">{content || 'No response available'}</div>;
+    }
+
     const { text, tokenProbabilities } = activeCompletion;
     
     if (!tokenProbabilities || tokenProbabilities.length === 0) {
-      return <div className="message-text">{text}</div>;
+      return <div className="message-text">{text || content || 'No response available'}</div>;
     }
     
     return (
@@ -101,29 +122,33 @@ export default function Message({ message, onToggle }) {
   };
   
   return (
-    <div className={`message ${role}-message`}>
-      <div className="message-header">
-        <div className="message-role">{role === 'user' ? 'You' : 'AI'}</div>
-        {completions && completions.length > 1 && (
-          <button 
-            onClick={onToggle}
-            className="toggle-completion-button"
-            title="Show alternative response"
-          >
-            <span className="toggle-icon">↻</span>
-            <span className="completion-counter">{activeIndex + 1}/{completions.length}</span>
-          </button>
-        )}
-      </div>
-      {renderContent()}
-      {message.timestamp && (
-        <div className="message-timestamp">
-          {new Date(message.timestamp).toLocaleTimeString()}
+    <div className={`message ${role}-message ${isFlipping ? 'flipping' : ''}`}>
+      <div className="message-inner">
+        <div className="message-front">
+          <div className="message-header">
+            <div className="message-role">{role === 'user' ? 'You' : 'AI'}</div>
+            {completions && completions.length > 1 && (
+              <button 
+                onClick={handleToggle}
+                className="toggle-completion-button"
+                title="Show alternative response"
+              >
+                <span className="toggle-icon">↻</span>
+                <span className="completion-counter">{activeIndex + 1}/{completions.length}</span>
+              </button>
+            )}
+          </div>
+          {renderContent()}
+          {message.timestamp && (
+            <div className="message-timestamp">
+              {new Date(message.timestamp).toLocaleTimeString()}
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {hoveredToken && completions && (
         <TokenProbabilities 
-          probabilities={completions[activeIndex].tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
+          probabilities={completions[activeIndex]?.tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
           position={mousePosition}
           selectedToken={hoveredToken.token}
           onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}

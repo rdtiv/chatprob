@@ -5,7 +5,6 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeCompletionIndex, setActiveCompletionIndex] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -39,8 +38,20 @@ export default function ChatInterface() {
       timestamp: new Date().toISOString()
     };
     
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    // Lock in the active completion for the previous assistant message if it exists
+    const updatedMessages = messages.map(msg => {
+      if (msg.role === 'assistant' && msg.completions) {
+        // Keep only the selected completion
+        return {
+          ...msg,
+          completions: [msg.completions[msg.activeIndex || 0]]
+        };
+      }
+      return msg;
+    });
+    
+    const messagesForAPI = [...updatedMessages, userMessage];
+    setMessages(messagesForAPI);
     setCurrentMessage('');
     setIsLoading(true);
 
@@ -50,7 +61,7 @@ export default function ChatInterface() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ messages: messagesForAPI }),
       });
 
       if (!response.ok) {
@@ -67,12 +78,15 @@ export default function ChatInterface() {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-      setActiveCompletionIndex(0);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, there was an error processing your request.',
+        completions: [{
+          text: 'Sorry, there was an error processing your request.',
+          tokenProbabilities: []
+        }],
+        activeIndex: 0,
         timestamp: new Date().toISOString()
       }]);
     } finally {
@@ -82,7 +96,7 @@ export default function ChatInterface() {
 
   const toggleCompletion = (messageIndex) => {
     setMessages(prev => prev.map((msg, idx) => {
-      if (idx === messageIndex && msg.completions) {
+      if (idx === messageIndex && msg.completions && msg.completions.length > 1) {
         return {
           ...msg,
           activeIndex: (msg.activeIndex + 1) % msg.completions.length
@@ -110,7 +124,7 @@ export default function ChatInterface() {
           <Message 
             key={index}
             message={message}
-            onToggle={() => message.completions && toggleCompletion(index)}
+            onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
           />
         ))}
         {isLoading && <div className="loading-indicator">OpenAI is thinking...</div>}

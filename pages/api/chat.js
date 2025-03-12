@@ -12,25 +12,23 @@ export default async function handler(req, res) {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    // Format messages for the API
-    const lastMessage = messages[messages.length - 1];
-    const conversationContext = messages
-      .slice(0, -1)
-      .map(msg => msg.content)
-      .join('\n\n');
-    
-    const prompt = conversationContext
-      ? `${conversationContext}\n\n${lastMessage.content}`
-      : lastMessage.content;
+    // Format messages for the API - previous responses are already locked in
+    const formattedPrompt = messages.map(msg => {
+      if (msg.role === 'assistant') {
+        return `ASSISTANT: ${msg.content}`;
+      }
+      return `${msg.role.toUpperCase()}: ${msg.content}`;
+    }).join('\n\n') + '\n\nASSISTANT:';
 
-    // Use gpt-3.5-turbo-instruct which supports logprobs
+    // Use completions API with logprobs for probability visualization
     const response = await openai.completions.create({
       model: 'gpt-3.5-turbo-instruct',
-      prompt: prompt,
+      prompt: formattedPrompt,
       temperature: 0.7,
       max_tokens: 300,
       logprobs: 5, // Get top 5 token probabilities
       n: 2, // Generate 2 alternative completions
+      stop: ['\nUSER:', '\nASSISTANT:'] // Stop at next role marker
     });
 
     // Extract responses and their probabilities

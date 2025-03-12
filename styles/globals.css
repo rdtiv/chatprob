@@ -84,6 +84,24 @@ main {
   position: relative;
 }
 
+.message-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.message.flipping .message-inner {
+  transform: scale(0.98);
+  opacity: 0.6;
+}
+
+.message-front {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .user-message {
   background-color: #e9f5ff;
   align-self: flex-end;
