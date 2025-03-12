@@ -183,116 +183,128 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="chat-container" style={{
-      height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
+    <div style={{
       display: 'flex',
-      flexDirection: 'column',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      overflowY: 'hidden',
-      paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 80px)' : 0, // Increased padding for iOS Safari
-      backgroundColor: '#fff'
+      justifyContent: 'center',
+      width: '100%',
+      height: '100vh',
+      backgroundColor: '#f5f5f5'
     }}>
-      <div className="chat-header" style={{
-        padding: '1rem',
-        paddingTop: isIOS ? 'env(safe-area-inset-top)' : '1rem', // Account for iOS notch
-        borderBottom: '1px solid #eee',
-        backgroundColor: '#fff',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        zIndex: 1
-      }}>
-        <h3 style={{ margin: 0 }}>Token Probability Explorer & Alternative Messages</h3>
-        <button 
-          onClick={clearChat} 
-          className="refresh-button"
-          title="Clear chat history"
-          style={{ padding: '0.5rem' }}
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          >
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-            <path d="M21 3v5h-5" />
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-            <path d="M3 21v-5h5" />
-          </svg>
-        </button>
-      </div>
-      <div className="messages-container" style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '1rem',
-        WebkitOverflowScrolling: 'touch',
-        paddingBottom: '1rem'
-      }}>
-        {messages.map((message, index) => (
-          <Message 
-            key={index}
-            message={message}
-            onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
-          />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      
-      <form onSubmit={handleSubmit} className="message-form" style={{
-        padding: '1rem',
-        borderTop: '1px solid #eee',
-        backgroundColor: '#fff',
-        position: 'fixed',
-        bottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 60px)' : 0, // Position above Safari UI
-        left: 0,
-        right: 0,
+      <div className="chat-container" style={{
+        height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
         display: 'flex',
-        gap: '0.5rem',
-        flexShrink: 0,
-        zIndex: 2
+        flexDirection: 'column',
+        position: isIOS ? 'fixed' : 'relative',
+        top: isIOS ? 0 : 'auto',
+        left: isIOS ? 0 : 'auto',
+        right: isIOS ? 0 : 'auto',
+        bottom: isIOS ? 0 : 'auto',
+        width: isIOS ? '100%' : '800px',
+        maxWidth: '100%',
+        overflowY: 'hidden',
+        paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 80px)' : 0,
+        backgroundColor: '#fff',
+        ...(isIOS ? {} : { boxShadow: '0 0 20px rgba(0,0,0,0.1)' })
       }}>
-        <input
-          type="text"
-          value={currentMessage}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          placeholder="Type your message..."
-          disabled={isLoading}
-          className="message-input"
-          style={{
-            flex: 1,
-            padding: '0.75rem',
-            borderRadius: '8px',
-            border: '1px solid #ddd',
-            fontSize: '16px' // Prevents zoom on iOS
-          }}
-        />
-        <button 
-          type="submit" 
-          disabled={isLoading} 
-          className="send-button"
-          style={{
-            padding: '0.75rem 1.5rem',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: '#007AFF',
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-        >
-          Send
-        </button>
-      </form>
+        <div className="chat-header" style={{
+          padding: '1rem',
+          paddingTop: isIOS ? 'env(safe-area-inset-top)' : '1rem', // Account for iOS notch
+          borderBottom: '1px solid #eee',
+          backgroundColor: '#fff',
+          flexShrink: 0,
+          position: 'sticky',
+          top: 0,
+          zIndex: 1
+        }}>
+          <h3 style={{ margin: 0 }}>Token Probability Explorer & Alternative Messages</h3>
+          <button 
+            onClick={clearChat} 
+            className="refresh-button"
+            title="Clear chat history"
+            style={{ padding: '0.5rem' }}
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="20" 
+              height="20" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M3 21v-5h5" />
+            </svg>
+          </button>
+        </div>
+        <div className="messages-container" style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '1rem',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: '1rem'
+        }}>
+          {messages.map((message, index) => (
+            <Message 
+              key={index}
+              message={message}
+              onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
+            />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        <form onSubmit={handleSubmit} className="message-form" style={{
+          padding: '1rem',
+          borderTop: '1px solid #eee',
+          backgroundColor: '#fff',
+          position: isIOS ? 'fixed' : 'sticky',
+          bottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 60px)' : 0,
+          left: isIOS ? 0 : 'auto',
+          right: isIOS ? 0 : 'auto',
+          width: isIOS ? '100%' : '100%',
+          display: 'flex',
+          gap: '0.5rem',
+          flexShrink: 0,
+          zIndex: 2
+        }}>
+          <input
+            type="text"
+            value={currentMessage}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            placeholder="Type your message..."
+            disabled={isLoading}
+            className="message-input"
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              borderRadius: '8px',
+              border: '1px solid #ddd',
+              fontSize: '16px' // Prevents zoom on iOS
+            }}
+          />
+          <button 
+            type="submit" 
+            disabled={isLoading} 
+            className="send-button"
+            style={{
+              padding: '0.75rem 1.5rem',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: '#007AFF',
+              color: '#fff',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            }}
+          >
+            Send
+          </button>
+        </form>
+      </div>
     </div>
   );
 } 
