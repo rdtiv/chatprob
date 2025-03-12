@@ -33,7 +33,10 @@ export default function ChatInterface() {
     if (!currentMessage.trim() || isLoading) return;
 
     const userMessage = { role: 'user', content: currentMessage, timestamp: new Date().toISOString() };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev.map(msg => ({
+      ...msg,
+      content: msg.completions ? msg.completions[msg.activeIndex || 0] : msg.content
+    })), userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
 
