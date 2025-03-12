@@ -7,6 +7,11 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Update page title
+  useEffect(() => {
+    document.title = 'ChatProb';
+  }, []);
+
   // Detect iOS
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -31,6 +36,18 @@ export default function ChatInterface() {
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
   }, [messages]);
+
+  // Add viewport height effect for iOS Safari
+  useEffect(() => {
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setVh();
+    window.addEventListener('resize', setVh);
+    return () => window.removeEventListener('resize', setVh);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,7 +184,7 @@ export default function ChatInterface() {
 
   return (
     <div className="chat-container" style={{
-      height: '100vh',
+      height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
@@ -175,13 +192,18 @@ export default function ChatInterface() {
       left: 0,
       right: 0,
       bottom: 0,
-      overflowY: 'hidden'
+      overflowY: 'hidden',
+      paddingBottom: isIOS ? '20px' : 0, // Add padding for iOS Safari
+      backgroundColor: '#fff'
     }}>
       <div className="chat-header" style={{
         padding: '1rem',
         borderBottom: '1px solid #eee',
         backgroundColor: '#fff',
-        flexShrink: 0
+        flexShrink: 0,
+        position: 'sticky',
+        top: 0,
+        zIndex: 1
       }}>
         <h3 style={{ margin: 0 }}>Token Probability Explorer & Alternative Messages</h3>
         <button 
@@ -233,7 +255,9 @@ export default function ChatInterface() {
         bottom: 0,
         display: 'flex',
         gap: '0.5rem',
-        flexShrink: 0
+        flexShrink: 0,
+        zIndex: 1,
+        marginBottom: isIOS ? 'env(safe-area-inset-bottom)' : 0 // Add safe area for iOS
       }}>
         <input
           type="text"
