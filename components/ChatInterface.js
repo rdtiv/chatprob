@@ -66,16 +66,30 @@ export default function ChatInterface() {
         });
 
         if (!response.ok) throw new Error('Response was not ok');
-        const data = await response.json();  // Expect JSON instead of text
+        const text = await response.text();
         
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            ...newMessages[newMessages.length - 1],
-            content: data.content || data  // Handle both formats
-          };
-          return newMessages;
-        });
+        try {
+          // Try parsing as JSON first
+          const data = JSON.parse(text);
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: data.content || data
+            };
+            return newMessages;
+          });
+        } catch (e) {
+          // If not JSON, use as plain text
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: text
+            };
+            return newMessages;
+          });
+        }
       } else {
         // For non-iOS, use streaming
         const streamResponse = await fetch('/api/stream', {
