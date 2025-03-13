@@ -67,18 +67,16 @@ These visualizations help understand:
 - **TokenProbabilities.js**: Dynamic tooltip component with smart positioning and viewport boundary detection
 
 ### Backend Integration
-- **chat.js API Handler**: Custom endpoint using OpenAI completions API with logprobs parameter
+- **chat.js API Handler**: Endpoint for response generation and probability data
 - **stream.js API Handler**: Streaming endpoint for real-time response generation
 - **OpenAIStream.js**: Utility for processing streaming responses
 - **OpenAI SDK**: Integration with gpt-3.5-turbo and gpt-3.5-turbo-instruct models
 - **Probability Processing**: Token-level probability visualization with RGB color interpolation
 
 ### Data Flow
-1. User messages are sent to the streaming API for immediate response generation
-2. Streaming responses provide real-time feedback as tokens are generated
-3. After streaming completes, the chat API is called to get probability data
-4. The interface updates with probability visualization and alternative responses
-5. Users can toggle between responses with an animated flip transition
+1. User messages are sent to the chat API for response generation
+2. The API returns both the response and probability data
+3. The UI updates with the response and available completions
 
 ## Setup
 
@@ -128,19 +126,11 @@ npm run dev
 The application uses two API endpoints:
 
 ### /api/chat
-- Transforms conversation history into appropriate context
-- Requests completions with `logprobs: 5` parameter for probability data
-- Processes probability data for visualization
-- Uses temperature of 0.7 for balanced creativity
-- Generates multiple alternative completions
-- Returns structured probability data alongside responses
+- Provides response generation and probability data
+- Real-time response generation and probability analysis
 
 ### /api/stream
 - Provides real-time streaming responses
-- Uses gpt-3.5-turbo for natural conversation
-- Maintains conversation context
-- Handles connection management
-- Processes chunks for smooth display
 
 ## Educational Value
 
