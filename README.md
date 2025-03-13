@@ -42,7 +42,6 @@ This approach demystifies AI by letting users literally see the model's "thought
 - OpenAI GPT-3.5 Turbo Instruct model integration
 - Token-level probability analysis with logprobs
 - Multiple completion generation (n=2) for alternative responses
-- Streaming response support
 - Environment-based API key management
 
 ### Key Components
