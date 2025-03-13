@@ -217,7 +217,7 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
-          paddingTop: isIOS ? 'calc(env(safe-area-inset-top) + 0.75rem)' : '1rem',
+          paddingTop: isIOS ? 'calc(env(safe-area-inset-top) + 0.25rem)' : '1rem',
           paddingBottom: '0.75rem',
           borderBottom: '1px solid #eee',
           backgroundColor: '#fff',
