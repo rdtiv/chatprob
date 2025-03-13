@@ -192,11 +192,12 @@ export default function ChatInterface() {
       height: '100%',
       backgroundColor: isIOS ? '#fff' : '#f5f5f5',
       position: 'fixed',
-      top: isIOS ? '-3.5rem' : 0,
+      top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      overflow: 'hidden'
+      overflow: 'hidden',
+      paddingTop: isIOS ? 'env(safe-area-inset-top)' : 0
     }}>
       <div className="chat-container" style={{
         height: '100%',
@@ -218,7 +219,7 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
-          paddingTop: isIOS ? '0' : '1rem',
+          paddingTop: isIOS ? '0.5rem' : '1rem',
           paddingBottom: '0.75rem',
           borderBottom: '1px solid #eee',
           backgroundColor: '#fff',
@@ -257,7 +258,7 @@ export default function ChatInterface() {
           overflowY: 'auto',
           padding: '1rem',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 80px)' : '1rem'
+          paddingBottom: isIOS ? 'calc(1rem + 80px)' : '1rem'
         }}>
           {messages.map((message, index) => (
             <Message 
@@ -310,7 +311,7 @@ export default function ChatInterface() {
         
         <form onSubmit={handleSubmit} className="message-form" style={{
           padding: '0.75rem 1rem',
-          paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 0.75rem)' : '0.75rem',
+          paddingBottom: isIOS ? 'calc(0.75rem + env(safe-area-inset-bottom))' : '0.75rem',
           borderTop: '1px solid #eee',
           backgroundColor: '#fff',
           position: 'fixed',
