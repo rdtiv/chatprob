@@ -176,13 +176,22 @@ main {
 
 .token-probabilities-hover {
   position: fixed;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 300px;
+  background-color: #fafafa;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  width: calc(100% - 32px);
+  max-width: 300px;
   z-index: 1000;
   opacity: 0;
   animation: fadeIn 150ms ease-in forwards;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0 auto;
+  bottom: 140px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: auto !important;
 }
 
 @keyframes fadeIn {
@@ -196,58 +205,78 @@ main {
   }
 }
 
+.probability-item.selected {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.probability-item.selected .token-text {
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .token-probabilities-hover {
+    bottom: 120px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+}
+
 .probabilities-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid #eaeaea;
   background-color: #f8f9fa;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  display: flex;
+  align-items: center;
 }
 
 .probabilities-header h3 {
-  font-size: 1rem;
-  color: #333;
+  font-size: 0.95rem;
+  color: #1a1a1a;
   margin: 0;
   font-weight: 600;
 }
 
 .probabilities-list {
   list-style-type: none;
-  padding: 8px 0;
-  max-height: 300px;
-  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 1;
+  max-height: none !important;
 }
 
 .probability-item {
   display: flex;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 6px 16px;
   font-size: 0.9rem;
   transition: background-color 150ms ease;
+  align-items: center;
+  line-height: 1.2;
+  min-height: 36px;
 }
 
 .probability-item:last-child {
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  margin-bottom: 0;
   border-bottom: none;
 }
 
-.probability-item.selected {
-  background-color: #3b82f6;
-  color: white;
-}
-
 .token-text {
-  font-family: monospace;
-  margin-right: 12px;
-  font-size: 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  margin-right: 16px;
+  font-size: 0.9rem;
+  color: #1a1a1a;
 }
 
 .token-percentage {
   font-weight: 500;
-  font-size: 1rem;
-  color: #666;
+  font-size: 0.9rem;
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
 }
 
 .probability-item.selected .token-percentage {
@@ -394,6 +423,11 @@ main {
   .app-title, .app-subtitle {
     display: none;
   }
+  
+  .probability-item:last-child {
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+  }
 }
 
 .message-header {
@@ -460,4 +494,16 @@ main {
 .refresh-button:focus {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .token-probabilities-hover {
+    bottom: calc(140px + env(safe-area-inset-bottom));
+  }
+  
+  @media (max-width: 768px) {
+    .token-probabilities-hover {
+      bottom: calc(120px + env(safe-area-inset-bottom));
+    }
+  }
 } 
