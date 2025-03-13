@@ -6,6 +6,7 @@ export default function ChatInterface() {
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   // Update page title
   useEffect(() => {
@@ -40,14 +41,29 @@ export default function ChatInterface() {
   // Add viewport height effect for iOS Safari
   useEffect(() => {
     const setVh = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      const vh = window.innerHeight;
+      setViewportHeight(vh);
+      document.documentElement.style.setProperty('--vh', `${vh * 0.01}px`);
     };
 
     setVh();
     window.addEventListener('resize', setVh);
     return () => window.removeEventListener('resize', setVh);
   }, []);
+
+  // Add iOS-specific meta tag for viewport
+  useEffect(() => {
+    if (isIOS) {
+      // Add viewport meta tag to prevent content from being pushed down
+      let meta = document.querySelector('meta[name="viewport"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'viewport';
+        document.head.appendChild(meta);
+      }
+      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover';
+    }
+  }, [isIOS]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -189,15 +205,16 @@ export default function ChatInterface() {
       display: 'flex',
       justifyContent: 'center',
       width: '100%',
-      height: '100%',
-      backgroundColor: isIOS ? '#fff' : '#f5f5f5',
+      height: '100vh',
+      backgroundColor: '#fff',
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      overflow: 'hidden',
-      paddingTop: isIOS ? 'env(safe-area-inset-top)' : 0
+      margin: 0,
+      padding: 0,
+      overflow: 'hidden'
     }}>
       <div className="chat-container" style={{
         height: '100%',
@@ -208,7 +225,8 @@ export default function ChatInterface() {
         maxWidth: isIOS ? '100%' : '800px',
         overflowY: 'hidden',
         backgroundColor: '#fff',
-        marginTop: 0,
+        margin: 0,
+        padding: 0,
         ...(isIOS ? {} : { 
           boxShadow: '0 0 20px rgba(0,0,0,0.1)',
           margin: 'auto',
@@ -219,14 +237,15 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
-          paddingTop: isIOS ? '0.5rem' : '1rem',
+          paddingTop: isIOS ? '2rem' : '1rem', // Increased padding for iOS status bar
           paddingBottom: '0.75rem',
           borderBottom: '1px solid #eee',
           backgroundColor: '#fff',
           flexShrink: 0,
           position: 'sticky',
           top: 0,
-          zIndex: 10
+          zIndex: 10,
+          margin: 0
         }}>
           <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
           <button 
@@ -258,7 +277,8 @@ export default function ChatInterface() {
           overflowY: 'auto',
           padding: '1rem',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: isIOS ? 'calc(1rem + 80px)' : '1rem'
+          paddingBottom: isIOS ? '100px' : '1rem',
+          margin: 0
         }}>
           {messages.map((message, index) => (
             <Message 
@@ -311,7 +331,7 @@ export default function ChatInterface() {
         
         <form onSubmit={handleSubmit} className="message-form" style={{
           padding: '0.75rem 1rem',
-          paddingBottom: isIOS ? 'calc(0.75rem + env(safe-area-inset-bottom))' : '0.75rem',
+          paddingBottom: isIOS ? '2rem' : '0.75rem', // Increased padding for iOS home indicator
           borderTop: '1px solid #eee',
           backgroundColor: '#fff',
           position: 'fixed',
@@ -322,7 +342,8 @@ export default function ChatInterface() {
           display: 'flex',
           gap: '0.5rem',
           flexShrink: 0,
-          zIndex: 2
+          zIndex: 2,
+          margin: 0
         }}>
           <div style={{
             position: 'relative',
@@ -343,7 +364,8 @@ export default function ChatInterface() {
                 border: '1px solid #ddd',
                 fontSize: '16px',
                 backgroundColor: '#f8f9fa',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                margin: 0
               }}
             />
             <button 
@@ -364,7 +386,8 @@ export default function ChatInterface() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                margin: 0
               }}
             >
               <svg 
