@@ -192,7 +192,7 @@ export default function ChatInterface() {
       height: '100%',
       backgroundColor: isIOS ? '#fff' : '#f5f5f5',
       position: 'fixed',
-      top: 0,
+      top: isIOS ? '-3.5rem' : 0,
       left: 0,
       right: 0,
       bottom: 0,
@@ -207,6 +207,7 @@ export default function ChatInterface() {
         maxWidth: isIOS ? '100%' : '800px',
         overflowY: 'hidden',
         backgroundColor: '#fff',
+        marginTop: 0,
         ...(isIOS ? {} : { 
           boxShadow: '0 0 20px rgba(0,0,0,0.1)',
           margin: 'auto',
@@ -217,14 +218,14 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
-          paddingTop: isIOS ? 'calc(env(safe-area-inset-top) + 0.25rem)' : '1rem',
+          paddingTop: isIOS ? '0' : '1rem',
           paddingBottom: '0.75rem',
           borderBottom: '1px solid #eee',
           backgroundColor: '#fff',
           flexShrink: 0,
           position: 'sticky',
           top: 0,
-          zIndex: 1
+          zIndex: 10
         }}>
           <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
           <button 
