@@ -120,7 +120,7 @@ export default function ChatInterface() {
       <div className="chat-container" style={{
         maxWidth: '800px',
         width: '100%',
-        height: 'calc(100% - 80px)',
+        height: '100%',
         margin: '0 auto'
       }}>
         <div className="chat-header">
