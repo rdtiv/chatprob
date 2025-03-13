@@ -9,6 +9,12 @@ export default function Home() {
         <title>ChatProb</title>
         <meta name="description" content="Explore token probabilities and alternative responses" />
         <link rel="icon" href="/favicon.ico" />
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
       </Head>
 
       <main style={{ padding: '1rem' }}>

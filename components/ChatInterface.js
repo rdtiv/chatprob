@@ -62,13 +62,6 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      // Add initial empty assistant message
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString()
-      }]);
-
       if (isIOS) {
         // For iOS, skip streaming and get final response directly
         const response = await fetch('/api/chat', {
@@ -82,16 +75,13 @@ export default function ChatInterface() {
         if (!response.ok) throw new Error('Response was not ok');
         const data = await response.json();
         
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          return [...prev.slice(0, -1), {
-            ...lastMessage,
-            content: data.completions[0],
-            completions: data.completions,
-            activeIndex: 0
-          }];
-        });
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.completions[0],
+          completions: data.completions,
+          activeIndex: 0,
+          timestamp: new Date().toISOString()
+        }]);
       } else {
         // For non-iOS, use streaming
         const streamResponse = await fetch('/api/stream', {
@@ -109,6 +99,9 @@ export default function ChatInterface() {
         const decoder = new TextDecoder();
         let streamedContent = '';
 
+        // Add the assistant message only when we get the first chunk
+        let assistantMessageAdded = false;
+
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -117,14 +110,23 @@ export default function ChatInterface() {
             const chunk = decoder.decode(value, { stream: true });
             streamedContent += chunk;
 
-            setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[newMessages.length - 1] = {
-                ...newMessages[newMessages.length - 1],
-                content: streamedContent
-              };
-              return newMessages;
-            });
+            if (!assistantMessageAdded) {
+              setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: streamedContent,
+                timestamp: new Date().toISOString()
+              }]);
+              assistantMessageAdded = true;
+            } else {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = {
+                  ...newMessages[newMessages.length - 1],
+                  content: streamedContent
+                };
+                return newMessages;
+              });
+            }
           }
         } finally {
           reader.releaseLock();
@@ -257,6 +259,45 @@ export default function ChatInterface() {
               onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
             />
           ))}
+          {isLoading && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-start',
+              padding: '12px 16px',
+              marginTop: '8px'
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '4px',
+                alignItems: 'center'
+              }}>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  backgroundColor: '#94a3b8',
+                  borderRadius: '50%',
+                  animation: 'pulse 1s infinite ease-in-out',
+                  animationDelay: '0s'
+                }}></span>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  backgroundColor: '#94a3b8',
+                  borderRadius: '50%',
+                  animation: 'pulse 1s infinite ease-in-out',
+                  animationDelay: '0.2s'
+                }}></span>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  backgroundColor: '#94a3b8',
+                  borderRadius: '50%',
+                  animation: 'pulse 1s infinite ease-in-out',
+                  animationDelay: '0.4s'
+                }}></span>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
         
