@@ -1,4 +1,4 @@
-# Token Explorer
+# ChatProb
 
 An instructive chat application that visually exposes the inner workings of AI language models by revealing token probabilities and alternative responses, offering unprecedented transparency into how AI "thinks" when generating responses.
 
@@ -29,54 +29,36 @@ This approach demystifies AI by letting users literally see the model's "thought
 - **Streamlined UI**: Clean, minimal interface with subtle visual hierarchy and compact message bubbles
 - **Intuitive Message Flow**: Messages are distinguished by position and color without explicit role labels
 
-## Understanding AI Language Generation
+## Technical Implementation
 
-### How Language Models Think
-
-When generating text, GPT-3.5 doesn't simply "know" the right words. Instead, it:
-
-1. Analyzes all previous context (the conversation history)
-2. For each position, computes probability scores for thousands of potential tokens
-3. Selects tokens based on these probabilities (influenced by temperature setting)
-4. Generates multiple possible responses to demonstrate its non-deterministic nature
-5. Builds each response one token at a time in this probabilistic manner
-
-### Visualization Components
-
-Our application exposes this process through:
-
-- **Token-level Visualization**: The `Message.js` component renders individual tokens with color-coded backgrounds based on their probability
-- **Probability Tooltips**: The `TokenProbabilities.js` component provides detailed insights into alternative choices
-- **Response Toggle**: A dedicated UI control with smooth flip animation for switching between alternative responses, complete with a counter showing position in the sequence
-- **Color Gradient System**: Background colors dynamically calculated based on token probability
-- **Adaptive Positioning**: Smart tooltip placement that adjusts to viewport boundaries
-
-These visualizations help understand:
-
-- When the model is confident versus uncertain
-- How context influences word choice probability
-- The range of alternatives the model considers viable
-- How the same prompt can yield different but equally valid responses
-- How seemingly small probability differences can lead to entirely different response paths
-
-## Technical Architecture
-
-### Frontend Components
-- **ChatInterface.js**: Main conversation container with message history, input handling, and iOS-specific optimizations
-- **Message.js**: Renders messages with token probability visualization and flip animation for alternative responses
-- **TokenProbabilities.js**: Dynamic tooltip component with smart positioning and viewport boundary detection
+### Frontend Architecture
+- Built with Next.js 13.5.6 and React 18.2.0
+- Styled with CSS-in-JS using styled-jsx
+- Mobile-first responsive design with iOS-specific optimizations
+- Efficient state management using React hooks
+- Smart tooltip positioning with viewport boundary detection
 
 ### Backend Integration
-- **chat.js API Handler**: Endpoint for response generation and probability data
-- **stream.js API Handler**: Streaming endpoint for real-time response generation
-- **OpenAIStream.js**: Utility for processing streaming responses
-- **OpenAI SDK**: Integration with gpt-3.5-turbo and gpt-3.5-turbo-instruct models
-- **Probability Processing**: Token-level probability visualization with RGB color interpolation
+- OpenAI GPT-3.5 Turbo Instruct model integration
+- Token-level probability analysis with logprobs
+- Multiple completion generation (n=2) for alternative responses
+- Streaming response support
+- Environment-based API key management
 
-### Data Flow
-1. User messages are sent to the chat API for response generation
-2. The API returns both the response and probability data
-3. The UI updates with the response and available completions
+### Key Components
+- **ChatInterface**: Main conversation container with message history and input handling
+- **Message**: Renders messages with token probability visualization and flip animation
+- **TokenProbabilities**: Dynamic tooltip component with smart positioning
+- **API Handlers**: Endpoints for chat and streaming responses
+
+### Mobile Optimizations
+- Viewport height adjustments for iOS Safari
+- Safe area insets for notched devices
+- Touch-optimized hover interactions
+- Responsive tooltip positioning
+- Optimized animations for mobile performance
+- Smart keyboard handling
+- iOS-specific viewport fixes
 
 ## Setup
 
@@ -108,37 +90,31 @@ npm run dev
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "styled-jsx": "^5.1.6"
+  },
+  "devDependencies": {
+    "eslint": "8.45.0",
+    "eslint-config-next": "13.5.6"
   }
 }
 ```
 
-## Mobile Optimizations
+## API Integration
 
-- Viewport height adjustments for iOS Safari
-- Smart keyboard handling
-- Safe area insets for notched devices
-- Touch-optimized hover interactions
-- Responsive tooltip positioning
-- Optimized animations for mobile performance
+The application uses the OpenAI API with the following features:
 
-## API Details
+### Chat Endpoint (/api/chat)
+- Uses GPT-3.5 Turbo Instruct model
+- Generates multiple completions (n=2)
+- Provides token-level probabilities (logprobs=5)
+- Temperature setting of 0.7 for balanced creativity
+- Max tokens: 300 per response
+- Smart prompt formatting with role markers
 
-The application uses two API endpoints:
-
-### /api/chat
-- Provides response generation and probability data
-- Real-time response generation and probability analysis
-
-### /api/stream
-- Provides real-time streaming responses
-
-## Educational Value
-
-This project serves as:
-- A teaching tool for understanding how language models work
-- A demonstration of the probabilistic nature of AI text generation
-- An example of how to make complex AI concepts accessible through visualization
-- A practical implementation of AI transparency principles
+### Response Processing
+- Token probability visualization using RGB interpolation
+- Dynamic color mapping based on confidence levels
+- Efficient probability calculations
+- Smart token formatting for special characters
 
 ## Security and Performance
 
