@@ -16,24 +16,31 @@ export default function TokenProbabilities({
       const rect = card.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
+      const padding = 16; // Minimum padding from viewport edges
+      const minDistanceFromBottom = 80; // Minimum distance from bottom of viewport
 
-      // Calculate adjusted position
-      let left = position.x;
-      let top = position.y + 20; // Add some offset from cursor
+      // Start with position above the cursor
+      let top = position.y - rect.height - 8;
+      let left = position.x - (rect.width / 2);
 
-      // Adjust horizontal position if needed
-      if (left + rect.width > viewportWidth) {
-        left = viewportWidth - rect.width - 20;
+      // If too close to top, position below cursor
+      if (top < padding) {
+        top = position.y + 24;
       }
 
-      // Adjust vertical position if needed
-      if (top + rect.height > viewportHeight) {
-        top = position.y - rect.height - 20;
+      // If still too close to bottom, force position above
+      if (top + rect.height > viewportHeight - minDistanceFromBottom) {
+        top = position.y - rect.height - 8;
       }
+
+      // Ensure left/right positioning stays within viewport
+      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
 
       // Apply position
-      card.style.left = `${left}px`;
+      card.style.position = 'fixed';
       card.style.top = `${top}px`;
+      card.style.left = `${left}px`;
+      card.style.transform = 'none'; // Remove default transform
     }
   }, [position]);
 
@@ -85,15 +92,11 @@ export default function TokenProbabilities({
     width: 'calc(100% - 32px)',
     maxWidth: '300px',
     zIndex: 1000,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    margin: '0 auto',
-    bottom: '140px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    animation: 'fadeIn 150ms ease-in forwards',
-    height: 'fit-content' // Ensure height fits content exactly
+    opacity: 0,
+    animation: 'fadeIn 150ms ease-in forwards'
   };
   
   const headerStyle = {
@@ -141,8 +144,7 @@ export default function TokenProbabilities({
               backgroundColor: isSelected ? '#3b82f6' : 'transparent',
               color: isSelected ? '#ffffff' : 'inherit',
               borderBottomLeftRadius: isLast ? '16px' : '0',
-              borderBottomRightRadius: isLast ? '16px' : '0',
-              marginBottom: 0
+              borderBottomRightRadius: isLast ? '16px' : '0'
             };
             
             return (
