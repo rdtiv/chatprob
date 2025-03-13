@@ -100,7 +100,6 @@ main {
 
 .message {
   margin-bottom: 16px;
-  padding: 8px 16px;
   border-radius: 8px;
   max-width: 80%;
   position: relative;
@@ -128,11 +127,13 @@ main {
   background-color: #e9f5ff;
   align-self: flex-end;
   margin-left: auto;
+  padding: 1px 10px;
 }
 
 .assistant-message {
   background-color: #f0f0f0;
   align-self: flex-start;
+  padding: 4px 12px;
 }
 
 .message-role {
@@ -141,6 +142,7 @@ main {
 
 .message-text {
   word-wrap: break-word;
+  line-height: 1.4;
 }
 
 .token {
@@ -242,7 +244,7 @@ main {
   font-size: 0.7rem;
   color: #999;
   text-align: right;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .message-form {
