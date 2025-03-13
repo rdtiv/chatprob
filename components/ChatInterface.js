@@ -315,37 +315,64 @@ export default function ChatInterface() {
           flexShrink: 0,
           zIndex: 2
         }}>
-          <input
-            type="text"
-            value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            className="message-input"
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #ddd',
-              fontSize: '16px' // Prevents zoom on iOS
-            }}
-          />
-          <button 
-            type="submit" 
-            disabled={isLoading} 
-            className="send-button"
-            style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: '#007AFF',
-              color: '#fff',
-              fontWeight: 'bold',
-              fontSize: '16px'
-            }}
-          >
-            Send
-          </button>
+          <div style={{
+            position: 'relative',
+            width: '100%'
+          }}>
+            <input
+              type="text"
+              value={currentMessage}
+              onChange={(e) => setCurrentMessage(e.target.value)}
+              placeholder="Type your message..."
+              disabled={isLoading}
+              className="message-input"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                paddingRight: '2.5rem',
+                borderRadius: '12px',
+                border: '1px solid #ddd',
+                fontSize: '16px',
+                backgroundColor: '#f8f9fa',
+                transition: 'all 0.2s ease'
+              }}
+            />
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              className="send-button"
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                padding: '6px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: isLoading ? '#94a3b8' : '#2563eb',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2" />
+              </svg>
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -259,6 +259,13 @@ main {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
+  outline: none;
+}
+
+.message-input:focus {
+  border-color: #2563eb;
+  background-color: #fff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
 .send-button {
@@ -276,6 +283,15 @@ main {
 .send-button:disabled {
   background-color: #93c5fd;
   cursor: not-allowed;
+}
+
+.send-button:hover:not(:disabled) {
+  background-color: #f0f4ff;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.send-button:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.95);
 }
 
 .loading-indicator {
