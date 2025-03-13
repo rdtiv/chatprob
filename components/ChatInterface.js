@@ -46,29 +46,31 @@ export default function ChatInterface() {
     };
 
     setVh();
+    
+    // Update on resize and orientation change
     window.addEventListener('resize', setVh);
     window.addEventListener('orientationchange', () => {
+      // Wait for iOS to finish its resize
       setTimeout(setVh, 100);
     });
+    
+    // Update on keyboard show/hide
+    if (isIOS) {
+      window.visualViewport.addEventListener('resize', () => {
+        const newVh = window.visualViewport.height * 0.01;
+        document.documentElement.style.setProperty('--vh', `${newVh}px`);
+        // Scroll the messages container to bottom when keyboard appears
+        scrollToBottom();
+      });
+    }
 
     return () => {
       window.removeEventListener('resize', setVh);
       window.removeEventListener('orientationchange', setVh);
-    };
-  }, []);
-
-  // Add iOS-specific meta tag for viewport
-  useEffect(() => {
-    if (isIOS) {
-      // Add viewport meta tag to prevent content from being pushed down
-      let meta = document.querySelector('meta[name="viewport"]');
-      if (!meta) {
-        meta = document.createElement('meta');
-        meta.name = 'viewport';
-        document.head.appendChild(meta);
+      if (isIOS) {
+        window.visualViewport.removeEventListener('resize', setVh);
       }
-      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover';
-    }
+    };
   }, [isIOS]);
 
   const handleSubmit = async (e) => {
@@ -211,7 +213,7 @@ export default function ChatInterface() {
       display: 'flex',
       justifyContent: 'center',
       width: '100%',
-      height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
+      height: '100%',
       backgroundColor: '#fff',
       position: 'fixed',
       top: 0,
@@ -220,47 +222,15 @@ export default function ChatInterface() {
       bottom: 0,
       margin: 0,
       padding: 0,
-      overflow: 'hidden',
-      paddingTop: isIOS ? 'env(safe-area-inset-top)' : 0,
-      paddingBottom: isIOS ? 'env(safe-area-inset-bottom)' : 0
+      overflow: 'hidden'
     }}>
-      <div className="chat-container" style={{
-        height: isIOS ? '100%' : '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        width: '100%',
-        maxWidth: isIOS ? '100%' : '800px',
-        overflowY: 'hidden',
-        backgroundColor: '#fff',
-        margin: 0,
-        padding: 0,
-        ...(isIOS ? {} : { 
-          boxShadow: '0 0 20px rgba(0,0,0,0.1)',
-          margin: 'auto',
-          borderRadius: '10px',
-          height: '70vh',
-          maxHeight: '700px'
-        })
-      }}>
-        <div className="chat-header" style={{
-          padding: '1rem',
-          paddingTop: isIOS ? 'calc(0.5rem + env(safe-area-inset-top))' : '1rem',
-          paddingBottom: '0.75rem',
-          borderBottom: '1px solid #eee',
-          backgroundColor: '#fff',
-          flexShrink: 0,
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          margin: 0
-        }}>
+      <div className="chat-container">
+        <div className="chat-header">
           <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
           <button 
             onClick={clearChat} 
             className="refresh-button"
             title="Clear chat history"
-            style={{ padding: '0.5rem' }}
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -280,14 +250,7 @@ export default function ChatInterface() {
             </svg>
           </button>
         </div>
-        <div className="messages-container" style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '1rem',
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: isIOS ? '100px' : '1rem',
-          margin: 0
-        }}>
+        <div className="messages-container">
           {messages.map((message, index) => (
             <Message 
               key={index}
@@ -337,25 +300,11 @@ export default function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
         
-        <form onSubmit={handleSubmit} className="message-form" style={{
-          padding: '0.75rem 1rem',
-          paddingBottom: isIOS ? 'calc(0.75rem + env(safe-area-inset-bottom))' : '0.75rem',
-          borderTop: '1px solid #eee',
-          backgroundColor: '#fff',
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          width: '100%',
-          display: 'flex',
-          gap: '0.5rem',
-          flexShrink: 0,
-          zIndex: 2,
-          margin: 0
-        }}>
+        <form onSubmit={handleSubmit} className="message-form">
           <div style={{
             position: 'relative',
-            width: '100%'
+            width: '100%',
+            display: 'flex'
           }}>
             <input
               type="text"
@@ -364,39 +313,12 @@ export default function ChatInterface() {
               placeholder="Type your message..."
               disabled={isLoading}
               className="message-input"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                paddingRight: '2.5rem',
-                borderRadius: '12px',
-                border: '1px solid #ddd',
-                fontSize: '16px',
-                backgroundColor: '#f8f9fa',
-                transition: 'all 0.2s ease',
-                margin: 0
-              }}
             />
             <button 
               type="submit" 
               disabled={isLoading} 
               className="send-button"
-              style={{
-                position: 'absolute',
-                right: '8px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                padding: '6px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: isLoading ? '#94a3b8' : '#2563eb',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease',
-                margin: 0
-              }}
+              aria-label="Send message"
             >
               <svg 
                 width="20" 
