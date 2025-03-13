@@ -8,7 +8,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 
 ChatProb makes AI more transparent by visualizing:
 
-1. **Token-level confidence**: Color-coded tokens show exactly how confident the model is about each word choice (green for high confidence, yellow for medium, red for low)
+1. **Token-level confidence**: Color-coded tokens show exactly how confident the model is about each word choice (green for high confidence, yellow for medium, red for low).
 2. **Alternative choices**: On hover, users can see the top 5 alternative words the model considered at each position
 3. **Alternative responses**: For each prompt, the system generates multiple complete responses with an elegant flip animation to toggle between them, demonstrating the non-deterministic nature of AI
 4. **Decision transparency**: Probability percentages reveal the model's certainty in its choices and the viability of alternatives
