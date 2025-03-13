@@ -62,21 +62,23 @@ These visualizations help understand:
 ## Technical Architecture
 
 ### Frontend Components
-- **ChatInterface.js**: Main conversation container with message history and input handling, featuring a gradient header for visual hierarchy
-- **Message.js**: Renders messages with token probability visualization in a compact, clean format
-- **TokenProbabilities.js**: Dynamic tooltip showing alternative token choices
+- **ChatInterface.js**: Main conversation container with message history, input handling, and iOS-specific optimizations
+- **Message.js**: Renders messages with token probability visualization and flip animation for alternative responses
+- **TokenProbabilities.js**: Dynamic tooltip component with smart positioning and viewport boundary detection
 
 ### Backend Integration
-- **chat.js API Handler**: Custom endpoint leveraging the OpenAI completions API with logprobs parameter
-- **OpenAI SDK**: Integration with gpt-3.5-turbo-instruct model for probability access
-- **Probability Processing**: Transformation of complex log probability values into user-friendly visualizations
+- **chat.js API Handler**: Custom endpoint using OpenAI completions API with logprobs parameter
+- **stream.js API Handler**: Streaming endpoint for real-time response generation
+- **OpenAIStream.js**: Utility for processing streaming responses
+- **OpenAI SDK**: Integration with gpt-3.5-turbo and gpt-3.5-turbo-instruct models
+- **Probability Processing**: Token-level probability visualization with RGB color interpolation
 
 ### Data Flow
-1. User messages are sent to the API with conversation context
-2. The API returns both the response text and token probability data, along with multiple alternative completions
-3. The interface renders this data with interactive visualization and elegant toggle controls
-4. Hover interactions reveal deeper probability insights
-5. Users can seamlessly switch between alternative responses with a smooth flip animation
+1. User messages are sent to the streaming API for immediate response generation
+2. Streaming responses provide real-time feedback as tokens are generated
+3. After streaming completes, the chat API is called to get probability data
+4. The interface updates with probability visualization and alternative responses
+5. Users can toggle between responses with an animated flip transition
 
 ## Setup
 
@@ -96,15 +98,49 @@ OPENAI_API_KEY=your_api_key_here
 npm run dev
 ```
 
+## Dependencies
+
+```json
+{
+  "dependencies": {
+    "@next/env": "13.5.6",
+    "@swc/helpers": "0.5.2",
+    "next": "13.5.6",
+    "openai": "^4.10.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "styled-jsx": "^5.1.6"
+  }
+}
+```
+
+## Mobile Optimizations
+
+- Viewport height adjustments for iOS Safari
+- Smart keyboard handling
+- Safe area insets for notched devices
+- Touch-optimized hover interactions
+- Responsive tooltip positioning
+- Optimized animations for mobile performance
+
 ## API Details
 
-The application uses a custom API endpoint (`/api/chat`) that:
+The application uses two API endpoints:
+
+### /api/chat
 - Transforms conversation history into appropriate context
 - Requests completions with `logprobs: 5` parameter for probability data
-- Processes the complex probability response into usable frontend format
+- Processes probability data for visualization
 - Uses temperature of 0.7 for balanced creativity
-- Limits responses to 150 tokens for performance
-- Returns structured probability data alongside the response text
+- Generates multiple alternative completions
+- Returns structured probability data alongside responses
+
+### /api/stream
+- Provides real-time streaming responses
+- Uses gpt-3.5-turbo for natural conversation
+- Maintains conversation context
+- Handles connection management
+- Processes chunks for smooth display
 
 ## Educational Value
 
@@ -121,6 +157,8 @@ This project serves as:
 - Smart hover delay (100ms) to prevent excessive tooltip rendering
 - Efficient color calculation with RGB interpolation
 - Optimized tooltip positioning calculations
+- Streaming responses for better UX
+- Mobile-optimized interactions
 
 ## Contributing
 
