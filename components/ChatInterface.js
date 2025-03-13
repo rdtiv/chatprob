@@ -187,11 +187,12 @@ export default function ChatInterface() {
       display: 'flex',
       justifyContent: 'center',
       width: '100%',
-      height: '100vh',
+      height: 'auto',
       backgroundColor: '#f5f5f5'
     }}>
       <div className="chat-container" style={{
-        height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
+        height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '70vh',
+        maxHeight: '700px',
         display: 'flex',
         flexDirection: 'column',
         position: isIOS ? 'fixed' : 'relative',
@@ -204,7 +205,8 @@ export default function ChatInterface() {
         overflowY: 'hidden',
         paddingBottom: isIOS ? 'calc(env(safe-area-inset-bottom) + 80px)' : 0,
         backgroundColor: '#fff',
-        ...(isIOS ? {} : { boxShadow: '0 0 20px rgba(0,0,0,0.1)' })
+        ...(isIOS ? {} : { boxShadow: '0 0 20px rgba(0,0,0,0.1)' }),
+        margin: 'auto'
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
@@ -216,7 +218,7 @@ export default function ChatInterface() {
           top: 0,
           zIndex: 1
         }}>
-          <h3 style={{ margin: 0 }}>Token Probability Explorer & Alternative Messages</h3>
+          <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
           <button 
             onClick={clearChat} 
             className="refresh-button"

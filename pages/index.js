@@ -6,14 +6,13 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>ChatProb - OpenAI Chat with Token Probabilities</title>
-        <meta name="description" content="Observe token probabilities and alternative messages" />
+        <title>ChatProb</title>
+        <meta name="description" content="Explore token probabilities and alternative responses" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main>
-        <h1 className="app-title">ChatProb</h1>
-        <p className="app-subtitle">Observe token probabilities and alternative messages</p>
+      <main style={{ padding: '1rem' }}>
+        <h1 className="app-title" style={{ margin: '0 0 1rem 0' }}>ChatProb</h1>
         <ChatInterface />
       </main>
     </div>
