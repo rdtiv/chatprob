@@ -538,4 +538,10 @@ main {
       bottom: calc(120px + var(--safe-area-inset-bottom));
     }
   }
+}
+
+@media (min-width: 768px) {
+  .desktop-only {
+    display: block !important;
+  }
 } 

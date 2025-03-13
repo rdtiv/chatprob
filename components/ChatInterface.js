@@ -211,7 +211,8 @@ export default function ChatInterface() {
   return (
     <div style={{
       display: 'flex',
-      justifyContent: 'center',
+      flexDirection: 'column',
+      alignItems: 'center',
       width: '100%',
       height: '100%',
       backgroundColor: '#fff',
@@ -224,7 +225,19 @@ export default function ChatInterface() {
       padding: 0,
       overflow: 'hidden'
     }}>
-      <div className="chat-container">
+      <h1 style={{ 
+        margin: '20px 0',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#3b82f6',
+        display: 'none'
+      }} className="desktop-only">ChatProb</h1>
+      <div className="chat-container" style={{
+        maxWidth: '800px',
+        width: '100%',
+        height: 'calc(100% - 80px)',
+        margin: '0 auto'
+      }}>
         <div className="chat-header">
           <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
           <button 
