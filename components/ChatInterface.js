@@ -38,17 +38,23 @@ export default function ChatInterface() {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
   }, [messages]);
 
-  // Add viewport height effect for iOS Safari
+  // Update viewport height effect for iOS Safari
   useEffect(() => {
     const setVh = () => {
-      const vh = window.innerHeight;
-      setViewportHeight(vh);
-      document.documentElement.style.setProperty('--vh', `${vh * 0.01}px`);
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
 
     setVh();
     window.addEventListener('resize', setVh);
-    return () => window.removeEventListener('resize', setVh);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(setVh, 100);
+    });
+
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
   }, []);
 
   // Add iOS-specific meta tag for viewport
@@ -205,7 +211,7 @@ export default function ChatInterface() {
       display: 'flex',
       justifyContent: 'center',
       width: '100%',
-      height: '100vh',
+      height: isIOS ? 'calc(var(--vh, 1vh) * 100)' : '100vh',
       backgroundColor: '#fff',
       position: 'fixed',
       top: 0,
@@ -214,10 +220,12 @@ export default function ChatInterface() {
       bottom: 0,
       margin: 0,
       padding: 0,
-      overflow: 'hidden'
+      overflow: 'hidden',
+      paddingTop: isIOS ? 'env(safe-area-inset-top)' : 0,
+      paddingBottom: isIOS ? 'env(safe-area-inset-bottom)' : 0
     }}>
       <div className="chat-container" style={{
-        height: '100%',
+        height: isIOS ? '100%' : '100%',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -237,7 +245,7 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header" style={{
           padding: '1rem',
-          paddingTop: isIOS ? '2rem' : '1rem', // Increased padding for iOS status bar
+          paddingTop: isIOS ? 'calc(0.5rem + env(safe-area-inset-top))' : '1rem',
           paddingBottom: '0.75rem',
           borderBottom: '1px solid #eee',
           backgroundColor: '#fff',
@@ -331,7 +339,7 @@ export default function ChatInterface() {
         
         <form onSubmit={handleSubmit} className="message-form" style={{
           padding: '0.75rem 1rem',
-          paddingBottom: isIOS ? '2rem' : '0.75rem', // Increased padding for iOS home indicator
+          paddingBottom: isIOS ? 'calc(0.75rem + env(safe-area-inset-bottom))' : '0.75rem',
           borderTop: '1px solid #eee',
           backgroundColor: '#fff',
           position: 'fixed',
