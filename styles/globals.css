@@ -192,6 +192,39 @@ main {
   line-height: 1.3;
 }
 
+.sampled-outside-top {
+  border-top: 1px dashed #eab308;
+  background: #fffbeb;
+  padding: 8px 16px 10px;
+}
+
+.sampled-outside-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sampled-outside-top-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  color: #92400e;
+}
+
+.sampled-outside-top-pct {
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: #92400e;
+}
+
+.sampled-outside-top-note {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: #a16207;
+  line-height: 1.3;
+}
+
 @keyframes tokenHintPulse {
   0%, 100% {
     box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5);

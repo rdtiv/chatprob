@@ -4,6 +4,7 @@ export default function TokenProbabilities({
   probabilities, 
   position, 
   selectedToken,
+  selectedLogprob,
   onMouseEnter,
   onMouseLeave 
 }) {
@@ -47,37 +48,36 @@ export default function TokenProbabilities({
     card.style.transform = 'none';
   }, [position, probabilities]);
 
-  if (!probabilities || Object.keys(probabilities).length === 0) {
-    return null;
-  }
-  
-  // Convert logprobs to percentages
-  const getPercentage = (logprob) => {
-    const percentage = Math.exp(logprob) * 100;
-    if (percentage < 0.5) return '<0.5%';
-    return percentage.toFixed(percentage < 10 ? 2 : 1) + '%';
-  };
-  
-  // Format token for display - replace whitespace with visible representation
-  const formatToken = (token) => {
-    if (token === ' ') return '␣'; // Space
-    if (token === '\n') return '↵'; // Newline
-    if (token === '\t') return '→'; // Tab
-    return token;
-  };
-  
-  let sortedEntries = Object.entries(probabilities)
-    .filter(([token, logprob]) => (
-      token === selectedToken || Math.exp(logprob) * 100 >= 0.5
-    ))
-    .sort((a, b) => b[1] - a[1])
+  const ranked = Object.entries(probabilities || {}).sort((a, b) => b[1] - a[1]);
+  const selectedRank = ranked.findIndex(([token]) => token === selectedToken);
+  const resolvedSelectedLogprob = selectedRank >= 0
+    ? ranked[selectedRank][1]
+    : (typeof selectedLogprob === 'number' ? selectedLogprob : null);
+  const inTopFive = selectedRank >= 0 && selectedRank < 5;
+  const topEntries = ranked
+    .filter(([token, logprob]) => token === selectedToken || Math.exp(logprob) * 100 >= 0.5)
     .slice(0, 5);
 
-  if (sortedEntries.length === 0) {
-    sortedEntries = Object.entries(probabilities)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 1);
+  if (topEntries.length === 0 && resolvedSelectedLogprob == null) {
+    return null;
   }
+
+  const getPercentage = (logprob) => {
+    const percentage = Math.exp(logprob) * 100;
+    if (percentage >= 10) return percentage.toFixed(1) + '%';
+    if (percentage >= 1) return percentage.toFixed(2) + '%';
+    if (percentage >= 0.1) return percentage.toFixed(2) + '%';
+    if (percentage >= 0.01) return percentage.toFixed(3) + '%';
+    if (percentage >= 0.001) return percentage.toFixed(4) + '%';
+    return '<0.001%';
+  };
+
+  const formatToken = (token) => {
+    if (token === ' ') return '␣';
+    if (token === '\n') return '↵';
+    if (token === '\t') return '→';
+    return token;
+  };
   
   // Define keyframes for fade-in animation
   const fadeInKeyframes = `
@@ -138,12 +138,12 @@ export default function TokenProbabilities({
         style={containerStyle}
       >
         <div style={headerStyle}>
-          <h3 style={{ fontSize: '0.95rem', color: '#1a1a1a', margin: 0, fontWeight: 600 }}>Top Probabilities:</h3>
+          <h3 style={{ fontSize: '0.95rem', color: '#1a1a1a', margin: 0, fontWeight: 600 }}>Most likely</h3>
         </div>
         <ul style={listStyle}>
-          {sortedEntries.map(([token, logprob], index) => {
-            const isSelected = token === selectedToken;
-            const isLast = index === sortedEntries.length - 1;
+          {topEntries.map(([token, logprob], index) => {
+            const isSelected = inTopFive && token === selectedToken;
+            const isLast = index === topEntries.length - 1 && inTopFive;
             
             const itemStyle = {
               display: 'flex',
@@ -180,6 +180,15 @@ export default function TokenProbabilities({
             );
           })}
         </ul>
+        {!inTopFive && selectedToken != null && resolvedSelectedLogprob != null && (
+          <div className="sampled-outside-top">
+            <div className="sampled-outside-top-row">
+              <span className="sampled-outside-top-token">{formatToken(selectedToken)}</span>
+              <span className="sampled-outside-top-pct">{getPercentage(resolvedSelectedLogprob)}</span>
+            </div>
+            <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
+          </div>
+        )}
       </div>
     </>
   );

@@ -260,6 +260,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
           probabilities={completions[safeIndex]?.tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
           position={mousePosition}
           selectedToken={hoveredToken.token}
+          selectedLogprob={completions[safeIndex]?.tokenProbabilities[hoveredToken.index]?.logprob}
           onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
           onMouseLeave={handleTokenMouseLeave}
         />
