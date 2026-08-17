@@ -112,6 +112,54 @@ main {
   letter-spacing: -0.01em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sampling-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sampling-control input[type='range'] {
+  width: 88px;
+  accent-color: #2563eb;
+}
+
+.prompt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 16px;
+}
+
+.prompt-chip {
+  border: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+}
+
+.prompt-chip:hover {
+  border-color: #93c5fd;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -260,6 +308,16 @@ main {
   
   .app-title, .app-subtitle {
     display: none;
+  }
+
+  .chat-header h3 {
+    font-size: 0.85rem;
+    max-width: 42%;
+    line-height: 1.25;
+  }
+
+  .sampling-control input[type='range'] {
+    width: 64px;
   }
 
   .messages-container {

@@ -1,10 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import Message from './Message';
 
+const STARTER_PROMPTS = [
+  'The best pizza topping is',
+  'Write two different metaphors for rain.',
+  'Yes or no: is a hot dog a sandwich?',
+];
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [temperature, setTemperature] = useState(1.2);
   const messagesEndRef = useRef(null);
 
   // Update page title
@@ -33,15 +40,13 @@ export default function ChatInterface() {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
   }, [messages]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!currentMessage.trim() || isLoading) return;
+  const sendMessage = async (text) => {
+    const content = (text ?? currentMessage).trim();
+    if (!content || isLoading) return;
 
-    const userMessage = { role: 'user', content: currentMessage, timestamp: new Date().toISOString() };
-    setMessages(prev => [...prev.map(msg => ({
-      ...msg,
-      content: msg.completions ? msg.completions[msg.activeIndex || 0] : msg.content
-    })), userMessage]);
+    const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
+    const conversation = [...messages, userMessage];
+    setMessages(conversation);
     setCurrentMessage('');
     setIsLoading(true);
 
@@ -49,17 +54,16 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage]
-        })
+        body: JSON.stringify({ messages: conversation, temperature })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
       const data = await response.json();
-      
+      const first = data.completions?.[0];
+
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: data.completions[0],
+        content: first?.text || '',
         completions: data.completions,
         activeIndex: 0,
         timestamp: new Date().toISOString()
@@ -76,12 +80,19 @@ export default function ChatInterface() {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await sendMessage(currentMessage);
+  };
+
   const toggleCompletion = (messageIndex) => {
     setMessages(prev => prev.map((msg, idx) => {
       if (idx === messageIndex && msg.completions && msg.completions.length > 1) {
+        const nextIndex = (msg.activeIndex + 1) % msg.completions.length;
         return {
           ...msg,
-          activeIndex: (msg.activeIndex + 1) % msg.completions.length
+          activeIndex: nextIndex,
+          content: msg.completions[nextIndex]?.text ?? msg.content
         };
       }
       return msg;
@@ -125,6 +136,19 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header">
           <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
+          <div className="header-actions">
+            <label className="sampling-control" title="Higher temperature samples more freely. Hover colors still show raw model confidence.">
+              <span>Temp {temperature.toFixed(1)}</span>
+              <input
+                type="range"
+                min="0.2"
+                max="1.8"
+                step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(Number(e.target.value))}
+                aria-label="Sampling temperature"
+              />
+            </label>
           <button 
             onClick={clearChat} 
             className="refresh-button"
@@ -147,8 +171,23 @@ export default function ChatInterface() {
               <path d="M3 21v-5h5" />
             </svg>
           </button>
+          </div>
         </div>
         <div className="messages-container">
+          {messages.length === 0 && !isLoading && (
+            <div className="prompt-chips" aria-label="Starter prompts">
+              {STARTER_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="prompt-chip"
+                  onClick={() => sendMessage(prompt)}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
           {messages.map((message, index) => (
             <Message 
               key={index}
