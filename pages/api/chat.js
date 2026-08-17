@@ -41,13 +41,19 @@ function toUiCompletion(choice) {
 
   return {
     text,
-    tokenProbabilities: tokens.map((token) => ({
-      token: token.token,
-      logprob: token.logprob,
-      top_logprobs: Object.fromEntries(
+    tokenProbabilities: tokens.map((token) => {
+      const topLogprobs = Object.fromEntries(
         (token.top_logprobs || []).map((alt) => [alt.token, alt.logprob])
-      ),
-    })),
+      );
+      if (typeof token.logprob === 'number' && token.token != null) {
+        topLogprobs[token.token] = token.logprob;
+      }
+      return {
+        token: token.token,
+        logprob: token.logprob,
+        top_logprobs: topLogprobs,
+      };
+    }),
   };
 }
 

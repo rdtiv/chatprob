@@ -15,7 +15,9 @@ export default function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [temperature, setTemperature] = useState(1.2);
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
   const messagesEndRef = useRef(null);
+  const inFlightRef = useRef(false);
 
   // Update page title
   useEffect(() => {
@@ -30,13 +32,18 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  // Load messages from localStorage on component mount
   useEffect(() => {
-    const savedMessages = localStorage.getItem('chatMessages');
-    if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
+    try {
+      const savedMessages = localStorage.getItem('chatMessages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        if (Array.isArray(parsed)) setMessages(parsed);
+      }
+      setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
+    } catch (error) {
+      console.error('Could not read saved chat:', error);
     }
-    setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
+    setStorageReady(true);
   }, []);
 
   const dismissHoverHint = () => {
@@ -44,15 +51,20 @@ export default function ChatInterface() {
     localStorage.setItem(HOVER_HINT_KEY, '1');
   };
 
-  // Save messages to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('chatMessages', JSON.stringify(messages));
-  }, [messages]);
+    if (!storageReady) return;
+    try {
+      localStorage.setItem('chatMessages', JSON.stringify(messages));
+    } catch (error) {
+      console.error('Could not save chat:', error);
+    }
+  }, [messages, storageReady]);
 
   const sendMessage = async (text) => {
     const content = (text ?? currentMessage).trim();
-    if (!content || isLoading) return;
+    if (!content || inFlightRef.current) return;
 
+    inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
     setMessages(conversation);
@@ -86,6 +98,7 @@ export default function ChatInterface() {
         timestamp: new Date().toISOString()
       }]);
     } finally {
+      inFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -211,6 +224,7 @@ export default function ChatInterface() {
                   key={prompt}
                   type="button"
                   className="prompt-chip"
+                  disabled={isLoading}
                   onClick={() => sendMessage(prompt)}
                 >
                   {prompt}

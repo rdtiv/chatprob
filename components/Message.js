@@ -79,6 +79,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef(null);
+  const hoverGenerationRef = useRef(0);
   const completionCount = Array.isArray(completions) ? completions.length : 0;
   const safeIndex = completionCount
     ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
@@ -88,12 +89,27 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     if (showHoverHint) onHoverUsed?.();
   };
 
+  const clearHoverTimer = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const invalidateHoverTimer = () => {
+    hoverGenerationRef.current += 1;
+    clearHoverTimer();
+  };
+
+  useEffect(() => () => clearHoverTimer(), []);
+
   useEffect(() => {
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
       if (event.target.closest('.token') || event.target.closest('.token-probabilities-card')) {
         return;
       }
+      invalidateHoverTimer();
       setPinned(false);
       setHoveredToken(null);
     };
@@ -103,12 +119,12 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
 
   const handleTokenMouseEnter = (token, index, event) => {
     if (pinned) return;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-
+    clearHoverTimer();
     markHoverUsed();
+    const generation = hoverGenerationRef.current + 1;
+    hoverGenerationRef.current = generation;
     hoverTimeoutRef.current = setTimeout(() => {
+      if (generation !== hoverGenerationRef.current) return;
       setHoveredToken({ token, index });
       setMousePosition({ x: event.clientX, y: event.clientY });
     }, 100);
@@ -117,6 +133,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const handleTokenClick = (token, index, event) => {
     event.preventDefault();
     markHoverUsed();
+    invalidateHoverTimer();
     if (pinned && hoveredToken?.index === index) {
       setPinned(false);
       setHoveredToken(null);
@@ -128,15 +145,14 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   };
   
   const handleTokenMouseLeave = () => {
+    invalidateHoverTimer();
     if (pinned) return;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
     setHoveredToken(null);
   };
 
   const handleSelect = (index) => {
     if (index === safeIndex) return;
+    invalidateHoverTimer();
     setPinned(false);
     setHoveredToken(null);
     onSelect?.(index);

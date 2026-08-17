@@ -224,10 +224,15 @@ main {
   text-align: left;
 }
 
-.prompt-chip:hover {
+.prompt-chip:hover:not(:disabled) {
   border-color: #93c5fd;
   background-color: #eff6ff;
   color: #1d4ed8;
+}
+
+.prompt-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .messages-container {
@@ -484,7 +489,6 @@ main {
     position: relative;
     flex-shrink: 0;
     padding: 12px 16px;
-    padding-bottom: calc(12px + var(--safe-area-inset-bottom));
     background-color: #fff;
     border-top: 1px solid #eaeaea;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
