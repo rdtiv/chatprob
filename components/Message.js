@@ -73,7 +73,7 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed }) {
+export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
@@ -237,14 +237,23 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
               {message.usage?.prompt_tokens != null && (
                 <span
                   className="token-usage"
-                  title="in = system instructions + the conversation so far. out = this tab. total out = every alternative sample."
+                  title="in = everything sent this request. replayed = last turn's prompt, sent again. new = last reply + your latest message. out this tab = the reply you are looking at. total out this turn = all samples. conversation total = billed so far."
                 >
                   {message.usage.prompt_tokens} in
+                  {replayedIn != null
+                    ? ` · ${replayedIn} replayed`
+                    : ''}
+                  {addedIn != null
+                    ? ` · ${addedIn} new`
+                    : ''}
                   {completions?.[safeIndex]?.tokenProbabilities?.length
-                    ? ` · ${completions[safeIndex].tokenProbabilities.length} out`
+                    ? ` · ${completions[safeIndex].tokenProbabilities.length} out this tab`
                     : ''}
                   {message.usage.completion_tokens != null
-                    ? ` · ${message.usage.completion_tokens} total out`
+                    ? ` · ${message.usage.completion_tokens} total out this turn`
+                    : ''}
+                  {sessionBilled
+                    ? ` | ${sessionBilled} conversation total`
                     : ''}
                 </span>
               )}

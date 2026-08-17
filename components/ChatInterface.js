@@ -129,6 +129,23 @@ export default function ChatInterface() {
     item.completions?.some((completion) => completion.tokenProbabilities?.length)
   ));
 
+  const turnBilled = (item) => {
+    if (item.role !== 'assistant' || item.usage?.prompt_tokens == null) return 0;
+    return (item.usage.prompt_tokens || 0) + (item.usage.completion_tokens || 0);
+  };
+
+  const sessionSeries = [];
+  const inSeries = [];
+  messages.reduce((running, item) => {
+    const next = running + turnBilled(item);
+    if (item.role === 'assistant' && item.usage?.prompt_tokens != null) {
+      sessionSeries.push(next);
+      inSeries.push(item.usage.prompt_tokens);
+    }
+    return next;
+  }, 0);
+  const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
+
   return (
     <div style={{
       display: 'flex',
@@ -216,6 +233,21 @@ export default function ChatInterface() {
           </span>
           <span className="legend-hover">Tap or hover a word for the other choices</span>
         </div>
+        {sessionBilled > 0 && (
+          <div className="conversation-lesson">
+            <div className="conversation-lesson-row">
+              <span className="conversation-lesson-label">Prompt this turn</span>
+              <span className="conversation-lesson-values">{inSeries.join(' → ')} in</span>
+            </div>
+            <div className="conversation-lesson-row">
+              <span className="conversation-lesson-label">Paid so far</span>
+              <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
+            </div>
+            <p className="conversation-lesson-note">
+              Each turn resends the whole conversation, so the prompt grows even when the new reply is short.
+            </p>
+          </div>
+        )}
         <div className="messages-container">
           {messages.length === 0 && !isLoading && (
             <div className="prompt-chips" aria-label="Starter prompts">
@@ -232,15 +264,32 @@ export default function ChatInterface() {
               ))}
             </div>
           )}
-          {messages.map((message, index) => (
+          {messages.map((message, index) => {
+            const billedThrough = messages
+              .slice(0, index + 1)
+              .reduce((sum, item) => sum + turnBilled(item), 0);
+            const previousIn = [...messages.slice(0, index)]
+              .reverse()
+              .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null)
+              ?.usage?.prompt_tokens;
+            const thisIn = message.usage?.prompt_tokens;
+            const replayedIn = Number.isFinite(previousIn) ? previousIn : null;
+            const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
+              ? Math.max(0, thisIn - previousIn)
+              : null;
+            return (
             <Message 
               key={index}
               message={message}
               onSelect={(completionIndex) => selectCompletion(index, completionIndex)}
               showHoverHint={hoverHintVisible && index === firstHintableIndex}
               onHoverUsed={dismissHoverHint}
+              sessionBilled={message.role === 'assistant' ? billedThrough : null}
+              replayedIn={message.role === 'assistant' ? replayedIn : null}
+              addedIn={message.role === 'assistant' ? addedIn : null}
             />
-          ))}
+            );
+          })}
           {isLoading && (
             <div style={{
               display: 'flex',
