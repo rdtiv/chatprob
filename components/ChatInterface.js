@@ -110,14 +110,19 @@ export default function ChatInterface() {
   };
 
   const selectCompletion = (messageIndex, completionIndex) => {
-    setMessages(prev => prev.map((msg, idx) => {
-      if (idx !== messageIndex || !msg.completions?.[completionIndex]) return msg;
-      return {
-        ...msg,
-        activeIndex: completionIndex,
-        content: msg.completions[completionIndex]?.text ?? msg.content
-      };
-    }));
+    setMessages((prev) => {
+      if (prev.slice(messageIndex + 1).some((item) => item.role === 'user')) {
+        return prev;
+      }
+      return prev.map((msg, idx) => {
+        if (idx !== messageIndex || !msg.completions?.[completionIndex]) return msg;
+        return {
+          ...msg,
+          activeIndex: completionIndex,
+          content: msg.completions[completionIndex]?.text ?? msg.content
+        };
+      });
+    });
   };
 
   const clearChat = () => {
@@ -294,6 +299,7 @@ export default function ChatInterface() {
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
+              tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
             />
             );
           })}

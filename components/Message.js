@@ -73,7 +73,7 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn }) {
+export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
@@ -151,7 +151,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   };
 
   const handleSelect = (index) => {
-    if (index === safeIndex) return;
+    if (tabsLocked || index === safeIndex) return;
     invalidateHoverTimer();
     setPinned(false);
     setHoveredToken(null);
@@ -210,19 +210,36 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
         <div className="message-front">
           <div className="message-header">
             {completionCount > 1 && (
-              <div className="completion-tabs" role="tablist" aria-label="Alternative responses">
-                {completions.map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    role="tab"
-                    aria-selected={index === safeIndex}
-                    className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
-                    onClick={() => handleSelect(index)}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
+              <div className={`completion-tabs-wrap${tabsLocked ? ' is-locked' : ''}`}>
+                <div
+                  className={`completion-tabs${tabsLocked ? ' is-locked' : ''}`}
+                  role="tablist"
+                  aria-label={tabsLocked ? 'Locked into the conversation' : 'Alternative responses'}
+                  title={tabsLocked ? 'This reply is locked into the conversation' : undefined}
+                >
+                  {completions.map((_, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      role="tab"
+                      aria-selected={index === safeIndex}
+                      disabled={tabsLocked}
+                      className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
+                      title={tabsLocked ? 'This reply is locked into the conversation' : `Show response ${index + 1}`}
+                      onClick={() => handleSelect(index)}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+                {tabsLocked && (
+                  <span className="completion-lock" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="11" width="14" height="10" rx="2" />
+                      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                    </svg>
+                  </span>
+                )}
               </div>
             )}
           </div>
