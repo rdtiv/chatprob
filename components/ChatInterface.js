@@ -85,17 +85,14 @@ export default function ChatInterface() {
     await sendMessage(currentMessage);
   };
 
-  const toggleCompletion = (messageIndex) => {
+  const selectCompletion = (messageIndex, completionIndex) => {
     setMessages(prev => prev.map((msg, idx) => {
-      if (idx === messageIndex && msg.completions && msg.completions.length > 1) {
-        const nextIndex = (msg.activeIndex + 1) % msg.completions.length;
-        return {
-          ...msg,
-          activeIndex: nextIndex,
-          content: msg.completions[nextIndex]?.text ?? msg.content
-        };
-      }
-      return msg;
+      if (idx !== messageIndex || !msg.completions?.[completionIndex]) return msg;
+      return {
+        ...msg,
+        activeIndex: completionIndex,
+        content: msg.completions[completionIndex]?.text ?? msg.content
+      };
     }));
   };
 
@@ -192,7 +189,7 @@ export default function ChatInterface() {
             <Message 
               key={index}
               message={message}
-              onToggle={() => message.completions?.length > 1 && toggleCompletion(index)}
+              onSelect={(completionIndex) => selectCompletion(index, completionIndex)}
             />
           ))}
           {isLoading && (

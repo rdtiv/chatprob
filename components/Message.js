@@ -44,12 +44,15 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onToggle }) {
+export default function Message({ message, onSelect }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isFlipping, setIsFlipping] = useState(false);
   const hoverTimeoutRef = useRef(null);
+  const completionCount = Array.isArray(completions) ? completions.length : 0;
+  const safeIndex = completionCount
+    ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
+    : 0;
   
   const handleTokenMouseEnter = (token, index, event) => {
     if (hoverTimeoutRef.current) {
@@ -69,13 +72,12 @@ export default function Message({ message, onToggle }) {
     setHoveredToken(null);
   };
 
-  const handleToggle = () => {
-    setIsFlipping(true);
-    onToggle();
-    // Reset flip state after animation completes
-    setTimeout(() => setIsFlipping(false), 300);
+  const handleSelect = (index) => {
+    if (index === safeIndex) return;
+    setHoveredToken(null);
+    onSelect?.(index);
   };
-  
+
   const renderContent = () => {
     // Handle non-assistant messages or messages without completions
     if (!completions || role !== 'assistant') {
@@ -87,8 +89,6 @@ export default function Message({ message, onToggle }) {
       return <div className="message-text">{content || 'No response available'}</div>;
     }
 
-    // Ensure activeIndex is within bounds
-    const safeIndex = Math.min(Math.max(activeIndex, 0), completions.length - 1);
     const activeCompletion = completions[safeIndex];
     
     if (!activeCompletion) {
@@ -122,19 +122,25 @@ export default function Message({ message, onToggle }) {
   };
   
   return (
-    <div className={`message ${role}-message ${isFlipping ? 'flipping' : ''}`}>
+    <div className={`message ${role}-message`}>
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">
-            {completions && completions.length > 1 && (
-              <button 
-                onClick={handleToggle}
-                className="toggle-completion-button"
-                title="Show alternative response"
-              >
-                <span className="toggle-icon">↻</span>
-                <span className="completion-counter">{activeIndex + 1}/{completions.length}</span>
-              </button>
+            {completionCount > 1 && (
+              <div className="completion-tabs" role="tablist" aria-label="Alternative responses">
+                {completions.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    role="tab"
+                    aria-selected={index === safeIndex}
+                    className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
+                    onClick={() => handleSelect(index)}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           {renderContent()}
@@ -147,7 +153,7 @@ export default function Message({ message, onToggle }) {
       </div>
       {hoveredToken && completions && (
         <TokenProbabilities 
-          probabilities={completions[activeIndex]?.tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
+          probabilities={completions[safeIndex]?.tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
           position={mousePosition}
           selectedToken={hoveredToken.token}
           onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
