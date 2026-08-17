@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Message from './Message';
+import ConversationExplainer from './ConversationExplainer';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -243,25 +244,30 @@ export default function ChatInterface() {
               <span className="conversation-lesson-label">Paid so far</span>
               <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
             </div>
-            <p className="conversation-lesson-note">
-              Each turn resends the whole conversation, so the prompt grows even when the new reply is short.
-            </p>
+            <ConversationExplainer
+              inSeries={inSeries}
+              sessionSeries={sessionSeries}
+              lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
+            />
           </div>
         )}
         <div className="messages-container">
           {messages.length === 0 && !isLoading && (
-            <div className="prompt-chips" aria-label="Starter prompts">
-              {STARTER_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="prompt-chip"
-                  disabled={isLoading}
-                  onClick={() => sendMessage(prompt)}
-                >
-                  {prompt}
-                </button>
-              ))}
+            <div className="empty-start">
+              <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
+              <div className="prompt-chips" aria-label="Starter prompts">
+                {STARTER_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="prompt-chip"
+                    disabled={isLoading}
+                    onClick={() => sendMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {messages.map((message, index) => {

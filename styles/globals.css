@@ -225,6 +225,19 @@ main {
   line-height: 1.35;
 }
 
+.conversation-explainer {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #1e293b;
+}
+
+.empty-start .conversation-explainer {
+  margin: 0 0 12px;
+  max-width: 36rem;
+  color: #334155;
+}
+
 
 
 .hover-hint {
