@@ -104,6 +104,7 @@ export default async function handler(req, res) {
       usage: {
         prompt_tokens: response.usage?.prompt_tokens ?? null,
         completion_tokens: response.usage?.completion_tokens ?? null,
+        model: response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
       },
     });
   } catch (error) {

@@ -238,6 +238,14 @@ main {
   color: #334155;
 }
 
+.rate-card {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
 
 
 .hover-hint {

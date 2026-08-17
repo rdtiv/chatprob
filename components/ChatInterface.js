@@ -248,6 +248,7 @@ export default function ChatInterface() {
               inSeries={inSeries}
               sessionSeries={sessionSeries}
               lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
+              messages={messages}
             />
           </div>
         )}
