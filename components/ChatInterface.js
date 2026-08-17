@@ -7,11 +7,14 @@ const STARTER_PROMPTS = [
   'Yes or no: is a hot dog a sandwich?',
 ];
 
+const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [temperature, setTemperature] = useState(1.2);
+  const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Update page title
@@ -33,7 +36,13 @@ export default function ChatInterface() {
     if (savedMessages) {
       setMessages(JSON.parse(savedMessages));
     }
+    setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
   }, []);
+
+  const dismissHoverHint = () => {
+    setHoverHintVisible(false);
+    localStorage.setItem(HOVER_HINT_KEY, '1');
+  };
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -100,6 +109,11 @@ export default function ChatInterface() {
     setMessages([]);
     localStorage.removeItem('chatMessages');
   };
+
+  const firstHintableIndex = messages.findIndex((item) => (
+    item.role === 'assistant' &&
+    item.completions?.some((completion) => completion.tokenProbabilities?.length)
+  ));
 
   return (
     <div style={{
@@ -170,6 +184,21 @@ export default function ChatInterface() {
           </button>
           </div>
         </div>
+        <div className="confidence-legend">
+          <span className="legend-item">
+            <span className="legend-swatch legend-swatch-high" />
+            more sure
+          </span>
+          <span className="legend-item">
+            <span className="legend-swatch legend-swatch-mid" />
+            mixed
+          </span>
+          <span className="legend-item">
+            <span className="legend-swatch legend-swatch-low" />
+            less sure
+          </span>
+          <span className="legend-hover">Hover a word for the other choices</span>
+        </div>
         <div className="messages-container">
           {messages.length === 0 && !isLoading && (
             <div className="prompt-chips" aria-label="Starter prompts">
@@ -190,6 +219,8 @@ export default function ChatInterface() {
               key={index}
               message={message}
               onSelect={(completionIndex) => selectCompletion(index, completionIndex)}
+              showHoverHint={hoverHintVisible && index === firstHintableIndex}
+              onHoverUsed={dismissHoverHint}
             />
           ))}
           {isLoading && (

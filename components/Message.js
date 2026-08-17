@@ -1,15 +1,44 @@
 import { useState, useRef } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 
-// Utility function to calculate background color based on probability
+function sampledLogprob(tokenData) {
+  if (!tokenData) return null;
+  if (typeof tokenData.logprob === 'number') return tokenData.logprob;
+  if (tokenData.top_logprobs && tokenData.token in tokenData.top_logprobs) {
+    return tokenData.top_logprobs[tokenData.token];
+  }
+  return null;
+}
+
+function sampledPercentage(tokenData) {
+  const logprob = sampledLogprob(tokenData);
+  if (logprob == null) return null;
+  return Math.exp(logprob) * 100;
+}
+
+function pickHintTokenIndex(tokenProbabilities) {
+  if (!Array.isArray(tokenProbabilities) || tokenProbabilities.length === 0) return -1;
+
+  let bestIndex = -1;
+  let bestDistance = Infinity;
+  tokenProbabilities.forEach((tokenData, index) => {
+    if (!(tokenData.token || '').trim()) return;
+    const percentage = sampledPercentage(tokenData);
+    if (percentage == null) return;
+    const distance = Math.abs(percentage - 55);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  if (bestIndex >= 0) return bestIndex;
+  return tokenProbabilities.findIndex((tokenData) => (tokenData.token || '').trim());
+}
+
 const getBackgroundColor = (tokenData) => {
-  if (!tokenData || !tokenData.top_logprobs) return 'transparent';
-  
-  // Get the probability for this token (it's the highest probability in top_logprobs)
-  const highestLogprob = Math.max(...Object.values(tokenData.top_logprobs));
-  
-  // Convert logprob to percentage
-  const percentage = Math.exp(highestLogprob) * 100;
+  const percentage = sampledPercentage(tokenData);
+  if (percentage == null) return 'transparent';
   
   // Define color stops
   const colors = {
@@ -44,7 +73,7 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onSelect }) {
+export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -54,15 +83,26 @@ export default function Message({ message, onSelect }) {
     ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
     : 0;
   
+  const markHoverUsed = () => {
+    if (showHoverHint) onHoverUsed?.();
+  };
+
   const handleTokenMouseEnter = (token, index, event) => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
-    
+
+    markHoverUsed();
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredToken({ token, index });
       setMousePosition({ x: event.clientX, y: event.clientY });
     }, 100);
+  };
+
+  const handleTokenClick = (token, index, event) => {
+    markHoverUsed();
+    setHoveredToken({ token, index });
+    setMousePosition({ x: event.clientX, y: event.clientY });
   };
   
   const handleTokenMouseLeave = () => {
@@ -101,6 +141,8 @@ export default function Message({ message, onSelect }) {
       return <div className="message-text">{text || content || 'No response available'}</div>;
     }
     
+    const hintIndex = showHoverHint ? pickHintTokenIndex(tokenProbabilities) : -1;
+
     return (
       <div className="message-text">
         {tokenProbabilities.map((tp, idx) => {
@@ -108,9 +150,10 @@ export default function Message({ message, onSelect }) {
           return (
             <span 
               key={idx}
-              className="token"
+              className={`token${idx === hintIndex ? ' token-hint' : ''}`}
               style={{ backgroundColor }}
               onMouseEnter={(e) => handleTokenMouseEnter(tp.token, idx, e)}
+              onClick={(e) => handleTokenClick(tp.token, idx, e)}
               onMouseLeave={handleTokenMouseLeave}
             >
               {tp.token}
@@ -148,6 +191,9 @@ export default function Message({ message, onSelect }) {
             <div className="message-timestamp">
               {new Date(message.timestamp).toLocaleTimeString()}
             </div>
+          )}
+          {showHoverHint && (
+            <div className="hover-hint">Hover a highlighted word to see what else the model considered</div>
           )}
         </div>
       </div>

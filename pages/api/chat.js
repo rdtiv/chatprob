@@ -43,6 +43,7 @@ function toUiCompletion(choice) {
     text,
     tokenProbabilities: tokens.map((token) => ({
       token: token.token,
+      logprob: token.logprob,
       top_logprobs: Object.fromEntries(
         (token.top_logprobs || []).map((alt) => [alt.token, alt.logprob])
       ),
