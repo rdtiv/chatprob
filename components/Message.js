@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 
 function sampledLogprob(tokenData) {
@@ -76,6 +76,7 @@ const getBackgroundColor = (tokenData) => {
 export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
+  const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef(null);
   const completionCount = Array.isArray(completions) ? completions.length : 0;
@@ -87,7 +88,21 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     if (showHoverHint) onHoverUsed?.();
   };
 
+  useEffect(() => {
+    if (!hoveredToken) return undefined;
+    const onDocPointerDown = (event) => {
+      if (event.target.closest('.token') || event.target.closest('.token-probabilities-card')) {
+        return;
+      }
+      setPinned(false);
+      setHoveredToken(null);
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+  }, [hoveredToken]);
+
   const handleTokenMouseEnter = (token, index, event) => {
+    if (pinned) return;
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -100,12 +115,20 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   };
 
   const handleTokenClick = (token, index, event) => {
+    event.preventDefault();
     markHoverUsed();
+    if (pinned && hoveredToken?.index === index) {
+      setPinned(false);
+      setHoveredToken(null);
+      return;
+    }
+    setPinned(true);
     setHoveredToken({ token, index });
     setMousePosition({ x: event.clientX, y: event.clientY });
   };
   
   const handleTokenMouseLeave = () => {
+    if (pinned) return;
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -114,6 +137,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
 
   const handleSelect = (index) => {
     if (index === safeIndex) return;
+    setPinned(false);
     setHoveredToken(null);
     onSelect?.(index);
   };
@@ -187,13 +211,31 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
             )}
           </div>
           {renderContent()}
-          {message.timestamp && (
-            <div className="message-timestamp">
-              {new Date(message.timestamp).toLocaleTimeString()}
+          {(message.timestamp || message.usage) && (
+            <div className="message-meta">
+              {message.timestamp && (
+                <span className="message-timestamp">
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </span>
+              )}
+              {message.usage?.prompt_tokens != null && (
+                <span
+                  className="token-usage"
+                  title="in = system instructions + the conversation so far. out = this tab. total out = every alternative sample."
+                >
+                  {message.usage.prompt_tokens} in
+                  {completions?.[safeIndex]?.tokenProbabilities?.length
+                    ? ` · ${completions[safeIndex].tokenProbabilities.length} out`
+                    : ''}
+                  {message.usage.completion_tokens != null
+                    ? ` · ${message.usage.completion_tokens} total out`
+                    : ''}
+                </span>
+              )}
             </div>
           )}
           {showHoverHint && (
-            <div className="hover-hint">Hover a highlighted word to see what else the model considered</div>
+            <div className="hover-hint">Tap or hover a highlighted word to see what else the model considered</div>
           )}
         </div>
       </div>

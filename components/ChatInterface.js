@@ -75,7 +75,8 @@ export default function ChatInterface() {
         content: first?.text || '',
         completions: data.completions,
         activeIndex: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        usage: data.usage || null
       }]);
     } catch (error) {
       console.error('Error:', error);
@@ -146,7 +147,10 @@ export default function ChatInterface() {
         margin: '0 auto'
       }}>
         <div className="chat-header">
-          <h3 style={{ margin: 0 }}>Explore Token Probabilities & Alternative Responses</h3>
+          <h3 style={{ margin: 0 }}>
+            <span className="title-full">Explore Token Probabilities & Alternative Responses</span>
+            <span className="title-short">ChatProb</span>
+          </h3>
           <div className="header-actions">
             <label className="sampling-control" title="Higher temperature samples more freely. Hover colors still show raw model confidence.">
               <span>Temp {temperature.toFixed(1)}</span>
@@ -197,7 +201,7 @@ export default function ChatInterface() {
             <span className="legend-swatch legend-swatch-low" />
             less sure
           </span>
-          <span className="legend-hover">Hover a word for the other choices</span>
+          <span className="legend-hover">Tap or hover a word for the other choices</span>
         </div>
         <div className="messages-container">
           {messages.length === 0 && !isLoading && (

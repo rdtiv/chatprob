@@ -95,6 +95,10 @@ export default async function handler(req, res) {
     return res.status(200).json({
       model: response.model,
       completions,
+      usage: {
+        prompt_tokens: response.usage?.prompt_tokens ?? null,
+        completion_tokens: response.usage?.completion_tokens ?? null,
+      },
     });
   } catch (error) {
     console.error('Error calling OpenAI API:', error);

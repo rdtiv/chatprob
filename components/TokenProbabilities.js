@@ -10,39 +10,42 @@ export default function TokenProbabilities({
   const cardRef = useRef(null);
 
   useEffect(() => {
-    // Adjust position to prevent overflow
-    if (cardRef.current) {
-      const card = cardRef.current;
-      const rect = card.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const padding = 16; // Minimum padding from viewport edges
-      const minDistanceFromBottom = 80; // Minimum distance from bottom of viewport
+    if (!cardRef.current) return;
 
-      // Start with position above the cursor
-      let top = position.y - rect.height - 8;
-      let left = position.x - (rect.width / 2);
+    const card = cardRef.current;
+    const rect = card.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const padding = 12;
+    const header = document.querySelector('.chat-header');
+    const legend = document.querySelector('.confidence-legend');
+    const form = document.querySelector('.message-form');
+    const chromeBottom = (legend || header)?.getBoundingClientRect().bottom ?? 0;
+    const topSafe = Math.max(padding, chromeBottom + 8);
+    const bottomSafe = form
+      ? form.getBoundingClientRect().top - 8
+      : window.innerHeight - 80;
 
-      // If too close to top, position below cursor
-      if (top < padding) {
-        top = position.y + 24;
-      }
+    // Prefer below the token so the card does not cover the header/legend.
+    let top = position.y + 20;
+    let left = position.x - (rect.width / 2);
 
-      // If still too close to bottom, force position above
-      if (top + rect.height > viewportHeight - minDistanceFromBottom) {
-        top = position.y - rect.height - 8;
-      }
-
-      // Ensure left/right positioning stays within viewport
-      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
-
-      // Apply position
-      card.style.position = 'fixed';
-      card.style.top = `${top}px`;
-      card.style.left = `${left}px`;
-      card.style.transform = 'none'; // Remove default transform
+    if (top + rect.height > bottomSafe) {
+      top = position.y - rect.height - 8;
     }
-  }, [position]);
+    if (top < topSafe) {
+      top = topSafe;
+    }
+    if (top + rect.height > bottomSafe) {
+      top = Math.max(topSafe, bottomSafe - rect.height);
+    }
+
+    left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
+
+    card.style.position = 'fixed';
+    card.style.top = `${top}px`;
+    card.style.left = `${left}px`;
+    card.style.transform = 'none';
+  }, [position, probabilities]);
 
   if (!probabilities || Object.keys(probabilities).length === 0) {
     return null;
@@ -51,9 +54,8 @@ export default function TokenProbabilities({
   // Convert logprobs to percentages
   const getPercentage = (logprob) => {
     const percentage = Math.exp(logprob) * 100;
-    return percentage < 1 ? 
-      percentage.toFixed(2) + '%' : 
-      percentage.toFixed(2) + '%';
+    if (percentage < 0.5) return '<0.5%';
+    return percentage.toFixed(percentage < 10 ? 2 : 1) + '%';
   };
   
   // Format token for display - replace whitespace with visible representation
@@ -64,10 +66,18 @@ export default function TokenProbabilities({
     return token;
   };
   
-  // Sort entries by probability (highest first) and limit to top 5
-  const sortedEntries = Object.entries(probabilities)
+  let sortedEntries = Object.entries(probabilities)
+    .filter(([token, logprob]) => (
+      token === selectedToken || Math.exp(logprob) * 100 >= 0.5
+    ))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
+
+  if (sortedEntries.length === 0) {
+    sortedEntries = Object.entries(probabilities)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 1);
+  }
   
   // Define keyframes for fade-in animation
   const fadeInKeyframes = `
@@ -122,6 +132,7 @@ export default function TokenProbabilities({
       <style>{fadeInKeyframes}</style>
       <div 
         ref={cardRef}
+        className="token-probabilities-card"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         style={containerStyle}
