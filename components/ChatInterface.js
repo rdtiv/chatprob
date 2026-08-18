@@ -17,12 +17,22 @@ export default function ChatInterface() {
   const [temperature, setTemperature] = useState(1.2);
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
+  const [lessonOpen, setLessonOpen] = useState(false);
+  const [compactLesson, setCompactLesson] = useState(false);
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
 
   // Update page title
   useEffect(() => {
     document.title = 'ChatProb';
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const sync = () => setCompactLesson(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
   }, []);
 
   const scrollToBottom = () => {
@@ -240,21 +250,39 @@ export default function ChatInterface() {
           <span className="legend-hover">Tap or hover a word for the other choices</span>
         </div>
         {sessionBilled > 0 && (
-          <div className="conversation-lesson">
-            <div className="conversation-lesson-row">
-              <span className="conversation-lesson-label">Prompt this turn</span>
-              <span className="conversation-lesson-values">{inSeries.join(' → ')} in</span>
+          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`}>
+            <button
+              type="button"
+              className="conversation-lesson-summary"
+              aria-expanded={compactLesson ? lessonOpen : true}
+              aria-controls="conversation-lesson-body"
+              onClick={() => {
+                if (compactLesson) setLessonOpen((open) => !open);
+              }}
+            >
+              <div className="conversation-lesson-metrics">
+                <div className="conversation-lesson-row">
+                  <span className="conversation-lesson-label">Prompt this turn</span>
+                  <span className="conversation-lesson-values">{inSeries.join(' → ')} in</span>
+                </div>
+                <div className="conversation-lesson-row">
+                  <span className="conversation-lesson-label">Paid so far</span>
+                  <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
+                </div>
+              </div>
+              <span className="conversation-lesson-toggle">
+                {lessonOpen ? 'Hide' : 'Details'}
+                <span className="conversation-lesson-chevron" aria-hidden="true" />
+              </span>
+            </button>
+            <div id="conversation-lesson-body" className="conversation-lesson-body">
+              <ConversationExplainer
+                inSeries={inSeries}
+                sessionSeries={sessionSeries}
+                lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
+                messages={messages}
+              />
             </div>
-            <div className="conversation-lesson-row">
-              <span className="conversation-lesson-label">Paid so far</span>
-              <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
-            </div>
-            <ConversationExplainer
-              inSeries={inSeries}
-              sessionSeries={sessionSeries}
-              lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
-              messages={messages}
-            />
           </div>
         )}
         <div className="messages-container">

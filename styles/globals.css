@@ -201,6 +201,54 @@ main {
   color: #475569;
 }
 
+.conversation-lesson-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conversation-lesson-metrics {
+  min-width: 0;
+  flex: 1;
+}
+
+.conversation-lesson-toggle {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  color: #2563eb;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.conversation-lesson-chevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor;
+  transform: translateY(0.5px);
+}
+
+.conversation-lesson.is-open .conversation-lesson-chevron {
+  transform: rotate(180deg) translateY(-0.5px);
+}
+
 .conversation-lesson-row {
   display: flex;
   flex-wrap: wrap;
@@ -586,6 +634,28 @@ main {
     gap: 4px 10px;
   }
 
+  .legend-hover {
+    display: none;
+  }
+
+  .conversation-lesson {
+    padding: 6px 12px;
+  }
+
+  .conversation-lesson-toggle {
+    display: inline-flex;
+  }
+
+  .conversation-lesson:not(.is-open) .conversation-lesson-body {
+    display: none;
+  }
+
+  .conversation-lesson-summary:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
   .messages-container {
     height: auto;
     flex: 1;
@@ -688,6 +758,14 @@ main {
 @media (min-width: 768px) {
   .desktop-only {
     display: block !important;
+  }
+
+  .conversation-lesson-summary {
+    cursor: default;
+  }
+
+  .conversation-lesson-body {
+    display: block;
   }
 }
 
