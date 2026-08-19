@@ -1,8 +1,10 @@
+import { isPartialChunk } from '../lib/tokenizer';
+
 const renderChunk = (chunk) => chunk.replace(/\n/g, '↵').replace(/\t/g, '→');
 
 export default function TokenizerStrip({ id, chunks }) {
   if (!chunks.length) return null;
-  const partials = chunks.filter((chunk) => chunk === '').length;
+  const partials = chunks.filter((chunk) => isPartialChunk(chunk)).length;
   const note = [
     'These are the tokens in your draft.',
     partials > 0
@@ -17,10 +19,10 @@ export default function TokenizerStrip({ id, chunks }) {
         {chunks.map((chunk, index) => (
           <span
             key={index}
-            className={`tokenizer-chunk${index % 2 ? ' is-alt' : ''}${chunk === '' ? ' is-partial' : ''}`}
-            title={chunk === '' ? 'Part of a character — this token is only a fragment of bytes' : undefined}
+            className={`tokenizer-chunk${index % 2 ? ' is-alt' : ''}${isPartialChunk(chunk) ? ' is-partial' : ''}`}
+            title={isPartialChunk(chunk) ? 'Part of a character — this token is only a fragment of bytes' : undefined}
           >
-            {chunk === '' ? '·' : renderChunk(chunk)}
+            {isPartialChunk(chunk) ? '·' : renderChunk(chunk)}
           </span>
         ))}
       </div>

@@ -1036,7 +1036,8 @@ main {
   }
 
   .tokenizer-strip-note {
-    display: none;
+    max-height: 2.8em;
+    overflow-y: auto;
   }
 }
 

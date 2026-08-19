@@ -31,6 +31,7 @@ export default function ChatInterface() {
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
+  const tokenizerStartedRef = useRef(false);
 
   // Update page title
   useEffect(() => {
@@ -53,12 +54,29 @@ export default function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
+  const measureComposer = () => {
     const el = composerRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  };
+
+  useEffect(() => {
+    measureComposer();
   }, [currentMessage]);
+
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measureComposer);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -80,7 +98,8 @@ export default function ChatInterface() {
   };
 
   const ensureTokenizer = () => {
-    if (tokenizerState !== 'idle') return;
+    if (tokenizerStartedRef.current) return;
+    tokenizerStartedRef.current = true;
     setTokenizerState('loading');
     loadTokenizer().then((loaded) => {
       if (loaded) {
@@ -96,6 +115,12 @@ export default function ChatInterface() {
     () => tokenizeForDisplay(tokenizer, currentMessage),
     [tokenizer, currentMessage]
   );
+
+  const stripVisible = stripOpen && tokenizerState === 'ready' && tokenized.count > 0;
+
+  useEffect(() => {
+    if (stripOpen) scrollToBottom();
+  }, [stripOpen]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -357,6 +382,7 @@ export default function ChatInterface() {
                     onClick={() => {
                       ensureTokenizer();
                       setCurrentMessage(prompt);
+                      setStripOpen(true);
                       composerRef.current?.focus();
                     }}
                   >
@@ -440,15 +466,15 @@ export default function ChatInterface() {
         <form onSubmit={handleSubmit} className="message-form">
           {tokenizerState !== 'failed' && (
             <>
-              {stripOpen && tokenizerState === 'ready' && (
+              {stripVisible && (
                 <TokenizerStrip id={stripId} chunks={tokenized.chunks} />
               )}
               <div className="composer-meta">
                 <button
                   type="button"
                   className="tokenizer-count"
-                  aria-expanded={stripOpen}
-                  aria-controls={stripId}
+                  aria-expanded={stripVisible}
+                  aria-controls={stripVisible ? stripId : undefined}
                   disabled={tokenizerState !== 'ready' || tokenized.count === 0}
                   onClick={() => setStripOpen((open) => !open)}
                 >
