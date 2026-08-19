@@ -839,6 +839,8 @@ main {
   line-height: 1.2;
   padding: 0;
   margin: 0;
+  /* Match the tokenized-chunk path so bubbles do not reflow when the encoder loads. */
+  white-space: pre-wrap;
 }
 
 .message-meta {

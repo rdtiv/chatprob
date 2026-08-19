@@ -382,6 +382,7 @@ export default function ChatInterface() {
                     key={prompt}
                     type="button"
                     className="prompt-chip"
+                    aria-label={`Tokenize: ${prompt}`}
                     disabled={isLoading}
                     onClick={() => {
                       ensureTokenizer();
