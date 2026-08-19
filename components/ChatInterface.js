@@ -8,6 +8,9 @@ const STARTER_PROMPTS = [
   'Yes or no: is a hot dog a sandwich?',
 ];
 
+const TOKENIZER_PROMPTS = ['strawberry', '12345', '東京は美しい'];
+const COMPOSER_MAX_HEIGHT = 132;
+
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
 
 export default function ChatInterface() {
@@ -21,6 +24,7 @@ export default function ChatInterface() {
   const [compactLesson, setCompactLesson] = useState(false);
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
+  const composerRef = useRef(null);
 
   // Update page title
   useEffect(() => {
@@ -42,6 +46,13 @@ export default function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  }, [currentMessage]);
 
   useEffect(() => {
     try {
@@ -119,6 +130,13 @@ export default function ChatInterface() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await sendMessage(currentMessage);
+  };
+
+  const handleComposerKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    sendMessage(currentMessage);
   };
 
   const selectCompletion = (messageIndex, completionIndex) => {
@@ -304,6 +322,23 @@ export default function ChatInterface() {
                   </button>
                 ))}
               </div>
+              <div className="prompt-chips tokenizer-chips" aria-label="Try the tokenizer">
+                <span className="tokenizer-chips-label">Try the tokenizer:</span>
+                {TOKENIZER_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="prompt-chip"
+                    disabled={isLoading}
+                    onClick={() => {
+                      setCurrentMessage(prompt);
+                      composerRef.current?.focus();
+                    }}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {messages.map((message, index) => {
@@ -378,20 +413,18 @@ export default function ChatInterface() {
         </div>
         
         <form onSubmit={handleSubmit} className="message-form">
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            display: 'flex'
-          }}>
-            <input
-              type="text"
+          <div className="composer-row">
+            <textarea
+              ref={composerRef}
+              rows={1}
               value={currentMessage}
               onChange={(e) => setCurrentMessage(e.target.value)}
+              onKeyDown={handleComposerKeyDown}
               placeholder="Type your message..."
               disabled={isLoading}
               className="message-input"
             />
-            <button 
+            <button
               type="submit" 
               disabled={isLoading} 
               className="send-button"

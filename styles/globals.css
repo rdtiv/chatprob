@@ -624,6 +624,17 @@ main {
   cursor: not-allowed;
 }
 
+.tokenizer-chips {
+  align-items: center;
+  gap: 6px;
+  padding-top: 0;
+}
+
+.tokenizer-chips-label {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
 .messages-container {
   flex: 1;
   min-height: 0;
@@ -833,7 +844,11 @@ main {
   .message-input {
     font-size: 16px;
   }
-  
+
+  .prompt-chip {
+    min-height: 44px;
+  }
+
   .app-title, .app-subtitle {
     display: none;
   }
@@ -998,6 +1013,14 @@ main {
   border-top: 1px solid #eaeaea;
   z-index: 2;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composer-row {
+  position: relative;
+  width: 100%;
+  display: flex;
 }
 
 @media (max-width: 768px) {
@@ -1018,6 +1041,12 @@ main {
   transition: all 0.2s ease;
   margin: 0;
   outline: none;
+  resize: none;
+  overflow-y: auto;
+  max-height: 132px;
+  line-height: 1.4;
+  font-family: inherit;
+  display: block;
 }
 
 .message-input:focus {
@@ -1029,8 +1058,7 @@ main {
 .send-button {
   position: absolute;
   right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 6px;
   padding: 6px;
   border-radius: 8px;
   border: none;
@@ -1053,5 +1081,5 @@ main {
 }
 
 .send-button:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.95);
+  transform: scale(0.95);
 } 
