@@ -11,7 +11,7 @@ const STARTER_PROMPTS = [
 ];
 
 const TOKENIZER_PROMPTS = ['strawberry', '12345', 'The best pizza topping is'];
-const COMPOSER_MAX_HEIGHT = 132;
+const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
 
@@ -106,6 +106,7 @@ export default function ChatInterface() {
         setTokenizer(loaded);
         setTokenizerState('ready');
       } else {
+        tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
         setTokenizerState('failed');
       }
     });

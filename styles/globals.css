@@ -1154,7 +1154,7 @@ main {
   outline: none;
   resize: none;
   overflow-y: auto;
-  max-height: 132px;
+  max-height: 132px; /* keep in sync with COMPOSER_MAX_HEIGHT in ChatInterface.js */
   line-height: 1.4;
   font-family: inherit;
   display: block;
