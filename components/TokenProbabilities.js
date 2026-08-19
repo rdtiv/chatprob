@@ -1,12 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 
-export default function TokenProbabilities({ 
-  probabilities, 
-  position, 
+export default function TokenProbabilities({
+  probabilities,
+  position,
   selectedToken,
   selectedLogprob,
+  temperature,
+  onTemperatureChange,
+  sampledTemperature,
+  onDismiss,
   onMouseEnter,
-  onMouseLeave 
+  onMouseLeave,
 }) {
   const cardRef = useRef(null);
 
@@ -42,35 +47,24 @@ export default function TokenProbabilities({
 
     left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
 
-    card.style.position = 'fixed';
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-    card.style.transform = 'none';
   }, [position, probabilities]);
 
-  const ranked = Object.entries(probabilities || {}).sort((a, b) => b[1] - a[1]);
-  const selectedRank = ranked.findIndex(([token]) => token === selectedToken);
-  const resolvedSelectedLogprob = selectedRank >= 0
-    ? ranked[selectedRank][1]
-    : (typeof selectedLogprob === 'number' ? selectedLogprob : null);
-  const inTopFive = selectedRank >= 0 && selectedRank < 5;
-  const topEntries = ranked
-    .filter(([token, logprob]) => token === selectedToken || Math.exp(logprob) * 100 >= 0.5)
-    .slice(0, 5);
+  // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
+  // never appear or disappear while the slider moves.
+  const frozenSet = useMemo(
+    () => buildFrozenSet({ topLogprobs: probabilities, sampledToken: selectedToken, sampledLogprob: selectedLogprob }),
+    [probabilities, selectedToken, selectedLogprob]
+  );
+  const rows = useMemo(() => frozenRows(frozenSet), [frozenSet]);
 
-  if (topEntries.length === 0 && resolvedSelectedLogprob == null) {
-    return null;
-  }
+  const [mode, setMode] = useState('among');
 
-  const getPercentage = (logprob) => {
-    const percentage = Math.exp(logprob) * 100;
-    if (percentage >= 10) return percentage.toFixed(1) + '%';
-    if (percentage >= 1) return percentage.toFixed(2) + '%';
-    if (percentage >= 0.1) return percentage.toFixed(2) + '%';
-    if (percentage >= 0.01) return percentage.toFixed(3) + '%';
-    if (percentage >= 0.001) return percentage.toFixed(4) + '%';
-    return '<0.001%';
-  };
+  if (rows.length === 0) return null;
+
+  const t = typeof temperature === 'number' ? temperature : 1;
+  const values = mode === 'among' ? oddsAmongCandidates(rows, t) : rawOdds(rows);
 
   const formatToken = (token) => {
     if (token === ' ') return '␣';
@@ -78,118 +72,58 @@ export default function TokenProbabilities({
     if (token === '\t') return '→';
     return token;
   };
-  
-  // Define keyframes for fade-in animation
-  const fadeInKeyframes = `
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(4px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  `;
-  
-  // Inline styles to ensure proper rendering
-  const containerStyle = {
-    position: 'fixed',
-    backgroundColor: '#fafafa',
-    borderRadius: '16px',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
-    width: 'calc(100% - 32px)',
-    maxWidth: '300px',
-    zIndex: 1000,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    opacity: 0,
-    animation: 'fadeIn 150ms ease-in forwards'
-  };
-  
-  const headerStyle = {
-    padding: '8px 16px',
-    borderBottom: '1px solid #eaeaea',
-    backgroundColor: '#f8f9fa',
-    borderTopLeftRadius: '16px',
-    borderTopRightRadius: '16px',
-    display: 'flex',
-    alignItems: 'center'
-  };
-  
-  const listStyle = {
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-    display: 'flex',
-    flexDirection: 'column'
-  };
-  
+
+  const candidateWord = rows.length === 1 ? 'candidate' : 'candidates';
+  const noteCopy = mode === 'among'
+    ? `Odds among these ${rows.length} ${candidateWord} at temp ${t.toFixed(1)} — rescaled to add up to 100%.`
+    : `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`;
+  const sampledLine = sampledTemperature == null
+    ? null
+    : (mode === 'among' && t !== sampledTemperature
+        ? `Sampled at ${sampledTemperature.toFixed(1)} · showing what-if at ${t.toFixed(1)}`
+        : `Sampled at ${sampledTemperature.toFixed(1)}`);
+
   return (
-    <>
-      <style>{fadeInKeyframes}</style>
-      <div 
-        ref={cardRef}
-        className="token-probabilities-card"
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        style={containerStyle}
-      >
-        <div style={headerStyle}>
-          <h3 style={{ fontSize: '0.95rem', color: '#1a1a1a', margin: 0, fontWeight: 600 }}>Most likely</h3>
+    <div
+      ref={cardRef}
+      className="token-probabilities-card is-popover"
+      role="dialog"
+      aria-label="What else the model considered"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="token-probabilities-header">
+        <h3 className="token-probabilities-title">Most likely</h3>
+        <div className="token-probabilities-toggle" role="group" aria-label="Probability view">
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'among' ? ' is-active' : ''}`} aria-pressed={mode === 'among'} onClick={() => setMode('among')}>Among these</button>
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'raw' ? ' is-active' : ''}`} aria-pressed={mode === 'raw'} onClick={() => setMode('raw')}>Raw odds</button>
         </div>
-        <ul style={listStyle}>
-          {topEntries.map(([token, logprob], index) => {
-            const isSelected = inTopFive && token === selectedToken;
-            const isLast = index === topEntries.length - 1 && inTopFive;
-            
-            const itemStyle = {
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '6px 16px',
-              fontSize: '0.9rem',
-              alignItems: 'center',
-              lineHeight: 1.2,
-              backgroundColor: isSelected ? '#3b82f6' : 'transparent',
-              color: isSelected ? '#ffffff' : 'inherit',
-              borderBottomLeftRadius: isLast ? '16px' : '0',
-              borderBottomRightRadius: isLast ? '16px' : '0'
-            };
-            
-            return (
-              <li key={index} style={itemStyle}>
-                <span style={{ 
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  marginRight: '16px',
-                  fontSize: '0.9rem',
-                  color: isSelected ? '#ffffff' : '#1a1a1a'
-                }}>
-                  {formatToken(token)}
-                </span>
-                <span style={{ 
-                  fontWeight: 500,
-                  fontSize: '0.9rem',
-                  color: isSelected ? '#ffffff' : '#4b5563',
-                  fontVariantNumeric: 'tabular-nums'
-                }}>
-                  {getPercentage(logprob)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        {!inTopFive && selectedToken != null && resolvedSelectedLogprob != null && (
-          <div className="sampled-outside-top">
-            <div className="sampled-outside-top-row">
-              <span className="sampled-outside-top-token">{formatToken(selectedToken)}</span>
-              <span className="sampled-outside-top-pct">{getPercentage(resolvedSelectedLogprob)}</span>
-            </div>
-            <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
-          </div>
-        )}
       </div>
-    </>
+      <ul className="token-probabilities-list">
+        {frozenSet.candidates.map((row, index) => (
+          <li key={row.token} className={`token-probabilities-row${row.isSampled ? ' is-sampled' : ''}`}>
+            <span className="token-probabilities-bar" aria-hidden="true">
+              <span className="token-probabilities-bar-fill" style={{ width: `${Math.min(100, values[index] * 100)}%` }} />
+            </span>
+            <span className="token-probabilities-token">{formatToken(row.token)}</span>
+            <span className="token-probabilities-pct">{formatPercent(values[index])}</span>
+          </li>
+        ))}
+      </ul>
+      {frozenSet.sampledOutside && (
+        <div className="sampled-outside-top">
+          <div className="sampled-outside-top-row">
+            <span className="sampled-outside-top-bar" aria-hidden="true">
+              <span className="sampled-outside-top-bar-fill" style={{ width: `${Math.min(100, values[values.length - 1] * 100)}%` }} />
+            </span>
+            <span className="sampled-outside-top-token">{formatToken(frozenSet.sampledOutside.token)}</span>
+            <span className="sampled-outside-top-pct">{formatPercent(values[values.length - 1])}</span>
+          </div>
+          <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
+        </div>
+      )}
+      <p className="token-probabilities-note">{noteCopy}</p>
+      {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
+    </div>
   );
-} 
+}
