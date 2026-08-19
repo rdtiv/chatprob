@@ -107,10 +107,16 @@ export default function TokenProbabilities({
     vv?.addEventListener('resize', apply);
     vv?.addEventListener('scroll', apply);
     window.addEventListener('resize', apply);
+    const form = document.querySelector('.message-form');
+    const observer = typeof ResizeObserver !== 'undefined' && form
+      ? new ResizeObserver(apply)
+      : null;
+    observer?.observe(form);
     return () => {
       vv?.removeEventListener('resize', apply);
       vv?.removeEventListener('scroll', apply);
       window.removeEventListener('resize', apply);
+      observer?.disconnect();
     };
   }, [isSheet, frozenSet]);
 
