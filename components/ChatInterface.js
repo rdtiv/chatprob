@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
+import TokenizerStrip from './TokenizerStrip';
+import { loadTokenizer, tokenizeForDisplay } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -22,6 +24,10 @@ export default function ChatInterface() {
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [compactLesson, setCompactLesson] = useState(false);
+  const [tokenizer, setTokenizer] = useState(null);
+  const [tokenizerState, setTokenizerState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'failed'
+  const [stripOpen, setStripOpen] = useState(false);
+  const stripId = useId();
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
@@ -72,6 +78,24 @@ export default function ChatInterface() {
     setHoverHintVisible(false);
     localStorage.setItem(HOVER_HINT_KEY, '1');
   };
+
+  const ensureTokenizer = () => {
+    if (tokenizerState !== 'idle') return;
+    setTokenizerState('loading');
+    loadTokenizer().then((loaded) => {
+      if (loaded) {
+        setTokenizer(loaded);
+        setTokenizerState('ready');
+      } else {
+        setTokenizerState('failed');
+      }
+    });
+  };
+
+  const tokenized = useMemo(
+    () => tokenizeForDisplay(tokenizer, currentMessage),
+    [tokenizer, currentMessage]
+  );
 
   useEffect(() => {
     if (!storageReady) return;
@@ -331,6 +355,7 @@ export default function ChatInterface() {
                     className="prompt-chip"
                     disabled={isLoading}
                     onClick={() => {
+                      ensureTokenizer();
                       setCurrentMessage(prompt);
                       composerRef.current?.focus();
                     }}
@@ -413,12 +438,35 @@ export default function ChatInterface() {
         </div>
         
         <form onSubmit={handleSubmit} className="message-form">
+          {tokenizerState !== 'failed' && (
+            <>
+              {stripOpen && tokenizerState === 'ready' && (
+                <TokenizerStrip id={stripId} chunks={tokenized.chunks} />
+              )}
+              <div className="composer-meta">
+                <button
+                  type="button"
+                  className="tokenizer-count"
+                  aria-expanded={stripOpen}
+                  aria-controls={stripId}
+                  disabled={tokenizerState !== 'ready' || tokenized.count === 0}
+                  onClick={() => setStripOpen((open) => !open)}
+                >
+                  {tokenizerState === 'ready' ? `≈ ${tokenized.count} tokens` : '≈ … tokens'}
+                </button>
+              </div>
+            </>
+          )}
           <div className="composer-row">
             <textarea
               ref={composerRef}
               rows={1}
               value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
+              onChange={(e) => {
+                ensureTokenizer();
+                setCurrentMessage(e.target.value);
+              }}
+              onFocus={ensureTokenizer}
               onKeyDown={handleComposerKeyDown}
               placeholder="Type your message..."
               disabled={isLoading}
