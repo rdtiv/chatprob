@@ -29,6 +29,7 @@ export default function TokenProbabilities({
 }) {
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
+  const [mode, setMode] = useState('among');
 
   useEffect(() => {
     if (!cardRef.current) return;
@@ -69,7 +70,7 @@ export default function TokenProbabilities({
 
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-  }, [position, probabilities, isSheet]);
+  }, [position, probabilities, isSheet, mode]);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
   // never appear or disappear while the slider moves.
@@ -112,8 +113,6 @@ export default function TokenProbabilities({
       window.removeEventListener('resize', apply);
     };
   }, [isSheet, frozenSet]);
-
-  const [mode, setMode] = useState('among');
 
   if (rows.length === 0) return null;
 
