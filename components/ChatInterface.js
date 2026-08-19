@@ -10,7 +10,7 @@ const STARTER_PROMPTS = [
   'Yes or no: is a hot dog a sandwich?',
 ];
 
-const TOKENIZER_PROMPTS = ['strawberry', '12345', '東京は美しい'];
+const TOKENIZER_PROMPTS = ['strawberry', '12345', 'The best pizza topping is'];
 const COMPOSER_MAX_HEIGHT = 132;
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
