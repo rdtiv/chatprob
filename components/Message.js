@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 
+const EMPTY_TOP_LOGPROBS = {};
+
 function sampledLogprob(tokenData) {
   if (!tokenData) return null;
   if (typeof tokenData.logprob === 'number') return tokenData.logprob;
@@ -73,13 +75,14 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false }) {
+export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, temperature, onTemperatureChange }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
+  const activeTokenElRef = useRef(null);
   const completionCount = Array.isArray(completions) ? completions.length : 0;
   const safeIndex = completionCount
     ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
@@ -103,18 +106,33 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
 
   useEffect(() => () => clearHoverTimer(), []);
 
+  const closeCard = () => {
+    invalidateHoverTimer();
+    setPinned(false);
+    setHoveredToken(null);
+  };
+
   useEffect(() => {
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
       if (event.target.closest('.token') || event.target.closest('.token-probabilities-card')) {
         return;
       }
-      invalidateHoverTimer();
-      setPinned(false);
-      setHoveredToken(null);
+      closeCard();
     };
     document.addEventListener('pointerdown', onDocPointerDown);
     return () => document.removeEventListener('pointerdown', onDocPointerDown);
+  }, [hoveredToken]);
+
+  useEffect(() => {
+    if (!hoveredToken) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      closeCard();
+      activeTokenElRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [hoveredToken]);
 
   const handleTokenMouseEnter = (token, index, event) => {
@@ -132,16 +150,20 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
 
   const handleTokenClick = (token, index, event) => {
     event.preventDefault();
+    activeTokenElRef.current = event.currentTarget;
     markHoverUsed();
     invalidateHoverTimer();
     if (pinned && hoveredToken?.index === index) {
-      setPinned(false);
-      setHoveredToken(null);
+      closeCard();
       return;
     }
+    const rect = event.currentTarget?.getBoundingClientRect?.();
+    const point = Number.isFinite(event.clientX) && event.clientX !== 0
+      ? { x: event.clientX, y: event.clientY }
+      : { x: rect ? rect.left + rect.width / 2 : 0, y: rect ? rect.bottom : 0 };
     setPinned(true);
     setHoveredToken({ token, index });
-    setMousePosition({ x: event.clientX, y: event.clientY });
+    setMousePosition(point);
   };
   
   const handleTokenMouseLeave = () => {
@@ -188,13 +210,21 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
         {tokenProbabilities.map((tp, idx) => {
           const backgroundColor = getBackgroundColor(tp);
           return (
-            <span 
+            <span
               key={idx}
               className={`token${idx === hintIndex ? ' token-hint' : ''}`}
               style={{ backgroundColor }}
+              role="button"
+              tabIndex={0}
+              aria-expanded={hoveredToken?.index === idx}
               onMouseEnter={(e) => handleTokenMouseEnter(tp.token, idx, e)}
               onClick={(e) => handleTokenClick(tp.token, idx, e)}
               onMouseLeave={handleTokenMouseLeave}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+                e.preventDefault();
+                handleTokenClick(tp.token, idx, e);
+              }}
             >
               {tp.token}
             </span>
@@ -281,16 +311,23 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
           )}
         </div>
       </div>
-      {hoveredToken && completions && (
-        <TokenProbabilities 
-          probabilities={completions[safeIndex]?.tokenProbabilities[hoveredToken.index]?.top_logprobs || {}}
-          position={mousePosition}
-          selectedToken={hoveredToken.token}
-          selectedLogprob={completions[safeIndex]?.tokenProbabilities[hoveredToken.index]?.logprob}
-          onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
-          onMouseLeave={handleTokenMouseLeave}
-        />
-      )}
+      {hoveredToken && completions && (() => {
+        const tokenData = completions[safeIndex]?.tokenProbabilities?.[hoveredToken.index];
+        return (
+          <TokenProbabilities
+            probabilities={tokenData?.top_logprobs || EMPTY_TOP_LOGPROBS}
+            position={mousePosition}
+            selectedToken={hoveredToken.token}
+            selectedLogprob={tokenData?.logprob}
+            temperature={temperature}
+            onTemperatureChange={onTemperatureChange}
+            sampledTemperature={typeof message.sampledTemperature === 'number' ? message.sampledTemperature : null}
+            onDismiss={closeCard}
+            onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
+            onMouseLeave={handleTokenMouseLeave}
+          />
+        );
+      })()}
     </div>
   );
 } 
