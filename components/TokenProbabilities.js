@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 
+function useSheetMode() {
+  const [isSheet, setIsSheet] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse), (hover: none)');
+    const sync = () => setIsSheet(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+  return isSheet;
+}
+
 export default function TokenProbabilities({
   probabilities,
   position,
@@ -14,11 +26,17 @@ export default function TokenProbabilities({
   onMouseLeave,
 }) {
   const cardRef = useRef(null);
+  const isSheet = useSheetMode();
 
   useEffect(() => {
     if (!cardRef.current) return;
 
     const card = cardRef.current;
+    if (isSheet) {
+      card.style.top = '';
+      card.style.left = '';
+      return;
+    }
     const rect = card.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const padding = 12;
@@ -49,7 +67,7 @@ export default function TokenProbabilities({
 
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-  }, [position, probabilities]);
+  }, [position, probabilities, isSheet]);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
   // never appear or disappear while the slider moves.
@@ -58,6 +76,40 @@ export default function TokenProbabilities({
     [probabilities, selectedToken, selectedLogprob]
   );
   const rows = useMemo(() => frozenRows(frozenSet), [frozenSet]);
+
+  // `bottom` on a fixed element is measured from the layout viewport, which iOS does
+  // not shrink for the keyboard; `visualViewport.offsetTop + height` is the bottom of
+  // what is actually visible; `min(formTop, viewportBottom)` docks above the composer
+  // when visible, above the keyboard when not.
+  useEffect(() => {
+    if (!isSheet) {
+      const card = cardRef.current;
+      if (card) { card.style.bottom = ''; card.style.maxHeight = ''; }
+      return undefined;
+    }
+    const vv = window.visualViewport;
+    const apply = () => {
+      const card = cardRef.current;
+      if (!card) return;
+      const vvTop = vv ? vv.offsetTop : 0;
+      const vvHeight = vv ? vv.height : window.innerHeight;
+      const viewportBottom = vvTop + vvHeight;
+      const form = document.querySelector('.message-form');
+      const formTop = form ? form.getBoundingClientRect().top : viewportBottom;
+      const dockTop = Math.min(formTop, viewportBottom) - 8;
+      card.style.bottom = `${window.innerHeight - dockTop}px`;
+      card.style.maxHeight = `${Math.max(160, Math.min(dockTop - vvTop - 12, Math.round(vvHeight * 0.55)))}px`;
+    };
+    apply();
+    vv?.addEventListener('resize', apply);
+    vv?.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      vv?.removeEventListener('resize', apply);
+      vv?.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, [isSheet, frozenSet]);
 
   const [mode, setMode] = useState('among');
 
@@ -86,7 +138,7 @@ export default function TokenProbabilities({
   return (
     <div
       ref={cardRef}
-      className="token-probabilities-card is-popover"
+      className={`token-probabilities-card ${isSheet ? 'is-sheet' : 'is-popover'}`}
       role="dialog"
       aria-label="What else the model considered"
       onMouseEnter={onMouseEnter}
@@ -98,6 +150,9 @@ export default function TokenProbabilities({
           <button type="button" className={`token-probabilities-toggle-button${mode === 'among' ? ' is-active' : ''}`} aria-pressed={mode === 'among'} onClick={() => setMode('among')}>Among these</button>
           <button type="button" className={`token-probabilities-toggle-button${mode === 'raw' ? ' is-active' : ''}`} aria-pressed={mode === 'raw'} onClick={() => setMode('raw')}>Raw odds</button>
         </div>
+        {isSheet && (
+          <button type="button" className="token-probabilities-sheet-close" aria-label="Close" onClick={onDismiss}>×</button>
+        )}
       </div>
       <ul className="token-probabilities-list">
         {frozenSet.candidates.map((row, index) => (
@@ -124,6 +179,24 @@ export default function TokenProbabilities({
       )}
       <p className="token-probabilities-note">{noteCopy}</p>
       {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
+      {isSheet && (
+        <div className="token-probabilities-sheet-temp">
+          <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
+            Temp {t.toFixed(1)}
+          </label>
+          <input
+            id="token-card-temperature"
+            className="token-probabilities-sheet-temp-range"
+            type="range"
+            min="0.2"
+            max="1.8"
+            step="0.1"
+            value={t}
+            onChange={(e) => onTemperatureChange?.(Number(e.target.value))}
+            aria-label="Sampling temperature"
+          />
+        </div>
+      )}
     </div>
   );
 }
