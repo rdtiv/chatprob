@@ -75,6 +75,7 @@ export default function ChatInterface() {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
+    const sampledTemperature = temperature;
     inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
@@ -86,7 +87,7 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation, temperature })
+        body: JSON.stringify({ messages: conversation, temperature: sampledTemperature })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -99,7 +100,8 @@ export default function ChatInterface() {
         completions: data.completions,
         activeIndex: 0,
         timestamp: new Date().toISOString(),
-        usage: data.usage || null
+        usage: data.usage || null,
+        sampledTemperature
       }]);
     } catch (error) {
       console.error('Error:', error);
@@ -328,6 +330,8 @@ export default function ChatInterface() {
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
+              temperature={temperature}
+              onTemperatureChange={setTemperature}
             />
             );
           })}

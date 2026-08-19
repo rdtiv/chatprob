@@ -1,19 +1,45 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 
-export default function TokenProbabilities({ 
-  probabilities, 
-  position, 
+function useSheetMode() {
+  const [isSheet, setIsSheet] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse), (hover: none)').matches
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse), (hover: none)');
+    const sync = () => setIsSheet(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+  return isSheet;
+}
+
+export default function TokenProbabilities({
+  probabilities,
+  position,
   selectedToken,
   selectedLogprob,
+  temperature,
+  onTemperatureChange,
+  sampledTemperature,
+  onDismiss,
   onMouseEnter,
-  onMouseLeave 
+  onMouseLeave,
 }) {
   const cardRef = useRef(null);
+  const isSheet = useSheetMode();
+  const [mode, setMode] = useState('among');
 
   useEffect(() => {
     if (!cardRef.current) return;
 
     const card = cardRef.current;
+    if (isSheet) {
+      card.style.top = '';
+      card.style.left = '';
+      return;
+    }
     const rect = card.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const padding = 12;
@@ -42,35 +68,56 @@ export default function TokenProbabilities({
 
     left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
 
-    card.style.position = 'fixed';
     card.style.top = `${top}px`;
     card.style.left = `${left}px`;
-    card.style.transform = 'none';
-  }, [position, probabilities]);
+  }, [position, probabilities, isSheet, mode]);
 
-  const ranked = Object.entries(probabilities || {}).sort((a, b) => b[1] - a[1]);
-  const selectedRank = ranked.findIndex(([token]) => token === selectedToken);
-  const resolvedSelectedLogprob = selectedRank >= 0
-    ? ranked[selectedRank][1]
-    : (typeof selectedLogprob === 'number' ? selectedLogprob : null);
-  const inTopFive = selectedRank >= 0 && selectedRank < 5;
-  const topEntries = ranked
-    .filter(([token, logprob]) => token === selectedToken || Math.exp(logprob) * 100 >= 0.5)
-    .slice(0, 5);
+  // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
+  // never appear or disappear while the slider moves.
+  const frozenSet = useMemo(
+    () => buildFrozenSet({ topLogprobs: probabilities, sampledToken: selectedToken, sampledLogprob: selectedLogprob }),
+    [probabilities, selectedToken, selectedLogprob]
+  );
+  const rows = useMemo(() => frozenRows(frozenSet), [frozenSet]);
 
-  if (topEntries.length === 0 && resolvedSelectedLogprob == null) {
-    return null;
-  }
+  // `bottom` on a fixed element is measured from the layout viewport, which iOS does
+  // not shrink for the keyboard; `visualViewport.offsetTop + height` is the bottom of
+  // what is actually visible; `min(formTop, viewportBottom)` docks above the composer
+  // when visible, above the keyboard when not.
+  useEffect(() => {
+    if (!isSheet) {
+      const card = cardRef.current;
+      if (card) { card.style.bottom = ''; card.style.maxHeight = ''; }
+      return undefined;
+    }
+    const vv = window.visualViewport;
+    const apply = () => {
+      const card = cardRef.current;
+      if (!card) return;
+      const vvTop = vv ? vv.offsetTop : 0;
+      const vvHeight = vv ? vv.height : window.innerHeight;
+      const viewportBottom = vvTop + vvHeight;
+      const form = document.querySelector('.message-form');
+      const formTop = form ? form.getBoundingClientRect().top : viewportBottom;
+      const dockTop = Math.min(formTop, viewportBottom) - 8;
+      card.style.bottom = `${window.innerHeight - dockTop}px`;
+      card.style.maxHeight = `${Math.min(dockTop - vvTop - 12, Math.max(160, Math.round(vvHeight * 0.55)))}px`;
+    };
+    apply();
+    vv?.addEventListener('resize', apply);
+    vv?.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      vv?.removeEventListener('resize', apply);
+      vv?.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, [isSheet, frozenSet]);
 
-  const getPercentage = (logprob) => {
-    const percentage = Math.exp(logprob) * 100;
-    if (percentage >= 10) return percentage.toFixed(1) + '%';
-    if (percentage >= 1) return percentage.toFixed(2) + '%';
-    if (percentage >= 0.1) return percentage.toFixed(2) + '%';
-    if (percentage >= 0.01) return percentage.toFixed(3) + '%';
-    if (percentage >= 0.001) return percentage.toFixed(4) + '%';
-    return '<0.001%';
-  };
+  if (rows.length === 0) return null;
+
+  const t = typeof temperature === 'number' ? temperature : 1;
+  const values = mode === 'among' ? oddsAmongCandidates(rows, t) : rawOdds(rows);
 
   const formatToken = (token) => {
     if (token === ' ') return '␣';
@@ -78,118 +125,80 @@ export default function TokenProbabilities({
     if (token === '\t') return '→';
     return token;
   };
-  
-  // Define keyframes for fade-in animation
-  const fadeInKeyframes = `
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(4px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  `;
-  
-  // Inline styles to ensure proper rendering
-  const containerStyle = {
-    position: 'fixed',
-    backgroundColor: '#fafafa',
-    borderRadius: '16px',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
-    width: 'calc(100% - 32px)',
-    maxWidth: '300px',
-    zIndex: 1000,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    opacity: 0,
-    animation: 'fadeIn 150ms ease-in forwards'
-  };
-  
-  const headerStyle = {
-    padding: '8px 16px',
-    borderBottom: '1px solid #eaeaea',
-    backgroundColor: '#f8f9fa',
-    borderTopLeftRadius: '16px',
-    borderTopRightRadius: '16px',
-    display: 'flex',
-    alignItems: 'center'
-  };
-  
-  const listStyle = {
-    listStyleType: 'none',
-    margin: 0,
-    padding: 0,
-    display: 'flex',
-    flexDirection: 'column'
-  };
-  
+
+  const noteCopy = mode !== 'among'
+    ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
+    : rows.length === 1
+      ? `Only one token is shown here, so it takes the whole 100% no matter the temperature. Switch to Raw odds for the model's actual confidence.`
+      : `Odds among the ${rows.length} tokens shown at temp ${t.toFixed(1)} — rescaled to add up to 100%.`;
+  const sampledLine = sampledTemperature == null
+    ? null
+    : (mode === 'among' && t !== sampledTemperature
+        ? `Sampled at ${sampledTemperature.toFixed(1)} · showing what-if at ${t.toFixed(1)}`
+        : `Sampled at ${sampledTemperature.toFixed(1)}`);
+
   return (
-    <>
-      <style>{fadeInKeyframes}</style>
-      <div 
-        ref={cardRef}
-        className="token-probabilities-card"
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        style={containerStyle}
-      >
-        <div style={headerStyle}>
-          <h3 style={{ fontSize: '0.95rem', color: '#1a1a1a', margin: 0, fontWeight: 600 }}>Most likely</h3>
+    <div
+      ref={cardRef}
+      className={`token-probabilities-card ${isSheet ? 'is-sheet' : 'is-popover'}`}
+      role="dialog"
+      aria-label="What else the model considered"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="token-probabilities-header">
+        <h3 className="token-probabilities-title">Most likely</h3>
+        <div className="token-probabilities-toggle" role="group" aria-label="Probability view">
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'among' ? ' is-active' : ''}`} aria-pressed={mode === 'among'} onClick={() => setMode('among')}>Among these</button>
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'raw' ? ' is-active' : ''}`} aria-pressed={mode === 'raw'} onClick={() => setMode('raw')}>Raw odds</button>
         </div>
-        <ul style={listStyle}>
-          {topEntries.map(([token, logprob], index) => {
-            const isSelected = inTopFive && token === selectedToken;
-            const isLast = index === topEntries.length - 1 && inTopFive;
-            
-            const itemStyle = {
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '6px 16px',
-              fontSize: '0.9rem',
-              alignItems: 'center',
-              lineHeight: 1.2,
-              backgroundColor: isSelected ? '#3b82f6' : 'transparent',
-              color: isSelected ? '#ffffff' : 'inherit',
-              borderBottomLeftRadius: isLast ? '16px' : '0',
-              borderBottomRightRadius: isLast ? '16px' : '0'
-            };
-            
-            return (
-              <li key={index} style={itemStyle}>
-                <span style={{ 
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  marginRight: '16px',
-                  fontSize: '0.9rem',
-                  color: isSelected ? '#ffffff' : '#1a1a1a'
-                }}>
-                  {formatToken(token)}
-                </span>
-                <span style={{ 
-                  fontWeight: 500,
-                  fontSize: '0.9rem',
-                  color: isSelected ? '#ffffff' : '#4b5563',
-                  fontVariantNumeric: 'tabular-nums'
-                }}>
-                  {getPercentage(logprob)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        {!inTopFive && selectedToken != null && resolvedSelectedLogprob != null && (
-          <div className="sampled-outside-top">
-            <div className="sampled-outside-top-row">
-              <span className="sampled-outside-top-token">{formatToken(selectedToken)}</span>
-              <span className="sampled-outside-top-pct">{getPercentage(resolvedSelectedLogprob)}</span>
-            </div>
-            <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
-          </div>
+        {isSheet && (
+          <button type="button" className="token-probabilities-sheet-close" aria-label="Close" onClick={onDismiss}>×</button>
         )}
       </div>
-    </>
+      <ul className="token-probabilities-list">
+        {frozenSet.candidates.map((row, index) => (
+          <li key={row.token} className={`token-probabilities-row${row.isSampled ? ' is-sampled' : ''}`}>
+            <span className="token-probabilities-bar" aria-hidden="true">
+              <span className="token-probabilities-bar-fill" style={{ width: `${Math.min(100, values[index] * 100)}%` }} />
+            </span>
+            <span className="token-probabilities-token">{formatToken(row.token)}</span>
+            <span className="token-probabilities-pct">{formatPercent(values[index])}</span>
+          </li>
+        ))}
+      </ul>
+      {frozenSet.sampledOutside && (
+        <div className="sampled-outside-top">
+          <div className="sampled-outside-top-row">
+            <span className="sampled-outside-top-bar" aria-hidden="true">
+              <span className="sampled-outside-top-bar-fill" style={{ width: `${Math.min(100, values[values.length - 1] * 100)}%` }} />
+            </span>
+            <span className="sampled-outside-top-token">{formatToken(frozenSet.sampledOutside.token)}</span>
+            <span className="sampled-outside-top-pct">{formatPercent(values[values.length - 1])}</span>
+          </div>
+          <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
+        </div>
+      )}
+      <p className="token-probabilities-note">{noteCopy}</p>
+      {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
+      {isSheet && (
+        <div className="token-probabilities-sheet-temp">
+          <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
+            Temp {t.toFixed(1)}
+          </label>
+          <input
+            id="token-card-temperature"
+            className="token-probabilities-sheet-temp-range"
+            type="range"
+            min="0.2"
+            max="1.8"
+            step="0.1"
+            value={t}
+            onChange={(e) => onTemperatureChange?.(Number(e.target.value))}
+            aria-label="Sampling temperature"
+          />
+        </div>
+      )}
+    </div>
   );
-} 
+}
