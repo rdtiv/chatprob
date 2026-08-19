@@ -10,7 +10,6 @@ const STARTER_PROMPTS = [
   'Yes or no: is a hot dog a sandwich?',
 ];
 
-const TOKENIZER_PROMPTS = ['strawberry', '12345', 'The best pizza topping is'];
 const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
@@ -371,26 +370,6 @@ export default function ChatInterface() {
                     className="prompt-chip"
                     disabled={isLoading}
                     onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-              <div className="prompt-chips tokenizer-chips" aria-label="Try the tokenizer">
-                <span className="tokenizer-chips-label">Try the tokenizer:</span>
-                {TOKENIZER_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    aria-label={`Tokenize: ${prompt}`}
-                    disabled={isLoading}
-                    onClick={() => {
-                      ensureTokenizer();
-                      setCurrentMessage(prompt);
-                      setStripOpen(true);
-                      composerRef.current?.focus();
-                    }}
                   >
                     {prompt}
                   </button>

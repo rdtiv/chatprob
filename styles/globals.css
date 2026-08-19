@@ -624,17 +624,6 @@ main {
   cursor: not-allowed;
 }
 
-.tokenizer-chips {
-  align-items: center;
-  gap: 6px;
-  padding-top: 0;
-}
-
-.tokenizer-chips-label {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
 .composer-meta {
   display: flex;
   align-items: center;
