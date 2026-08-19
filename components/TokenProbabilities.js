@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 
 function useSheetMode() {
-  const [isSheet, setIsSheet] = useState(false);
+  const [isSheet, setIsSheet] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse), (hover: none)').matches
+  );
   useEffect(() => {
     const media = window.matchMedia('(pointer: coarse), (hover: none)');
     const sync = () => setIsSheet(media.matches);
@@ -98,7 +100,7 @@ export default function TokenProbabilities({
       const formTop = form ? form.getBoundingClientRect().top : viewportBottom;
       const dockTop = Math.min(formTop, viewportBottom) - 8;
       card.style.bottom = `${window.innerHeight - dockTop}px`;
-      card.style.maxHeight = `${Math.max(160, Math.min(dockTop - vvTop - 12, Math.round(vvHeight * 0.55)))}px`;
+      card.style.maxHeight = `${Math.min(dockTop - vvTop - 12, Math.max(160, Math.round(vvHeight * 0.55)))}px`;
     };
     apply();
     vv?.addEventListener('resize', apply);
@@ -125,10 +127,11 @@ export default function TokenProbabilities({
     return token;
   };
 
-  const candidateWord = rows.length === 1 ? 'candidate' : 'candidates';
-  const noteCopy = mode === 'among'
-    ? `Odds among these ${rows.length} ${candidateWord} at temp ${t.toFixed(1)} — rescaled to add up to 100%.`
-    : `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`;
+  const noteCopy = mode !== 'among'
+    ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
+    : rows.length === 1
+      ? `Only one token is shown here, so it takes the whole 100% no matter the temperature. Switch to Raw odds for the model's actual confidence.`
+      : `Odds among the ${rows.length} tokens shown at temp ${t.toFixed(1)} — rescaled to add up to 100%.`;
   const sampledLine = sampledTemperature == null
     ? null
     : (mode === 'among' && t !== sampledTemperature

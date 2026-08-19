@@ -83,6 +83,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
+  const rootRef = useRef(null);
   const completionCount = Array.isArray(completions) ? completions.length : 0;
   const safeIndex = completionCount
     ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
@@ -115,7 +116,8 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   useEffect(() => {
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
-      if (event.target.closest('.token') || event.target.closest('.token-probabilities-card')) {
+      const hit = event.target.closest('.token, .token-probabilities-card');
+      if (hit && rootRef.current?.contains(hit)) {
         return;
       }
       closeCard();
@@ -129,7 +131,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     const onKeyDown = (event) => {
       if (event.key !== 'Escape') return;
       closeCard();
-      activeTokenElRef.current?.focus();
+      if (activeTokenElRef.current?.isConnected) activeTokenElRef.current.focus();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -139,10 +141,12 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     if (pinned) return;
     clearHoverTimer();
     markHoverUsed();
+    const el = event.currentTarget;
     const generation = hoverGenerationRef.current + 1;
     hoverGenerationRef.current = generation;
     hoverTimeoutRef.current = setTimeout(() => {
       if (generation !== hoverGenerationRef.current) return;
+      activeTokenElRef.current = el;
       setHoveredToken({ token, index });
       setMousePosition({ x: event.clientX, y: event.clientY });
     }, 100);
@@ -221,6 +225,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
               onClick={(e) => handleTokenClick(tp.token, idx, e)}
               onMouseLeave={handleTokenMouseLeave}
               onKeyDown={(e) => {
+                if (e.repeat) return;
                 if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
                 e.preventDefault();
                 handleTokenClick(tp.token, idx, e);
@@ -235,7 +240,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   };
   
   return (
-    <div className={`message ${role}-message`}>
+    <div className={`message ${role}-message`} ref={rootRef}>
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">
