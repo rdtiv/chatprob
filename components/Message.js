@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
+import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -75,7 +76,7 @@ const getBackgroundColor = (tokenData) => {
   return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
 };
 
-export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, temperature, onTemperatureChange }) {
+export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, temperature, onTemperatureChange, tokenizer }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
@@ -88,7 +89,12 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const safeIndex = completionCount
     ? Math.min(Math.max(activeIndex, 0), completionCount - 1)
     : 0;
-  
+
+  const userChunks = useMemo(() => {
+    if (role !== 'user' || !tokenizer || typeof content !== 'string' || content.length === 0) return null;
+    return tokenizeForDisplay(tokenizer, content).chunks;
+  }, [role, tokenizer, content]);
+
   const markHoverUsed = () => {
     if (showHoverHint) onHoverUsed?.();
   };
@@ -187,6 +193,22 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const renderContent = () => {
     // Handle non-assistant messages or messages without completions
     if (!completions || role !== 'assistant') {
+      if (userChunks) {
+        return (
+          <div className="message-text">
+            {userChunks.map((chunk, index) => (
+              <span
+                key={index}
+                className={`user-token-chunk${index % 2 ? ' is-alt' : ''}${isPartialChunk(chunk) ? ' is-partial' : ''}`}
+                aria-hidden={isPartialChunk(chunk) || undefined}
+                title={isPartialChunk(chunk) ? 'Part of a character — this token is only a fragment of bytes' : undefined}
+              >
+                {isPartialChunk(chunk) ? '·' : chunk}
+              </span>
+            ))}
+          </div>
+        );
+      }
       return <div className="message-text">{content}</div>;
     }
 

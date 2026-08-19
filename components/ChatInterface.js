@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { useState, useRef, useEffect, useMemo, useId, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
 import TokenizerStrip from './TokenizerStrip';
@@ -97,7 +97,7 @@ export default function ChatInterface() {
     localStorage.setItem(HOVER_HINT_KEY, '1');
   };
 
-  const ensureTokenizer = () => {
+  const ensureTokenizer = useCallback(() => {
     if (tokenizerStartedRef.current) return;
     tokenizerStartedRef.current = true;
     setTokenizerState('loading');
@@ -109,7 +109,11 @@ export default function ChatInterface() {
         setTokenizerState('failed');
       }
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (messages.some((m) => m.role === 'user')) ensureTokenizer();
+  }, [messages, ensureTokenizer]);
 
   const tokenized = useMemo(
     () => tokenizeForDisplay(tokenizer, currentMessage),
@@ -418,6 +422,7 @@ export default function ChatInterface() {
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               temperature={temperature}
               onTemperatureChange={setTemperature}
+              tokenizer={tokenizer}
             />
             );
           })}

@@ -714,6 +714,23 @@ main {
   color: #64748b;
 }
 
+.user-token-chunk {
+  background-color: rgba(100, 116, 139, 0.10);
+  border-radius: 3px;
+  padding: 1px 0;
+  white-space: pre-wrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.user-token-chunk.is-alt {
+  background-color: rgba(100, 116, 139, 0.20);
+}
+
+.user-token-chunk.is-partial {
+  color: #94a3b8;
+}
+
 .messages-container {
   flex: 1;
   min-height: 0;
