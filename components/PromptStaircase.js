@@ -1,0 +1,87 @@
+import { useMemo } from 'react';
+
+export default function PromptStaircase({ messages }) {
+  const rows = useMemo(() => {
+    let prevPrompt = null;
+    let turn = 0;
+    const built = [];
+
+    (messages || []).forEach((item) => {
+      if (item.role !== 'assistant' || item.usage?.prompt_tokens == null) return;
+      turn += 1;
+      const prompt = item.usage.prompt_tokens;
+      const replayed = prevPrompt ?? 0;
+      const rawCached = Number.isFinite(item.usage.cached_tokens) ? item.usage.cached_tokens : 0;
+      const cached = Math.min(Math.max(rawCached, 0), prompt);
+      const replayedUncached = Math.max(0, replayed - cached);
+      const added = Math.max(0, prompt - cached - replayedUncached);
+
+      built.push({
+        key: item.timestamp ?? turn - 1,
+        turn,
+        prompt,
+        replayed,
+        replayedUncached,
+        cached,
+        added,
+      });
+
+      prevPrompt = prompt;
+    });
+
+    return built;
+  }, [messages]);
+
+  if (!rows.length) return null;
+
+  const maxPrompt = Math.max(...rows.map((row) => row.prompt), 1);
+  const anyCached = rows.some((row) => row.cached > 0);
+
+  const finalRows = rows.map((row) => {
+    const widthPct = (row.prompt / maxPrompt) * 100;
+    const cachedPct = row.prompt > 0 ? (row.cached / row.prompt) * 100 : 0;
+    const replayedPct = row.prompt > 0 ? (row.replayedUncached / row.prompt) * 100 : 0;
+    const newPct = row.prompt > 0 ? (row.added / row.prompt) * 100 : 0;
+    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in — ${row.replayed} replayed, ${row.prompt - row.replayed > 0 ? row.prompt - row.replayed : 0} new`
+      + (row.cached > 0 ? `, ${row.cached} from cache` : '');
+
+    return {
+      ...row,
+      widthPct,
+      cachedPct,
+      replayedPct,
+      newPct,
+      ariaLabel,
+      label: `${row.prompt} in`,
+    };
+  });
+
+  let note = "Each bar is one request. The pale part was already sent before — the API has no memory, so you pay to resend it every turn.";
+  if (anyCached) {
+    note += " The medium-violet part was served from OpenAI's prompt cache at a discount.";
+  }
+
+  return (
+    <div className="prompt-staircase">
+      <div className="prompt-staircase-legend">
+        <span className="prompt-staircase-key"><span className="prompt-staircase-swatch is-replayed" />replayed</span>
+        {anyCached && <span className="prompt-staircase-key"><span className="prompt-staircase-swatch is-cached" />cached</span>}
+        <span className="prompt-staircase-key"><span className="prompt-staircase-swatch is-new" />new</span>
+      </div>
+      <ol className="prompt-staircase-rows">
+        {finalRows.map((row) => (
+          <li key={row.key} className="prompt-staircase-row" aria-label={row.ariaLabel}>
+            <span className="prompt-staircase-turn">{row.turn}</span>
+            <span className="prompt-staircase-bar" style={{ width: `${row.widthPct}%` }} aria-hidden="true">
+              {row.cached > 0 && <span className="prompt-staircase-seg is-cached" style={{ width: `${row.cachedPct}%` }} />}
+              {row.replayedUncached > 0 && <span className="prompt-staircase-seg is-replayed" style={{ width: `${row.replayedPct}%` }} />}
+              {row.added > 0 && <span className="prompt-staircase-seg is-new" style={{ width: `${row.newPct}%` }} />}
+            </span>
+            <span className="prompt-staircase-label">{row.label}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="prompt-staircase-note">{note}</p>
+    </div>
+  );
+}

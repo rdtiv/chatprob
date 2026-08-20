@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
+import PromptStaircase from './PromptStaircase';
+import RequestEcho from './RequestEcho';
 import { loadTokenizer } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
@@ -22,7 +24,6 @@ export default function ChatInterface() {
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
-  const [tokenizerState, setTokenizerState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'failed'
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
@@ -87,15 +88,9 @@ export default function ChatInterface() {
   const ensureTokenizer = useCallback(() => {
     if (tokenizerStartedRef.current) return;
     tokenizerStartedRef.current = true;
-    setTokenizerState('loading');
     loadTokenizer().then((loaded) => {
-      if (loaded) {
-        setTokenizer(loaded);
-        setTokenizerState('ready');
-      } else {
-        tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
-        setTokenizerState('failed');
-      }
+      if (loaded) setTokenizer(loaded);
+      else tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
     });
   }, []);
 
@@ -128,27 +123,36 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation, temperature: sampledTemperature })
+        body: JSON.stringify({ messages: conversation.filter((m) => !m.error), temperature: sampledTemperature })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
       const data = await response.json();
       const first = data.completions?.[0];
 
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: first?.text || '',
-        completions: data.completions,
-        activeIndex: 0,
-        timestamp: new Date().toISOString(),
-        usage: data.usage || null,
-        sampledTemperature
-      }]);
+      setMessages(prev => [
+        ...prev.map((item) => (
+          item.role === 'assistant' && item.echoedMessages
+            ? { ...item, echoedMessages: undefined }
+            : item
+        )),
+        {
+          role: 'assistant',
+          content: first?.text || '',
+          completions: data.completions,
+          activeIndex: 0,
+          timestamp: new Date().toISOString(),
+          usage: data.usage || null,
+          sampledTemperature,
+          echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+        },
+      ]);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, there was an error processing your request.',
+        error: true,
         timestamp: new Date().toISOString()
       }]);
     } finally {
@@ -211,6 +215,7 @@ export default function ChatInterface() {
     return next;
   }, 0);
   const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
+  const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
 
   return (
     <div style={{
@@ -324,12 +329,14 @@ export default function ChatInterface() {
               </span>
             </button>
             <div id="conversation-lesson-body" className="conversation-lesson-body">
+              <PromptStaircase messages={messages} />
               <ConversationExplainer
                 inSeries={inSeries}
                 sessionSeries={sessionSeries}
-                lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
+                lastAssistant={lastAssistant}
                 messages={messages}
               />
+              <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
             </div>
           </div>
         )}

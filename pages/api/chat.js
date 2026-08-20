@@ -80,11 +80,13 @@ export default async function handler(req, res) {
     const temperature = clampTemperature(req.body?.temperature);
     const hasSystem = apiMessages.some((msg) => msg.role === 'system');
 
+    const sentMessages = hasSystem
+      ? apiMessages
+      : [{ role: 'system', content: VARIETY_SYSTEM_PROMPT }, ...apiMessages];
+
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: hasSystem
-        ? apiMessages
-        : [{ role: 'system', content: VARIETY_SYSTEM_PROMPT }, ...apiMessages],
+      messages: sentMessages,
       temperature,
       presence_penalty: 0.45,
       max_tokens: 300,
@@ -101,9 +103,11 @@ export default async function handler(req, res) {
     return res.status(200).json({
       model: response.model,
       completions,
+      echoedMessages: sentMessages,
       usage: {
         prompt_tokens: response.usage?.prompt_tokens ?? null,
         completion_tokens: response.usage?.completion_tokens ?? null,
+        cached_tokens: response.usage?.prompt_tokens_details?.cached_tokens ?? null,
         model: response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
       },
     });
