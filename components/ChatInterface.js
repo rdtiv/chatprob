@@ -22,7 +22,6 @@ export default function ChatInterface() {
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
-  const [tokenizerState, setTokenizerState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'failed'
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
@@ -87,15 +86,9 @@ export default function ChatInterface() {
   const ensureTokenizer = useCallback(() => {
     if (tokenizerStartedRef.current) return;
     tokenizerStartedRef.current = true;
-    setTokenizerState('loading');
     loadTokenizer().then((loaded) => {
-      if (loaded) {
-        setTokenizer(loaded);
-        setTokenizerState('ready');
-      } else {
-        tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
-        setTokenizerState('failed');
-      }
+      if (loaded) setTokenizer(loaded);
+      else tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
     });
   }, []);
 
@@ -135,15 +128,23 @@ export default function ChatInterface() {
       const data = await response.json();
       const first = data.completions?.[0];
 
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: first?.text || '',
-        completions: data.completions,
-        activeIndex: 0,
-        timestamp: new Date().toISOString(),
-        usage: data.usage || null,
-        sampledTemperature
-      }]);
+      setMessages(prev => [
+        ...prev.map((item) => (
+          item.role === 'assistant' && item.echoedMessages
+            ? { ...item, echoedMessages: undefined }
+            : item
+        )),
+        {
+          role: 'assistant',
+          content: first?.text || '',
+          completions: data.completions,
+          activeIndex: 0,
+          timestamp: new Date().toISOString(),
+          usage: data.usage || null,
+          sampledTemperature,
+          echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+        },
+      ]);
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
