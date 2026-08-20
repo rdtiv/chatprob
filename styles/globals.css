@@ -221,7 +221,7 @@ main {
 }
 
 .conversation-lesson-toggle {
-  display: none;
+  display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 4px;
@@ -245,6 +245,16 @@ main {
 
 .conversation-lesson.is-open .conversation-lesson-chevron {
   transform: rotate(180deg) translateY(-0.5px);
+}
+
+.conversation-lesson:not(.is-open) .conversation-lesson-body {
+  display: none;
+}
+
+.conversation-lesson-summary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .conversation-lesson-row {
@@ -624,6 +634,23 @@ main {
   cursor: not-allowed;
 }
 
+.user-token-chunk {
+  background-color: rgba(100, 116, 139, 0.10);
+  border-radius: 3px;
+  padding: 1px 0;
+  white-space: pre-wrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.user-token-chunk.is-alt {
+  background-color: rgba(100, 116, 139, 0.20);
+}
+
+.user-token-chunk.is-partial {
+  color: #94a3b8;
+}
+
 .messages-container {
   flex: 1;
   min-height: 0;
@@ -732,6 +759,8 @@ main {
   line-height: 1.2;
   padding: 0;
   margin: 0;
+  /* Match the tokenized-chunk path so bubbles do not reflow when the encoder loads. */
+  white-space: pre-wrap;
 }
 
 .message-meta {
@@ -833,7 +862,11 @@ main {
   .message-input {
     font-size: 16px;
   }
-  
+
+  .prompt-chip {
+    min-height: 44px;
+  }
+
   .app-title, .app-subtitle {
     display: none;
   }
@@ -868,20 +901,6 @@ main {
 
   .conversation-lesson {
     padding: 6px 12px;
-  }
-
-  .conversation-lesson-toggle {
-    display: inline-flex;
-  }
-
-  .conversation-lesson:not(.is-open) .conversation-lesson-body {
-    display: none;
-  }
-
-  .conversation-lesson-summary:focus-visible {
-    outline: 2px solid #2563eb;
-    outline-offset: 2px;
-    border-radius: 6px;
   }
 
   .messages-container {
@@ -932,6 +951,7 @@ main {
     right: 24px;
     padding: 8px;
   }
+
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -976,14 +996,6 @@ main {
   .desktop-only {
     display: block !important;
   }
-
-  .conversation-lesson-summary {
-    cursor: default;
-  }
-
-  .conversation-lesson-body {
-    display: block;
-  }
 }
 
 .message-form {
@@ -997,6 +1009,14 @@ main {
   background-color: #fff;
   border-top: 1px solid #eaeaea;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composer-row {
+  position: relative;
+  width: 100%;
   display: flex;
 }
 
@@ -1018,6 +1038,12 @@ main {
   transition: all 0.2s ease;
   margin: 0;
   outline: none;
+  resize: none;
+  overflow-y: auto;
+  max-height: 132px; /* keep in sync with COMPOSER_MAX_HEIGHT in ChatInterface.js */
+  line-height: 1.4;
+  font-family: inherit;
+  display: block;
 }
 
 .message-input:focus {
@@ -1029,8 +1055,7 @@ main {
 .send-button {
   position: absolute;
   right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 6px;
   padding: 6px;
   border-radius: 8px;
   border: none;
@@ -1053,5 +1078,5 @@ main {
 }
 
 .send-button:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.95);
+  transform: scale(0.95);
 } 

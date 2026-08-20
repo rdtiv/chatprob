@@ -28,7 +28,8 @@ export default function ConversationExplainer({
   if (!turns || !lastAssistant?.usage) {
     return (
       <p className="conversation-explainer">
-        Send a message and I will walk through what the model actually did with your tokens — like we are sitting together looking at the receipt.
+        Send a message and I will walk you through what the model did with your tokens, like reading the receipt together.
+        {' '}Try sending <strong>strawberry</strong>: your message will show it as three pieces, not ten letters. That is why counting letters is hard for a model.
       </p>
     );
   }

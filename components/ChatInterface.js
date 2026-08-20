@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
+import { loadTokenizer } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
   'Write two different metaphors for rain.',
   'Yes or no: is a hot dog a sandwich?',
 ];
+
+const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
 
@@ -18,21 +21,16 @@ export default function ChatInterface() {
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
-  const [compactLesson, setCompactLesson] = useState(false);
+  const [tokenizer, setTokenizer] = useState(null);
+  const [tokenizerState, setTokenizerState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'failed'
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
+  const composerRef = useRef(null);
+  const tokenizerStartedRef = useRef(false);
 
   // Update page title
   useEffect(() => {
     document.title = 'ChatProb';
-  }, []);
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 768px)');
-    const sync = () => setCompactLesson(media.matches);
-    sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
   }, []);
 
   const scrollToBottom = () => {
@@ -42,6 +40,30 @@ export default function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const measureComposer = () => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  };
+
+  useEffect(() => {
+    measureComposer();
+  }, [currentMessage]);
+
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measureComposer);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -61,6 +83,25 @@ export default function ChatInterface() {
     setHoverHintVisible(false);
     localStorage.setItem(HOVER_HINT_KEY, '1');
   };
+
+  const ensureTokenizer = useCallback(() => {
+    if (tokenizerStartedRef.current) return;
+    tokenizerStartedRef.current = true;
+    setTokenizerState('loading');
+    loadTokenizer().then((loaded) => {
+      if (loaded) {
+        setTokenizer(loaded);
+        setTokenizerState('ready');
+      } else {
+        tokenizerStartedRef.current = false; // allow the next focus/keystroke to retry
+        setTokenizerState('failed');
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (messages.some((m) => m.role === 'user')) ensureTokenizer();
+  }, [messages, ensureTokenizer]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -119,6 +160,13 @@ export default function ChatInterface() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await sendMessage(currentMessage);
+  };
+
+  const handleComposerKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    sendMessage(currentMessage);
   };
 
   const selectCompletion = (messageIndex, completionIndex) => {
@@ -256,11 +304,9 @@ export default function ChatInterface() {
             <button
               type="button"
               className="conversation-lesson-summary"
-              aria-expanded={compactLesson ? lessonOpen : true}
+              aria-expanded={lessonOpen}
               aria-controls="conversation-lesson-body"
-              onClick={() => {
-                if (compactLesson) setLessonOpen((open) => !open);
-              }}
+              onClick={() => setLessonOpen((open) => !open)}
             >
               <div className="conversation-lesson-metrics">
                 <div className="conversation-lesson-row">
@@ -332,6 +378,7 @@ export default function ChatInterface() {
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               temperature={temperature}
               onTemperatureChange={setTemperature}
+              tokenizer={tokenizer}
             />
             );
           })}
@@ -378,20 +425,22 @@ export default function ChatInterface() {
         </div>
         
         <form onSubmit={handleSubmit} className="message-form">
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            display: 'flex'
-          }}>
-            <input
-              type="text"
+          <div className="composer-row">
+            <textarea
+              ref={composerRef}
+              rows={1}
               value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
+              onChange={(e) => {
+                ensureTokenizer();
+                setCurrentMessage(e.target.value);
+              }}
+              onFocus={ensureTokenizer}
+              onKeyDown={handleComposerKeyDown}
               placeholder="Type your message..."
               disabled={isLoading}
               className="message-input"
             />
-            <button 
+            <button
               type="submit" 
               disabled={isLoading} 
               className="send-button"

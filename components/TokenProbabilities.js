@@ -33,43 +33,56 @@ export default function TokenProbabilities({
 
   useEffect(() => {
     if (!cardRef.current) return;
-
     const card = cardRef.current;
     if (isSheet) {
       card.style.top = '';
       card.style.left = '';
       return;
     }
-    const rect = card.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const padding = 12;
-    const header = document.querySelector('.chat-header');
-    const legend = document.querySelector('.confidence-legend');
+    const apply = () => {
+      if (!cardRef.current) return;
+      const rect = card.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const padding = 12;
+      const header = document.querySelector('.chat-header');
+      const legend = document.querySelector('.confidence-legend');
+      const form = document.querySelector('.message-form');
+      const chromeBottom = (legend || header)?.getBoundingClientRect().bottom ?? 0;
+      const topSafe = Math.max(padding, chromeBottom + 8);
+      const bottomSafe = form
+        ? form.getBoundingClientRect().top - 8
+        : window.innerHeight - 80;
+
+      // Prefer below the token so the card does not cover the header/legend.
+      let top = position.y + 20;
+      let left = position.x - (rect.width / 2);
+
+      if (top + rect.height > bottomSafe) {
+        top = position.y - rect.height - 8;
+      }
+      if (top < topSafe) {
+        top = topSafe;
+      }
+      if (top + rect.height > bottomSafe) {
+        top = Math.max(topSafe, bottomSafe - rect.height);
+      }
+
+      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
+
+      card.style.top = `${top}px`;
+      card.style.left = `${left}px`;
+    };
+    apply();
     const form = document.querySelector('.message-form');
-    const chromeBottom = (legend || header)?.getBoundingClientRect().bottom ?? 0;
-    const topSafe = Math.max(padding, chromeBottom + 8);
-    const bottomSafe = form
-      ? form.getBoundingClientRect().top - 8
-      : window.innerHeight - 80;
-
-    // Prefer below the token so the card does not cover the header/legend.
-    let top = position.y + 20;
-    let left = position.x - (rect.width / 2);
-
-    if (top + rect.height > bottomSafe) {
-      top = position.y - rect.height - 8;
-    }
-    if (top < topSafe) {
-      top = topSafe;
-    }
-    if (top + rect.height > bottomSafe) {
-      top = Math.max(topSafe, bottomSafe - rect.height);
-    }
-
-    left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
-
-    card.style.top = `${top}px`;
-    card.style.left = `${left}px`;
+    const observer = typeof ResizeObserver !== 'undefined' && form
+      ? new ResizeObserver(apply)
+      : null;
+    observer?.observe(form);
+    window.addEventListener('resize', apply);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', apply);
+    };
   }, [position, probabilities, isSheet, mode]);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
@@ -107,10 +120,16 @@ export default function TokenProbabilities({
     vv?.addEventListener('resize', apply);
     vv?.addEventListener('scroll', apply);
     window.addEventListener('resize', apply);
+    const form = document.querySelector('.message-form');
+    const observer = typeof ResizeObserver !== 'undefined' && form
+      ? new ResizeObserver(apply)
+      : null;
+    observer?.observe(form);
     return () => {
       vv?.removeEventListener('resize', apply);
       vv?.removeEventListener('scroll', apply);
       window.removeEventListener('resize', apply);
+      observer?.disconnect();
     };
   }, [isSheet, frozenSet]);
 
