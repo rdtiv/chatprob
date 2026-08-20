@@ -499,6 +499,19 @@ main {
   min-height: 2.6em;
 }
 
+.token-probabilities-fork-note {
+  margin: 0;
+  padding: 8px 16px 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: #1d4ed8;
+  border-top: 1px solid #eaeaea;
+}
+
+.token-probabilities-fork-note + .token-probabilities-note {
+  border-top: none;
+}
+
 .token-probabilities-sampled-line {
   margin: 0;
   padding: 0 16px 10px;
