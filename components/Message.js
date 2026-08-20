@@ -1,17 +1,9 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor } from '../lib/completionStats';
 
 const EMPTY_TOP_LOGPROBS = {};
-
-function sampledLogprob(tokenData) {
-  if (!tokenData) return null;
-  if (typeof tokenData.logprob === 'number') return tokenData.logprob;
-  if (tokenData.top_logprobs && tokenData.token in tokenData.top_logprobs) {
-    return tokenData.top_logprobs[tokenData.token];
-  }
-  return null;
-}
 
 function sampledPercentage(tokenData) {
   const logprob = sampledLogprob(tokenData);
@@ -42,38 +34,7 @@ function pickHintTokenIndex(tokenProbabilities) {
 const getBackgroundColor = (tokenData) => {
   const percentage = sampledPercentage(tokenData);
   if (percentage == null) return 'transparent';
-  
-  // Define color stops
-  const colors = {
-    high: { r: 34, g: 197, b: 94 },    // Dark green (#22C55E)
-    mid: { r: 234, g: 179, b: 8 },     // Yellow (#EAB308)
-    low: { r: 139, g: 0, b: 0 }        // Dark red (#8B0000)
-  };
-  
-  let finalColor;
-  if (percentage >= 50) {
-    // Blend between high (100%) and mid (50%)
-    const ratio = (percentage - 50) / 50; // Will be 0 at 50% and 1 at 100%
-    finalColor = {
-      r: Math.round(colors.mid.r + (colors.high.r - colors.mid.r) * ratio),
-      g: Math.round(colors.mid.g + (colors.high.g - colors.mid.g) * ratio),
-      b: Math.round(colors.mid.b + (colors.high.b - colors.mid.b) * ratio)
-    };
-  } else {
-    // Blend between mid (50%) and low (0%)
-    const ratio = percentage / 50; // Will be 0 at 0% and 1 at 50%
-    finalColor = {
-      r: Math.round(colors.low.r + (colors.mid.r - colors.low.r) * ratio),
-      g: Math.round(colors.low.g + (colors.mid.g - colors.low.g) * ratio),
-      b: Math.round(colors.low.b + (colors.mid.b - colors.low.b) * ratio)
-    };
-  }
-  
-  // Calculate opacity based on percentage (0.15 to 0.5)
-  const opacity = 0.15 + (percentage / 100) * 0.35;
-  
-  // Return rgba color
-  return `rgba(${finalColor.r}, ${finalColor.g}, ${finalColor.b}, ${opacity})`;
+  return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
 export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, temperature, onTemperatureChange, tokenizer }) {
@@ -81,6 +42,8 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [lockNoteOpen, setLockNoteOpen] = useState(false);
+  const lockNoteId = useId();
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
@@ -94,6 +57,21 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     if (role !== 'user' || !tokenizer || typeof content !== 'string' || content.length === 0) return null;
     return tokenizeForDisplay(tokenizer, content).chunks;
   }, [role, tokenizer, content]);
+
+  const forkIndex = useMemo(
+    () => (role === 'assistant' ? findForkIndex(completions) : -1),
+    [role, completions]
+  );
+  const tabStats = useMemo(
+    () => (Array.isArray(completions) ? completions.map(completionStats) : []),
+    [completions]
+  );
+  const comparedCount = useMemo(
+    () => (Array.isArray(completions)
+      ? completions.filter((c) => Array.isArray(c?.tokenProbabilities) && c.tokenProbabilities.length > 0).length
+      : 0),
+    [completions]
+  );
 
   const markHoverUsed = () => {
     if (showHoverHint) onHoverUsed?.();
@@ -190,6 +168,15 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     onSelect?.(index);
   };
 
+  const activeStats = tabStats[safeIndex];
+  const statsLine = activeStats
+    ? [formatPerplexity(activeStats.perplexity), formatJointOdds(activeStats.jointLog10)].filter(Boolean).join(' · ')
+    : '';
+  const baseForkCopy = forkIndex === 0
+    ? 'The replies split right here, at the very first word — they had nothing in common to begin with.'
+    : `Identical until here. All ${comparedCount} replies produced exactly the same tokens up to this point, then chose differently.`;
+  const forkNoteCopy = [baseForkCopy, statsLine && `This reply: ${statsLine}.`].filter(Boolean).join(' ');
+
   const renderContent = () => {
     // Handle non-assistant messages or messages without completions
     if (!completions || role !== 'assistant') {
@@ -237,8 +224,9 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
           const backgroundColor = getBackgroundColor(tp);
           return (
             <span
-              key={idx}
-              className={`token${idx === hintIndex ? ' token-hint' : ''}`}
+              key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
+              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}`}
+              aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
               role="button"
               tabIndex={0}
@@ -274,28 +262,61 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
                   aria-label={tabsLocked ? 'Locked into the conversation' : 'Alternative responses'}
                   title={tabsLocked ? 'This reply is locked into the conversation' : undefined}
                 >
-                  {completions.map((_, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      role="tab"
-                      aria-selected={index === safeIndex}
-                      disabled={tabsLocked}
-                      className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
-                      title={tabsLocked ? 'This reply is locked into the conversation' : `Show response ${index + 1}`}
-                      onClick={() => handleSelect(index)}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
+                  {completions.map((_, index) => {
+                    const stats = tabStats[index];
+                    const parts = [
+                      `Response ${index + 1}`,
+                      stats && formatPerplexity(stats.perplexity),
+                      stats && formatJointOdds(stats.jointLog10),
+                    ].filter(Boolean);
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        role="tab"
+                        aria-selected={index === safeIndex}
+                        disabled={tabsLocked}
+                        className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
+                        title={tabsLocked ? 'This reply is locked into the conversation' : parts.join(' · ')}
+                        onClick={(e) => {
+                          e.currentTarget.focus();
+                          handleSelect(index);
+                        }}
+                      >
+                        <span className="completion-tab-number">{index + 1}</span>
+                        {stats?.confidence != null && (
+                          <span
+                            className="completion-tab-dot"
+                            aria-hidden="true"
+                            style={{ backgroundColor: confidenceColor(stats.confidence, 0.9) }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 {tabsLocked && (
-                  <span className="completion-lock" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="5" y="11" width="14" height="10" rx="2" />
-                      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                    </svg>
-                  </span>
+                  <>
+                    <button
+                      type="button"
+                      className="completion-lock"
+                      aria-expanded={lockNoteOpen}
+                      aria-controls={lockNoteOpen ? lockNoteId : undefined}
+                      aria-label="Why can't I switch replies?"
+                      title="This reply is part of the conversation's history now"
+                      onClick={() => setLockNoteOpen((open) => !open)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="5" y="11" width="14" height="10" rx="2" />
+                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                      </svg>
+                    </button>
+                    {lockNoteOpen && (
+                      <span id={lockNoteId} className="completion-lock-note">
+                        This reply is part of the conversation&rsquo;s history now — the next turn was built on it.
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -357,6 +378,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
             temperature={temperature}
             onTemperatureChange={onTemperatureChange}
             sampledTemperature={typeof message.sampledTemperature === 'number' ? message.sampledTemperature : null}
+            forkNote={forkIndex >= 0 && hoveredToken.index === forkIndex ? forkNoteCopy : null}
             onDismiss={closeCard}
             onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
             onMouseLeave={handleTokenMouseLeave}

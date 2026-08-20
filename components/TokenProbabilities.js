@@ -23,6 +23,7 @@ export default function TokenProbabilities({
   temperature,
   onTemperatureChange,
   sampledTemperature,
+  forkNote,
   onDismiss,
   onMouseEnter,
   onMouseLeave,
@@ -198,6 +199,7 @@ export default function TokenProbabilities({
           <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
         </div>
       )}
+      {forkNote && <p className="token-probabilities-fork-note">{forkNote}</p>}
       <p className="token-probabilities-note">{noteCopy}</p>
       {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
       {isSheet && (
