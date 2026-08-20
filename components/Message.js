@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useId } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor } from '../lib/completionStats';
+import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -44,6 +45,8 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [lockNoteOpen, setLockNoteOpen] = useState(false);
   const lockNoteId = useId();
+  const [usageOpen, setUsageOpen] = useState(false);
+  const usageId = useId();
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
@@ -337,29 +340,47 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
                   ≈ {userChunks.length} tokens
                 </span>
               )}
-              {message.usage?.prompt_tokens != null && (
-                <span
-                  className="token-usage"
-                  title="in = everything sent this request. replayed = last turn's prompt, sent again. new = last reply + your latest message. out this tab = the reply you are looking at. total out this turn = all samples. conversation total = billed so far."
-                >
-                  {message.usage.prompt_tokens} in
-                  {replayedIn != null
-                    ? ` · ${replayedIn} replayed`
-                    : ''}
-                  {addedIn != null
-                    ? ` · ${addedIn} new`
-                    : ''}
-                  {completions?.[safeIndex]?.tokenProbabilities?.length
-                    ? ` · ${completions[safeIndex].tokenProbabilities.length} out this tab`
-                    : ''}
-                  {message.usage.completion_tokens != null
-                    ? ` · ${message.usage.completion_tokens} total out this turn`
-                    : ''}
-                  {sessionBilled
-                    ? ` | ${sessionBilled} conversation total`
-                    : ''}
-                </span>
+              {message.usage?.prompt_tokens != null && (() => {
+                const rates = rateFor(message.usage.model);
+                const spend = turnCost(message.usage, rates);
+                const summary = [
+                  `${message.usage.prompt_tokens} in`,
+                  message.usage.completion_tokens != null ? `${message.usage.completion_tokens} out` : null,
+                  formatUsd(spend.total),
+                ].filter(Boolean).join(' · ');
+                return (
+                  <span className="token-usage token-usage-summary">
+                    {summary}
+                    <button
+                      type="button"
+                      className="token-usage-toggle"
+                      aria-expanded={usageOpen}
+                      aria-controls={usageOpen ? usageId : undefined}
+                      aria-label={usageOpen ? 'Hide the token breakdown' : 'Show the token breakdown'}
+                      onClick={() => setUsageOpen((open) => !open)}
+                    >
+                      {usageOpen ? '▴' : '▾'}
+                    </button>
+                  </span>
+                );
+              })()}
+            </div>
+          )}
+          {usageOpen && message.usage?.prompt_tokens != null && (
+            <div id={usageId} className="token-usage-details">
+              <span>{message.usage.prompt_tokens} in — everything sent this request</span>
+              {replayedIn != null && <span>{replayedIn} replayed — last turn&rsquo;s prompt, sent again</span>}
+              {addedIn != null && <span>{addedIn} new — last reply plus your latest message</span>}
+              {Number.isFinite(message.usage.cached_tokens) && message.usage.cached_tokens > 0 && (
+                <span>{message.usage.cached_tokens} from cache — billed at the discounted rate</span>
               )}
+              {completions?.[safeIndex]?.tokenProbabilities?.length ? (
+                <span>{completions[safeIndex].tokenProbabilities.length} out this tab — the reply you are looking at</span>
+              ) : null}
+              {message.usage.completion_tokens != null && (
+                <span>{message.usage.completion_tokens} total out this turn — all samples</span>
+              )}
+              {sessionBilled ? <span>{sessionBilled} conversation total — billed so far</span> : null}
             </div>
           )}
           {showHoverHint && (

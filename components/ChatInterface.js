@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
+import PromptStaircase from './PromptStaircase';
 import { loadTokenizer } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
@@ -325,6 +326,7 @@ export default function ChatInterface() {
               </span>
             </button>
             <div id="conversation-lesson-body" className="conversation-lesson-body">
+              <PromptStaircase messages={messages} />
               <ConversationExplainer
                 inSeries={inSeries}
                 sessionSeries={sessionSeries}
