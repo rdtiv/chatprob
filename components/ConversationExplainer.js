@@ -24,6 +24,9 @@ export default function ConversationExplainer({
   const rates = rateFor(lastAssistant?.usage?.model);
   const lastSpend = lastAssistant?.usage ? turnCost(lastAssistant.usage, rates) : null;
   const paidSoFar = conversationCost(messages, rates);
+  const cachedTokens = (messages || [])
+    .filter((item) => item.role === 'assistant' && Number.isFinite(item.usage?.cached_tokens))
+    .reduce((sum, item) => sum + Math.max(0, item.usage.cached_tokens), 0);
 
   if (!turns || !lastAssistant?.usage) {
     return (
@@ -59,12 +62,17 @@ export default function ConversationExplainer({
     text += ` A million turns like this last one would be about ${formatUsd(millionTurns)}.`;
   }
 
+  if (cachedTokens > 0) {
+    text += ` ${cachedTokens} of those input tokens came back from OpenAI's prompt cache at the discounted rate.`;
+  }
+
   return (
     <>
       <p className="conversation-explainer">{text}</p>
       <p className="rate-card">
         {rates.model} rate card: ${rates.inputPerMillion.toFixed(2)} / 1M in · ${rates.outputPerMillion.toFixed(2)} / 1M out
         {rates.approximate ? ' (list price for a similar mini model)' : ''}
+        {cachedTokens > 0 ? ` · $${rates.cachedInputPerMillion.toFixed(3)} / 1M cached in` : ''}
         {' — '}
         this turn {formatUsd(lastSpend.input)} in · {formatUsd(lastSpend.output)} out · {formatUsd(lastSpend.total)} total
         {' | '}

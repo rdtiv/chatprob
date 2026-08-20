@@ -1199,3 +1199,11 @@ main {
 .prompt-staircase-seg.is-new { background-color: #6d28d9; }
 .prompt-staircase-label { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .prompt-staircase-note { margin: 0; font-size: 0.68rem; line-height: 1.35; color: #64748b; }
+.request-echo { margin-top: 8px; }
+.request-echo-toggle { min-height: 44px; padding: 0 8px; border: none; background: transparent; color: #2563eb; font-size: 0.68rem; cursor: pointer; display: inline-flex; align-items: center; }
+.request-echo-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 6px; }
+.request-echo-panel { margin-top: 6px; border: 1px solid #e5e7eb; border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.request-echo-message { margin: 0; padding: 6px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.66rem; line-height: 1.4; white-space: pre; }
+.request-echo-message.is-replayed { background-color: #ddd6fe; }
+.request-echo-message.is-new { background-color: rgba(109, 40, 217, 0.14); }
+.request-echo-note { margin: 6px 0 0; font-size: 0.66rem; line-height: 1.35; color: #64748b; }

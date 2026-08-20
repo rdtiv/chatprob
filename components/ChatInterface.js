@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
+import RequestEcho from './RequestEcho';
 import { loadTokenizer } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
@@ -213,6 +214,7 @@ export default function ChatInterface() {
     return next;
   }, 0);
   const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
+  const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
 
   return (
     <div style={{
@@ -330,9 +332,10 @@ export default function ChatInterface() {
               <ConversationExplainer
                 inSeries={inSeries}
                 sessionSeries={sessionSeries}
-                lastAssistant={[...messages].reverse().find((item) => item.role === 'assistant' && item.usage)}
+                lastAssistant={lastAssistant}
                 messages={messages}
               />
+              <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
             </div>
           </div>
         )}
