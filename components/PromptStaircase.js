@@ -11,10 +11,10 @@ export default function PromptStaircase({ messages }) {
       turn += 1;
       const prompt = item.usage.prompt_tokens;
       const replayed = prevPrompt ?? 0;
-      const added = Math.max(0, prompt - replayed);
       const rawCached = Number.isFinite(item.usage.cached_tokens) ? item.usage.cached_tokens : 0;
-      const cached = Math.min(Math.max(rawCached, 0), replayed);
-      const replayedUncached = replayed - cached;
+      const cached = Math.min(Math.max(rawCached, 0), prompt);
+      const replayedUncached = Math.max(0, replayed - cached);
+      const added = Math.max(0, prompt - cached - replayedUncached);
 
       built.push({
         key: item.timestamp ?? turn - 1,
@@ -42,7 +42,7 @@ export default function PromptStaircase({ messages }) {
     const cachedPct = row.prompt > 0 ? (row.cached / row.prompt) * 100 : 0;
     const replayedPct = row.prompt > 0 ? (row.replayedUncached / row.prompt) * 100 : 0;
     const newPct = row.prompt > 0 ? (row.added / row.prompt) * 100 : 0;
-    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in — ${row.replayedUncached + row.cached} replayed, ${row.added} new`
+    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in — ${row.replayed} replayed, ${row.prompt - row.replayed > 0 ? row.prompt - row.replayed : 0} new`
       + (row.cached > 0 ? `, ${row.cached} from cache` : '');
 
     return {

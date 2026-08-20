@@ -372,7 +372,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
               {replayedIn != null && <span>{replayedIn} replayed — last turn&rsquo;s prompt, sent again</span>}
               {addedIn != null && <span>{addedIn} new — last reply plus your latest message</span>}
               {Number.isFinite(message.usage.cached_tokens) && message.usage.cached_tokens > 0 && (
-                <span>{message.usage.cached_tokens} from cache — billed at the discounted rate</span>
+                <span>{Math.min(message.usage.cached_tokens, message.usage.prompt_tokens)} from cache — billed at the discounted rate</span>
               )}
               {completions?.[safeIndex]?.tokenProbabilities?.length ? (
                 <span>{completions[safeIndex].tokenProbabilities.length} out this tab — the reply you are looking at</span>

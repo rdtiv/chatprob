@@ -32,7 +32,7 @@ export default function RequestEcho({ echoedMessages }) {
             ))}
           </div>
           <p className="request-echo-note">
-            This is the literal array we sent, system prompt included. The tints match the chart above: pale was resent, dark is new this turn. The chart&rsquo;s token counts run a little higher than these message bodies — the chat wrapper is counted too.
+            This is the literal array we sent, system prompt included. Pale blocks were part of an earlier request; dark blocks are the newest exchange. The chart&rsquo;s token counts run a little higher than these message bodies — the chat wrapper is counted too.
           </p>
         </>
       )}

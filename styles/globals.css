@@ -251,6 +251,12 @@ main {
   display: none;
 }
 
+.conversation-lesson.is-open .conversation-lesson-body {
+  max-height: 40vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .conversation-lesson-summary:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
@@ -865,7 +871,7 @@ main {
 .token-usage-summary { display: inline-flex; align-items: center; gap: 4px; }
 .token-usage-toggle { border: none; background: transparent; color: #94a3b8; font-size: 0.65rem; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; }
 .token-usage-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 4px; }
-.token-usage-details { display: flex; flex-direction: column; gap: 1px; margin-top: 3px; font-size: 0.65rem; line-height: 1.35; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.token-usage-details { display: flex; flex-direction: column; gap: 1px; margin-top: 3px; font-size: 0.65rem; line-height: 1.35; color: #94a3b8; font-variant-numeric: tabular-nums; max-width: 34ch; }
 
 .user-message .message-timestamp {
   margin-top: 2px;

@@ -123,7 +123,7 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation, temperature: sampledTemperature })
+        body: JSON.stringify({ messages: conversation.filter((m) => !m.error), temperature: sampledTemperature })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -152,6 +152,7 @@ export default function ChatInterface() {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, there was an error processing your request.',
+        error: true,
         timestamp: new Date().toISOString()
       }]);
     } finally {
