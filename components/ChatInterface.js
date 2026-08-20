@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect, useMemo, useId, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
-import TokenizerStrip from './TokenizerStrip';
-import { loadTokenizer, tokenizeForDisplay } from '../lib/tokenizer';
+import { loadTokenizer } from '../lib/tokenizer';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -22,11 +21,8 @@ export default function ChatInterface() {
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
-  const [compactLesson, setCompactLesson] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
   const [tokenizerState, setTokenizerState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'failed'
-  const [stripOpen, setStripOpen] = useState(false);
-  const stripId = useId();
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
@@ -35,14 +31,6 @@ export default function ChatInterface() {
   // Update page title
   useEffect(() => {
     document.title = 'ChatProb';
-  }, []);
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 768px)');
-    const sync = () => setCompactLesson(media.matches);
-    sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
   }, []);
 
   const scrollToBottom = () => {
@@ -114,17 +102,6 @@ export default function ChatInterface() {
   useEffect(() => {
     if (messages.some((m) => m.role === 'user')) ensureTokenizer();
   }, [messages, ensureTokenizer]);
-
-  const tokenized = useMemo(
-    () => tokenizeForDisplay(tokenizer, currentMessage),
-    [tokenizer, currentMessage]
-  );
-
-  const stripVisible = stripOpen && tokenizerState === 'ready' && tokenized.count > 0;
-
-  useEffect(() => {
-    if (stripOpen) scrollToBottom();
-  }, [stripOpen]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -327,11 +304,9 @@ export default function ChatInterface() {
             <button
               type="button"
               className="conversation-lesson-summary"
-              aria-expanded={compactLesson ? lessonOpen : true}
+              aria-expanded={lessonOpen}
               aria-controls="conversation-lesson-body"
-              onClick={() => {
-                if (compactLesson) setLessonOpen((open) => !open);
-              }}
+              onClick={() => setLessonOpen((open) => !open)}
             >
               <div className="conversation-lesson-metrics">
                 <div className="conversation-lesson-row">
@@ -450,25 +425,6 @@ export default function ChatInterface() {
         </div>
         
         <form onSubmit={handleSubmit} className="message-form">
-          {tokenizerState !== 'failed' && (
-            <>
-              {stripVisible && (
-                <TokenizerStrip id={stripId} chunks={tokenized.chunks} />
-              )}
-              <div className="composer-meta">
-                <button
-                  type="button"
-                  className="tokenizer-count"
-                  aria-expanded={stripVisible}
-                  aria-controls={stripVisible ? stripId : undefined}
-                  disabled={tokenizerState !== 'ready' || tokenized.count === 0}
-                  onClick={() => setStripOpen((open) => !open)}
-                >
-                  {tokenizerState === 'ready' ? `≈ ${tokenized.count} tokens` : '≈ … tokens'}
-                </button>
-              </div>
-            </>
-          )}
           <div className="composer-row">
             <textarea
               ref={composerRef}

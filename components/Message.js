@@ -308,6 +308,14 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
                   {new Date(message.timestamp).toLocaleTimeString()}
                 </span>
               )}
+              {role === 'user' && userChunks && (
+                <span
+                  className="token-usage"
+                  title="Counted with the same tokenizer the model family uses. The reply's 'new' number runs a little higher — the chat wrapper rides along with every turn."
+                >
+                  ≈ {userChunks.length} tokens
+                </span>
+              )}
               {message.usage?.prompt_tokens != null && (
                 <span
                   className="token-usage"

@@ -221,7 +221,7 @@ main {
 }
 
 .conversation-lesson-toggle {
-  display: none;
+  display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 4px;
@@ -245,6 +245,16 @@ main {
 
 .conversation-lesson.is-open .conversation-lesson-chevron {
   transform: rotate(180deg) translateY(-0.5px);
+}
+
+.conversation-lesson:not(.is-open) .conversation-lesson-body {
+  display: none;
+}
+
+.conversation-lesson-summary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .conversation-lesson-row {
@@ -624,85 +634,6 @@ main {
   cursor: not-allowed;
 }
 
-.composer-meta {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-}
-
-.tokenizer-count {
-  min-height: 44px;
-  padding: 0 8px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-}
-
-.tokenizer-count:disabled {
-  cursor: default;
-  opacity: 0.65;
-}
-
-.tokenizer-count:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-.tokenizer-strip {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background-color: #fafafa;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tokenizer-strip-track {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  max-height: 4.4em;
-  overflow-y: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.8rem;
-  line-height: 1.6;
-}
-
-.tokenizer-chunk {
-  white-space: pre;
-  padding: 1px 2px;
-  border-radius: 3px;
-  background-color: rgba(100, 116, 139, 0.10);
-  border-right: 1px solid rgba(100, 116, 139, 0.35);
-}
-
-.tokenizer-chunk:last-child {
-  border-right: none;
-}
-
-.tokenizer-chunk.is-alt {
-  background-color: rgba(100, 116, 139, 0.20);
-}
-
-.tokenizer-chunk.is-partial {
-  color: #94a3b8;
-  font-style: normal;
-}
-
-.tokenizer-strip-note {
-  margin: 0;
-  font-size: 0.68rem;
-  line-height: 1.35;
-  color: #64748b;
-}
-
 .user-token-chunk {
   background-color: rgba(100, 116, 139, 0.10);
   border-radius: 3px;
@@ -972,20 +903,6 @@ main {
     padding: 6px 12px;
   }
 
-  .conversation-lesson-toggle {
-    display: inline-flex;
-  }
-
-  .conversation-lesson:not(.is-open) .conversation-lesson-body {
-    display: none;
-  }
-
-  .conversation-lesson-summary:focus-visible {
-    outline: 2px solid #2563eb;
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
-
   .messages-container {
     height: auto;
     flex: 1;
@@ -1035,18 +952,6 @@ main {
     padding: 8px;
   }
 
-  .tokenizer-strip-track {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-height: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .tokenizer-strip-note {
-    max-height: 2.8em;
-    overflow-y: auto;
-  }
 }
 
 @supports (-webkit-touch-callout: none) {
@@ -1090,14 +995,6 @@ main {
 @media (min-width: 768px) {
   .desktop-only {
     display: block !important;
-  }
-
-  .conversation-lesson-summary {
-    cursor: default;
-  }
-
-  .conversation-lesson-body {
-    display: block;
   }
 }
 
