@@ -66,6 +66,12 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     () => (Array.isArray(completions) ? completions.map(completionStats) : []),
     [completions]
   );
+  const comparedCount = useMemo(
+    () => (Array.isArray(completions)
+      ? completions.filter((c) => Array.isArray(c?.tokenProbabilities) && c.tokenProbabilities.length > 0).length
+      : 0),
+    [completions]
+  );
 
   const markHoverUsed = () => {
     if (showHoverHint) onHoverUsed?.();
@@ -168,7 +174,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     : '';
   const baseForkCopy = forkIndex === 0
     ? 'The replies split right here, at the very first word — they had nothing in common to begin with.'
-    : `Identical until here. All ${completionCount} replies produced exactly the same tokens up to this point, then chose differently.`;
+    : `Identical until here. All ${comparedCount} replies produced exactly the same tokens up to this point, then chose differently.`;
   const forkNoteCopy = [baseForkCopy, statsLine && `This reply: ${statsLine}.`].filter(Boolean).join(' ');
 
   const renderContent = () => {
@@ -220,7 +226,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
             <span
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
               className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}`}
-              aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the three replies differ` : undefined}
+              aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
               role="button"
               tabIndex={0}
@@ -272,7 +278,10 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
                         disabled={tabsLocked}
                         className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
                         title={tabsLocked ? 'This reply is locked into the conversation' : parts.join(' · ')}
-                        onClick={() => handleSelect(index)}
+                        onClick={(e) => {
+                          e.currentTarget.focus();
+                          handleSelect(index);
+                        }}
                       >
                         <span className="completion-tab-number">{index + 1}</span>
                         {stats?.confidence != null && (
@@ -292,7 +301,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
                       type="button"
                       className="completion-lock"
                       aria-expanded={lockNoteOpen}
-                      aria-controls={lockNoteId}
+                      aria-controls={lockNoteOpen ? lockNoteId : undefined}
                       aria-label="Why can't I switch replies?"
                       title="This reply is part of the conversation's history now"
                       onClick={() => setLockNoteOpen((open) => !open)}
