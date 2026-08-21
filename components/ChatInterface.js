@@ -14,6 +14,12 @@ const STARTER_PROMPTS = [
   'Yes or no: is a hot dog a sandwich?',
 ];
 
+const FOOL_IT_PROMPTS = [
+  'What did the 1994 Geneva Protocol on Digital Privacy establish?',
+  'Which U.S. president invented the paperclip?',
+  'Why is the Great Wall of China visible from the Moon?',
+];
+
 const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
@@ -318,15 +324,16 @@ export default function ChatInterface() {
             <span className="legend-swatch legend-swatch-high" />
             more sure
           </span>
-          <span className="legend-item">
+          <span className="legend-item is-unsure">
             <span className="legend-swatch legend-swatch-mid" />
             mixed
           </span>
-          <span className="legend-item">
+          <span className="legend-item is-very-unsure">
             <span className="legend-swatch legend-swatch-low" />
             less sure
           </span>
           <span className="legend-hover">Tap or hover a word for the other choices</span>
+          <span className="legend-honesty">Green means expected, not true.</span>
         </div>
         {sessionBilled > 0 && (
           <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`}>
@@ -370,6 +377,20 @@ export default function ChatInterface() {
               <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
               <div className="prompt-chips" aria-label="Starter prompts">
                 {STARTER_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="prompt-chip"
+                    disabled={isLoading}
+                    onClick={() => sendMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <div className="prompt-chips" aria-label="Prompts that invite confident mistakes">
+                <span className="fool-it-label">Try to fool it:</span>
+                {FOOL_IT_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"

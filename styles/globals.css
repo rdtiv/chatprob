@@ -167,6 +167,23 @@ main {
   color: #64748b;
 }
 
+.legend-honesty {
+  color: #92400e;
+  font-weight: 600;
+}
+
+.legend-item.is-unsure {
+  text-decoration: underline solid rgba(15, 23, 42, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.legend-item.is-very-unsure {
+  text-decoration: underline solid rgba(15, 23, 42, 0.7);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
 .session-usage {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
@@ -670,6 +687,12 @@ main {
   cursor: not-allowed;
 }
 
+.fool-it-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  align-self: center;
+}
+
 .user-token-chunk {
   background-color: rgba(100, 116, 139, 0.10);
   border-radius: 3px;
@@ -915,6 +938,18 @@ main {
 .token:hover {
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5) !important;
   background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.token.is-unsure {
+  text-decoration: underline solid rgba(15, 23, 42, 0.45);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.token.is-very-unsure {
+  text-decoration: underline solid rgba(15, 23, 42, 0.7);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 
 @keyframes fadeIn {

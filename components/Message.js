@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
-import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor } from '../lib/completionStats';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 
 const EMPTY_TOP_LOGPROBS = {};
@@ -225,10 +225,12 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
       <div className="message-text">
         {tokenProbabilities.map((tp, idx) => {
           const backgroundColor = getBackgroundColor(tp);
+          const percentage = sampledPercentage(tp);
+          const band = confidenceBand(percentage);
           return (
             <span
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
-              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}`}
+              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
               role="button"
