@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
-export default function PromptStaircase({ messages }) {
+function PromptStaircase({ messages }) {
   const rows = useMemo(() => {
     let prevPrompt = null;
     let turn = 0;
@@ -88,3 +88,5 @@ export default function PromptStaircase({ messages }) {
     </div>
   );
 }
+
+export default memo(PromptStaircase);

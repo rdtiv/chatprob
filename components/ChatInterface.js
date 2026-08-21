@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
+import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
+import { TEMP_DEFAULT, TEMP_MIN, TEMP_MAX, TEMP_STEP, TOP_P_DEFAULT, PENALTY_DEFAULT } from '../lib/sampling';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -19,7 +21,13 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [temperature, setTemperature] = useState(1.2);
+  const [sampling, setSampling] = useState({
+    temperature: TEMP_DEFAULT,
+    topP: TOP_P_DEFAULT,
+    presencePenalty: PENALTY_DEFAULT,
+    boring: false,
+    restoreTemperature: TEMP_DEFAULT,
+  });
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
@@ -28,6 +36,9 @@ export default function ChatInterface() {
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
   const tokenizerStartedRef = useRef(false);
+
+  const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
+  const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
 
   // Update page title
   useEffect(() => {
@@ -80,10 +91,10 @@ export default function ChatInterface() {
     setStorageReady(true);
   }, []);
 
-  const dismissHoverHint = () => {
+  const dismissHoverHint = useCallback(() => {
     setHoverHintVisible(false);
     localStorage.setItem(HOVER_HINT_KEY, '1');
-  };
+  }, []);
 
   const ensureTokenizer = useCallback(() => {
     if (tokenizerStartedRef.current) return;
@@ -111,7 +122,7 @@ export default function ChatInterface() {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
-    const sampledTemperature = temperature;
+    const sampledTemperature = sampling.temperature;
     inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
@@ -173,7 +184,7 @@ export default function ChatInterface() {
     sendMessage(currentMessage);
   };
 
-  const selectCompletion = (messageIndex, completionIndex) => {
+  const selectCompletion = useCallback((messageIndex, completionIndex) => {
     setMessages((prev) => {
       if (prev.slice(messageIndex + 1).some((item) => item.role === 'user')) {
         return prev;
@@ -187,7 +198,7 @@ export default function ChatInterface() {
         };
       });
     });
-  };
+  }, []);
 
   const clearChat = () => {
     setMessages([]);
@@ -218,6 +229,7 @@ export default function ChatInterface() {
   const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
 
   return (
+    <SamplingProvider value={samplingValue}>
     <div style={{
       display: 'flex',
       flexDirection: 'column',
@@ -254,13 +266,13 @@ export default function ChatInterface() {
           </h3>
           <div className="header-actions">
             <label className="sampling-control" title="Higher temperature samples more freely. Hover colors still show raw model confidence.">
-              <span>Temp {temperature.toFixed(1)}</span>
+              <span>Temp {sampling.temperature.toFixed(1)}</span>
               <input
                 type="range"
-                min="0.2"
-                max="1.8"
-                step="0.1"
-                value={temperature}
+                min={TEMP_MIN}
+                max={TEMP_MAX}
+                step={TEMP_STEP}
+                value={sampling.temperature}
                 onChange={(e) => setTemperature(Number(e.target.value))}
                 aria-label="Sampling temperature"
               />
@@ -373,18 +385,17 @@ export default function ChatInterface() {
               ? Math.max(0, thisIn - previousIn)
               : null;
             return (
-            <Message 
+            <Message
               key={index}
               message={message}
-              onSelect={(completionIndex) => selectCompletion(index, completionIndex)}
+              onSelect={selectCompletion}
+              messageIndex={index}
               showHoverHint={hoverHintVisible && index === firstHintableIndex}
               onHoverUsed={dismissHoverHint}
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
-              temperature={temperature}
-              onTemperatureChange={setTemperature}
               tokenizer={tokenizer}
             />
             );
@@ -471,5 +482,6 @@ export default function ChatInterface() {
         </form>
       </div>
     </div>
+    </SamplingProvider>
   );
 } 

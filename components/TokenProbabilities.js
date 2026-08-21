@@ -2,14 +2,13 @@ import { useMemo, useRef, useState } from 'react';
 import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 import { TEMP_MIN, TEMP_MAX, TEMP_STEP } from '../lib/sampling';
 import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
+import { useSampling } from './SamplingContext';
 
 export default function TokenProbabilities({
   probabilities,
   position,
   selectedToken,
   selectedLogprob,
-  temperature,
-  onTemperatureChange,
   sampledTemperature,
   forkNote,
   onDismiss,
@@ -19,6 +18,7 @@ export default function TokenProbabilities({
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
   const [mode, setMode] = useState('among');
+  const { temperature, setTemperature } = useSampling();
 
   useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
 
@@ -111,7 +111,7 @@ export default function TokenProbabilities({
             max={TEMP_MAX}
             step={TEMP_STEP}
             value={t}
-            onChange={(e) => onTemperatureChange?.(Number(e.target.value))}
+            onChange={(e) => setTemperature(Number(e.target.value))}
             aria-label="Sampling temperature"
           />
         </div>
