@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai';
+import { clampTemperature, clampTopP, clampPresencePenalty, clampSeed } from '../../lib/sampling';
 
 export const config = {
   maxDuration: 60,
@@ -28,12 +29,6 @@ function toApiMessages(messages) {
 
 const VARIETY_SYSTEM_PROMPT =
   'You help people see that language models sample from a next-token distribution. Vary your wording and sentence openings. Keep answers concise (one or two sentences unless asked otherwise).';
-
-function clampTemperature(value) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 1.2;
-  return Math.min(1.8, Math.max(0.2, parsed));
-}
 
 function toUiCompletion(choice) {
   const text = (choice.message?.content || '').trim();
@@ -78,6 +73,9 @@ export default async function handler(req, res) {
     });
 
     const temperature = clampTemperature(req.body?.temperature);
+    const topP = clampTopP(req.body?.top_p);
+    const presencePenalty = clampPresencePenalty(req.body?.presence_penalty);
+    const seed = clampSeed(req.body?.seed);
     const hasSystem = apiMessages.some((msg) => msg.role === 'system');
 
     const sentMessages = hasSystem
@@ -88,7 +86,9 @@ export default async function handler(req, res) {
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: sentMessages,
       temperature,
-      presence_penalty: 0.45,
+      top_p: topP,
+      presence_penalty: presencePenalty,
+      ...(seed == null ? {} : { seed }),
       max_tokens: 300,
       n: 3,
       logprobs: true,
@@ -109,6 +109,7 @@ export default async function handler(req, res) {
         completion_tokens: response.usage?.completion_tokens ?? null,
         cached_tokens: response.usage?.prompt_tokens_details?.cached_tokens ?? null,
         model: response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
       },
     });
   } catch (error) {
