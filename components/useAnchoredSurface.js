@@ -97,7 +97,7 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
       const formTop = form ? form.getBoundingClientRect().top : viewportBottom;
       const dockTop = Math.min(formTop, viewportBottom) - 8;
       card.style.bottom = `${window.innerHeight - dockTop}px`;
-      card.style.maxHeight = `${Math.min(dockTop - vvTop - 12, Math.max(160, Math.round(vvHeight * 0.55)))}px`;
+      card.style.maxHeight = `${Math.min(dockTop - vvTop - 12, Math.max(160, Math.round(vvHeight * 0.7)))}px`;
     };
     return observeSurfaceEdges(apply);
   }, [ref, isSheet, remeasureKey]);
