@@ -1100,7 +1100,8 @@ main {
   }
 
   .sampling-range {
-    height: 44px;
+    /* min-height beats the base rule's height regardless of source order */
+    min-height: 44px;
   }
 
   .sampling-button {

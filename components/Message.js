@@ -103,6 +103,11 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   useEffect(() => {
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
+      // Interacting with the sampling surfaces must not dismiss a pinned card:
+      // adjusting temperature while watching the card's what-if IS the lesson.
+      if (event.target.closest('.sampling-panel, .sampling-button')) {
+        return;
+      }
       const hit = event.target.closest('.token, .token-probabilities-card');
       if (hit && rootRef.current?.contains(hit)) {
         return;
