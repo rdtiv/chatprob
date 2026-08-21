@@ -35,10 +35,15 @@ export default function SamplingPanel({ id, anchor, onClose }) {
     };
   }, [onClose]);
 
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
   return (
     <div
       ref={panelRef}
       id={id}
+      tabIndex={-1}
       className={`sampling-panel ${isSheet ? 'is-sheet' : 'is-popover'}`}
       role="dialog"
       aria-label="Sampling controls"

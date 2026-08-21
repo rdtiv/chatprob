@@ -46,6 +46,7 @@ export default function ChatInterface() {
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
   const tokenizerStartedRef = useRef(false);
+  const samplingButtonRef = useRef(null);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
   const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
@@ -73,6 +74,21 @@ export default function ChatInterface() {
   useEffect(() => {
     measureComposer();
   }, [currentMessage]);
+
+  const closeSamplingPanel = useCallback(() => {
+    setPanelOpen(false);
+    samplingButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!panelOpen) return undefined;
+    const sync = () => {
+      const rect = samplingButtonRef.current?.getBoundingClientRect();
+      if (rect) setPanelAnchor({ x: rect.left + rect.width / 2, y: rect.bottom });
+    };
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, [panelOpen]);
 
   useEffect(() => {
     let raf = 0;
@@ -283,6 +299,7 @@ export default function ChatInterface() {
           </h3>
           <div className="header-actions">
             <button
+              ref={samplingButtonRef}
               type="button"
               className="sampling-button"
               aria-expanded={panelOpen}
@@ -293,7 +310,7 @@ export default function ChatInterface() {
                 setPanelOpen((open) => !open);
               }}
             >
-              Sampling
+              Sampling · {sampling.temperature.toFixed(1)}
             </button>
           <button
             onClick={clearChat}
@@ -514,7 +531,7 @@ export default function ChatInterface() {
           </div>
         </form>
         {panelOpen && (
-          <SamplingPanel id={panelId} anchor={panelAnchor} onClose={() => setPanelOpen(false)} />
+          <SamplingPanel id={panelId} anchor={panelAnchor} onClose={closeSamplingPanel} />
         )}
       </div>
     </div>

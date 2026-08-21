@@ -18,7 +18,7 @@ export default function TokenProbabilities({
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
   const [mode, setMode] = useState('among');
-  const { temperature, setTemperature } = useSampling();
+  const { temperature, setTemperature, boring } = useSampling();
 
   useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
 
@@ -101,7 +101,7 @@ export default function TokenProbabilities({
       {isSheet && (
         <div className="token-probabilities-sheet-temp">
           <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
-            Temp {t.toFixed(1)}
+            Temp {t.toFixed(1)}{boring ? ' — locked by Make it boring' : ''}
           </label>
           <input
             id="token-card-temperature"
@@ -111,6 +111,8 @@ export default function TokenProbabilities({
             max={TEMP_MAX}
             step={TEMP_STEP}
             value={t}
+            disabled={boring}
+            aria-disabled={boring}
             onChange={(e) => setTemperature(Number(e.target.value))}
             aria-label="Sampling temperature"
           />

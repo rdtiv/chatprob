@@ -613,17 +613,6 @@ main {
   .token.is-after-fork {
     animation: none;
   }
-
-  .sampling-panel {
-    animation: none;
-    opacity: 1;
-  }
-
-  .sampling-panel.is-sheet {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
 }
 
 @keyframes tokenHintPulse {
@@ -1371,6 +1360,8 @@ main {
   opacity: 0.4;
 }
 
+.sampling-row.is-disabled .sampling-row-label,
+.sampling-row.is-disabled .sampling-row-value,
 .sampling-row.is-disabled .sampling-row-note {
   opacity: 0.6;
 }
@@ -1393,4 +1384,14 @@ main {
   font-size: 0.68rem;
   line-height: 1.35;
   color: #64748b;
+}
+
+/* Must stay after the .sampling-panel base rules: equal specificity, source order decides. */
+@media (prefers-reduced-motion: reduce) {
+  .sampling-panel,
+  .sampling-panel.is-sheet {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
