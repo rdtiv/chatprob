@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
+import SamplingPanel from './SamplingPanel';
 import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
-import { TEMP_DEFAULT, TEMP_MIN, TEMP_MAX, TEMP_STEP, TOP_P_DEFAULT, PENALTY_DEFAULT } from '../lib/sampling';
+import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -32,6 +33,9 @@ export default function ChatInterface() {
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelAnchor, setPanelAnchor] = useState({ x: 0, y: 0 });
+  const panelId = useId();
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
@@ -122,7 +126,7 @@ export default function ChatInterface() {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
-    const sampledTemperature = sampling.temperature;
+    const snapshot = sampling;
     inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
@@ -134,7 +138,13 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation.filter((m) => !m.error), temperature: sampledTemperature })
+        body: JSON.stringify({
+          messages: conversation.filter((m) => !m.error),
+          temperature: snapshot.temperature,
+          top_p: snapshot.topP,
+          presence_penalty: snapshot.presencePenalty,
+          ...(snapshot.boring ? { seed: BORING_SEED } : {}),
+        })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -154,7 +164,8 @@ export default function ChatInterface() {
           activeIndex: 0,
           timestamp: new Date().toISOString(),
           usage: data.usage || null,
-          sampledTemperature,
+          sampling: data.usage?.sampling ?? null,
+          sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
         },
       ]);
@@ -265,20 +276,21 @@ export default function ChatInterface() {
             <span className="title-short">ChatProb</span>
           </h3>
           <div className="header-actions">
-            <label className="sampling-control" title="Higher temperature samples more freely. Hover colors still show raw model confidence.">
-              <span>Temp {sampling.temperature.toFixed(1)}</span>
-              <input
-                type="range"
-                min={TEMP_MIN}
-                max={TEMP_MAX}
-                step={TEMP_STEP}
-                value={sampling.temperature}
-                onChange={(e) => setTemperature(Number(e.target.value))}
-                aria-label="Sampling temperature"
-              />
-            </label>
-          <button 
-            onClick={clearChat} 
+            <button
+              type="button"
+              className="sampling-button"
+              aria-expanded={panelOpen}
+              aria-controls={panelOpen ? panelId : undefined}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setPanelAnchor({ x: rect.left + rect.width / 2, y: rect.bottom });
+                setPanelOpen((open) => !open);
+              }}
+            >
+              Sampling
+            </button>
+          <button
+            onClick={clearChat}
             className="refresh-button"
             title="Clear chat history"
           >
@@ -480,8 +492,11 @@ export default function ChatInterface() {
             </button>
           </div>
         </form>
+        {panelOpen && (
+          <SamplingPanel id={panelId} anchor={panelAnchor} onClose={() => setPanelOpen(false)} />
+        )}
       </div>
     </div>
     </SamplingProvider>
   );
-} 
+}
