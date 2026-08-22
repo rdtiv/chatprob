@@ -21,8 +21,13 @@ export default function ConversationExplainer({
   messages,
   droppedMessages = 0,
   keepTurns = null,
+  // Turn count for copy-branch selection (1 / 2 / >2). Kept separate from
+  // inSeries.length: a tool turn expands into two prompt-series entries
+  // (one per request) but is still a single turn, so the caller passes the
+  // real count. Falls back to inSeries.length for callers with no tool turns
+  // (e.g. the empty-conversation screen), where the two always agree.
+  turns = inSeries.length,
 }) {
-  const turns = inSeries.length;
   const rates = rateFor(lastAssistant?.usage?.model);
   const lastSpend = lastAssistant?.usage ? turnCost(lastAssistant.usage, rates) : null;
   const paidSoFar = conversationCost(messages, rates);
@@ -42,9 +47,13 @@ export default function ConversationExplainer({
     );
   }
 
-  const lastIn = inSeries[turns - 1];
+  // lastIn/prevIn read the last two REQUESTS, not the last two turns: on a
+  // tool turn that's round 1 -> round 2 of the same turn, which is exactly
+  // what "replayed" should describe. lastPaid/prevPaid stay per-turn — cost
+  // is billed once per turn regardless of how many requests it took.
+  const lastIn = inSeries[inSeries.length - 1];
   const lastPaid = sessionSeries[turns - 1];
-  const prevIn = turns > 1 ? inSeries[turns - 2] : null;
+  const prevIn = inSeries.length > 1 ? inSeries[inSeries.length - 2] : null;
   const prevPaid = turns > 1 ? sessionSeries[turns - 2] : null;
   const tabOut = lastTabOut(lastAssistant);
   const totalOut = lastAssistant.usage.completion_tokens;

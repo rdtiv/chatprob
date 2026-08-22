@@ -6,27 +6,38 @@ function PromptStaircase({ messages }) {
     let turn = 0;
     const built = [];
 
+    // A tool turn is two requests, not one — expand its usage.rounds into two
+    // rows (round 1, round 2) so each bar is really one request, and each
+    // round's own prompt/cached tokens drive its bar instead of the two-round
+    // sum. A message without rounds still contributes exactly one row.
     (messages || []).forEach((item) => {
       if (item.role !== 'assistant' || item.usage?.prompt_tokens == null) return;
-      turn += 1;
-      const prompt = item.usage.prompt_tokens;
-      const replayed = prevPrompt ?? 0;
-      const rawCached = Number.isFinite(item.usage.cached_tokens) ? item.usage.cached_tokens : 0;
-      const cached = Math.min(Math.max(rawCached, 0), prompt);
-      const replayedUncached = Math.max(0, replayed - cached);
-      const added = Math.max(0, prompt - cached - replayedUncached);
+      const rounds = Array.isArray(item.usage.rounds) && item.usage.rounds.length > 1 ? item.usage.rounds : null;
+      const entries = rounds
+        ? rounds.map((round) => ({ prompt: round.prompt_tokens, cached: round.cached_tokens }))
+        : [{ prompt: item.usage.prompt_tokens, cached: item.usage.cached_tokens }];
 
-      built.push({
-        key: item.timestamp ?? turn - 1,
-        turn,
-        prompt,
-        replayed,
-        replayedUncached,
-        cached,
-        added,
+      entries.forEach((entry, roundIndex) => {
+        turn += 1;
+        const prompt = entry.prompt;
+        const replayed = prevPrompt ?? 0;
+        const rawCached = Number.isFinite(entry.cached) ? entry.cached : 0;
+        const cached = Math.min(Math.max(rawCached, 0), prompt);
+        const replayedUncached = Math.max(0, replayed - cached);
+        const added = Math.max(0, prompt - cached - replayedUncached);
+
+        built.push({
+          key: `${item.timestamp ?? turn - 1}:${roundIndex}`,
+          turn,
+          prompt,
+          replayed,
+          replayedUncached,
+          cached,
+          added,
+        });
+
+        prevPrompt = prompt;
       });
-
-      prevPrompt = prompt;
     });
 
     return built;

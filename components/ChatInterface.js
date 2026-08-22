@@ -525,13 +525,25 @@ export default function ChatInterface() {
     return (item.usage.prompt_tokens || 0) + (item.usage.completion_tokens || 0);
   };
 
+  // sessionSeries stays one entry per TURN (cost is billed once per turn, no
+  // matter how many requests it took). inSeries is one entry per REQUEST: a
+  // tool turn's two rounds expand into two entries so "prompt jump" math
+  // compares round 1 to round 2 instead of quietly summing them into one
+  // inflated, misleading number.
   const sessionSeries = [];
   const inSeries = [];
+  let turnCount = 0;
   messages.reduce((running, item) => {
     const next = running + turnBilled(item);
     if (item.role === 'assistant' && item.usage?.prompt_tokens != null) {
       sessionSeries.push(next);
-      inSeries.push(item.usage.prompt_tokens);
+      turnCount += 1;
+      const rounds = Array.isArray(item.usage.rounds) && item.usage.rounds.length > 1 ? item.usage.rounds : null;
+      if (rounds) {
+        rounds.forEach((round) => inSeries.push(round.prompt_tokens));
+      } else {
+        inSeries.push(item.usage.prompt_tokens);
+      }
     }
     return next;
   }, 0);
@@ -675,6 +687,7 @@ export default function ChatInterface() {
                 messages={messages}
                 droppedMessages={forgetting.cutoffIndex}
                 keepTurns={sampling.keepTurns}
+                turns={turnCount}
               />
               <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
             </div>
