@@ -66,7 +66,6 @@ export function CostFooter({ messages, lastAssistant, sessionBilled }) {
 
 export default function ConversationExplainer({
   inSeries,
-  sessionSeries,
   lastAssistant,
   messages,
   droppedMessages = 0,

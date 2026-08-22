@@ -3,6 +3,7 @@ import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
+import { formatTokenSummary } from '../lib/usage';
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { mentionsWeather } from '../lib/cutoffRelevance';
 
@@ -478,9 +479,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                 </span>
               )}
               {message.usage?.prompt_tokens != null && (() => {
-                const summary = rounds && rounds.length > 1
-                  ? `${rounds.map((r) => r.prompt_tokens).join(' + ')} in · ${message.usage.completion_tokens} out · ${rounds.length} requests`
-                  : `${message.usage.prompt_tokens} in · ${message.usage.completion_tokens} out`;
+                const summary = formatTokenSummary(message.usage);
                 return (
                   <span className="token-usage token-usage-summary">
                     {summary}

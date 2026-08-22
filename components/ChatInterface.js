@@ -11,6 +11,7 @@ import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../li
 import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
+import { formatTokenSummary } from '../lib/usage';
 import { needsCutoffNote } from '../lib/cutoffRelevance';
 
 const STARTER_PROMPTS = [
@@ -578,13 +579,7 @@ export default function ChatInterface() {
   const lastIn = roundPrompt(lastAssistant, 'first');
   const prevIn = roundPrompt(prevAssistant, 'first');
   const toolRoundIn = lastAssistant?.usage?.rounds?.length > 1 ? roundPrompt(lastAssistant, 'last') : null;
-  const lastRounds = Array.isArray(lastAssistant?.usage?.rounds) && lastAssistant.usage.rounds.length > 1
-    ? lastAssistant.usage.rounds
-    : null;
-  const lastOut = lastAssistant?.usage?.completion_tokens ?? '—';
-  const sentThisTurn = lastRounds
-    ? `${lastRounds.map((round) => round.prompt_tokens).join(' + ')} in · ${lastOut} out · ${lastRounds.length} requests`
-    : `${lastIn ?? '—'} in · ${lastOut} out`;
+  const sentThisTurn = formatTokenSummary(lastAssistant?.usage) ?? '—';
 
   const forgetting = useMemo(
     () => buildOutboundMessages(messages, sampling.keepTurns),
@@ -731,7 +726,6 @@ export default function ChatInterface() {
               />
               <ConversationExplainer
                 inSeries={inSeries}
-                sessionSeries={sessionSeries}
                 lastAssistant={lastAssistant}
                 messages={messages}
                 droppedMessages={forgetting.cutoffIndex}
@@ -752,7 +746,7 @@ export default function ChatInterface() {
         <div className="messages-container" ref={messagesContainerRef}>
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
-              <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
+              <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
                 { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter' },
                 { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool' },
