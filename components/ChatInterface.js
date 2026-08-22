@@ -10,6 +10,7 @@ import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
+import { knowledgeCutoff } from '../lib/modelFacts';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -21,6 +22,7 @@ const FOOL_IT_PROMPTS = [
   'What did the 1994 Geneva Protocol on Digital Privacy establish?',
   'Which U.S. president invented the paperclip?',
   'Why is the Great Wall of China visible from the Moon?',
+  "What's the weather in Denver right now?",
 ];
 
 const MEMORY_PROMPTS = [
@@ -39,6 +41,21 @@ const emptyCompletions = () => [
   { text: '', tokenProbabilities: [] },
 ];
 
+// A tool turn is two requests, but the tool exchange itself is never
+// replayed — later turns resend only the model's final text, the same way
+// any other assistant turn is echoed back. So "what was replayed" always
+// compares FIRST request to FIRST request, turn to turn. `which` picks the
+// first or last round of a multi-round turn; an ordinary turn has only one
+// round, which serves as both.
+const roundPrompt = (item, which) => {
+  const rounds = item?.usage?.rounds;
+  if (Array.isArray(rounds) && rounds.length > 1) {
+    const r = which === 'first' ? rounds[0] : rounds[rounds.length - 1];
+    return Number.isFinite(r?.prompt_tokens) ? r.prompt_tokens : null;
+  }
+  return item?.usage?.prompt_tokens ?? null;
+};
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -50,6 +67,7 @@ export default function ChatInterface() {
     boring: false,
     restoreTemperature: TEMP_DEFAULT,
     stream: true,
+    tools: false,                          // the weather tool is offered only when this is on
     keepTurns: KEEP_ALL,                   // null = replay the whole transcript
     restoreKeepTurns: KEEP_TURNS_DEFAULT,  // remembered slider position while the switch is off
   });
@@ -227,18 +245,25 @@ export default function ChatInterface() {
       top_p: snapshot.topP,
       presence_penalty: snapshot.presencePenalty,
       ...(snapshot.boring ? { seed: BORING_SEED } : {}),
+      ...(snapshot.tools ? { tools: true } : {}),
     };
 
-    if (snapshot.stream) {
+    // Tools force the JSON path — the first request ends in a tool call, not
+    // in tokens, and the server enforces the same rule.
+    if (snapshot.stream && !snapshot.tools) {
       await sendMessageStreaming(requestBody, snapshot, startedAt);
       return;
     }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -249,7 +274,7 @@ export default function ChatInterface() {
       setMessages(prev => [
         ...prev.map((item) => (
           item.role === 'assistant' && item.echoedMessages
-            ? { ...item, echoedMessages: undefined }
+            ? { ...item, echoedMessages: undefined, echoedTools: undefined, echoedToolChoice: undefined }
             : item
         )),
         {
@@ -262,10 +287,20 @@ export default function ChatInterface() {
           sampling: data.usage?.sampling ?? null,
           sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+          echoedTools: Array.isArray(data.echoedTools) ? data.echoedTools : null,
+          echoedToolChoice: data.echoedToolChoice ?? null,
+          toolCall: data.toolCall ?? null,
+          toolResult: data.toolResult ?? null,
+          toolCalls: data.toolCalls ?? null,
+          toolResults: data.toolResults ?? null,
           timing: { ttftMs: totalMs, totalMs, streamed: false },
         },
       ]);
     } catch (error) {
+      // Clear-chat aborts an in-flight tools turn; the fetch rejects with
+      // AbortError and there is no message to append — the chat was emptied
+      // on purpose, so no error bubble and nothing to persist.
+      if (error.name === 'AbortError') return;
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -274,6 +309,7 @@ export default function ChatInterface() {
         timestamp: new Date().toISOString()
       }]);
     } finally {
+      abortRef.current = null;
       inFlightRef.current = false;
       setIsLoading(false);
     }
@@ -363,7 +399,7 @@ export default function ChatInterface() {
         return [
           ...prev.slice(0, -1).map((item) => (
             item.role === 'assistant' && item.echoedMessages
-              ? { ...item, echoedMessages: undefined }
+              ? { ...item, echoedMessages: undefined, echoedTools: undefined, echoedToolChoice: undefined }
               : item
           )),
           finalMessage,
@@ -510,23 +546,55 @@ export default function ChatInterface() {
     return (item.usage.prompt_tokens || 0) + (item.usage.completion_tokens || 0);
   };
 
+  // sessionSeries stays one entry per TURN (cost is billed once per turn, no
+  // matter how many requests it took). inSeries is one entry per REQUEST: a
+  // tool turn's two rounds expand into two entries so "prompt jump" math
+  // compares round 1 to round 2 instead of quietly summing them into one
+  // inflated, misleading number.
   const sessionSeries = [];
   const inSeries = [];
+  let turnCount = 0;
   messages.reduce((running, item) => {
     const next = running + turnBilled(item);
     if (item.role === 'assistant' && item.usage?.prompt_tokens != null) {
       sessionSeries.push(next);
-      inSeries.push(item.usage.prompt_tokens);
+      turnCount += 1;
+      const rounds = Array.isArray(item.usage.rounds) && item.usage.rounds.length > 1 ? item.usage.rounds : null;
+      if (rounds) {
+        rounds.forEach((round) => inSeries.push(Number.isFinite(round?.prompt_tokens) ? round.prompt_tokens : null));
+      } else {
+        inSeries.push(Number.isFinite(item.usage.prompt_tokens) ? item.usage.prompt_tokens : null);
+      }
     }
     return next;
   }, 0);
   const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
-  const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
+  const assistantTurnsWithUsage = messages.filter((item) => item.role === 'assistant' && item.usage);
+  const lastAssistant = assistantTurnsWithUsage[assistantTurnsWithUsage.length - 1] || null;
+  const prevAssistant = assistantTurnsWithUsage.length > 1
+    ? assistantTurnsWithUsage[assistantTurnsWithUsage.length - 2]
+    : null;
+  const lastIn = roundPrompt(lastAssistant, 'first');
+  const prevIn = roundPrompt(prevAssistant, 'first');
+  const toolRoundIn = lastAssistant?.usage?.rounds?.length > 1 ? roundPrompt(lastAssistant, 'last') : null;
 
   const forgetting = useMemo(
     () => buildOutboundMessages(messages, sampling.keepTurns),
     [messages, sampling.keepTurns]
   );
+
+  // The long cutoff note is shown once per conversation, on the first reply
+  // it applies to; every other qualifying reply carries only the pill. So
+  // this finds the FIRST assistant message (not the latest) that is a plain
+  // text reply — no tool call, no error — whose model resolves to a known
+  // cutoff, and that index never moves once found.
+  const firstCutoffIndex = messages.findIndex((item) => (
+    item.role === 'assistant' &&
+    !item.error &&
+    !item.toolCall &&
+    !(Array.isArray(item.toolCalls) && item.toolCalls.length) &&
+    !!knowledgeCutoff(item.usage?.model)
+  ));
 
   return (
     <SamplingProvider value={samplingValue}>
@@ -652,8 +720,16 @@ export default function ChatInterface() {
                 messages={messages}
                 droppedMessages={forgetting.cutoffIndex}
                 keepTurns={sampling.keepTurns}
+                turns={turnCount}
+                lastIn={lastIn}
+                prevIn={prevIn}
+                toolRoundIn={toolRoundIn}
               />
-              <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
+              <RequestEcho
+                echoedMessages={lastAssistant?.echoedMessages}
+                echoedTools={lastAssistant?.echoedTools}
+                echoedToolChoice={lastAssistant?.echoedToolChoice}
+              />
             </div>
           </div>
         )}
@@ -687,11 +763,11 @@ export default function ChatInterface() {
             const billedThrough = messages
               .slice(0, index + 1)
               .reduce((sum, item) => sum + turnBilled(item), 0);
-            const previousIn = [...messages.slice(0, index)]
+            const previousMessage = [...messages.slice(0, index)]
               .reverse()
-              .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null)
-              ?.usage?.prompt_tokens;
-            const thisIn = message.usage?.prompt_tokens;
+              .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null);
+            const previousIn = roundPrompt(previousMessage, 'first');
+            const thisIn = roundPrompt(message, 'first');
             const replayedIn = Number.isFinite(previousIn) ? previousIn : null;
             const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
               ? Math.max(0, thisIn - previousIn)
@@ -710,6 +786,7 @@ export default function ChatInterface() {
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               tokenizer={tokenizer}
               forgotten={forgetting.truncated && index < forgetting.cutoffIndex}
+              showCutoffDetail={index === firstCutoffIndex}
             />
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];

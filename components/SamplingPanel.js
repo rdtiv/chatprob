@@ -13,12 +13,13 @@ import {
   PENALTY_STEP,
 } from '../lib/sampling';
 import { KEEP_TURNS_MIN, KEEP_TURNS_MAX, KEEP_TURNS_STEP, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
+import { WEATHER_TOOL } from '../lib/weatherTool';
 
 export default function SamplingPanel({ id, anchor, onClose }) {
   const panelRef = useRef(null);
   const isSheet = useSheetMode();
   useAnchoredSurface({ ref: panelRef, isSheet, anchor, remeasureKey: isSheet });
-  const { temperature, topP, presencePenalty, boring, stream, keepTurns, restoreKeepTurns, setSampling } = useSampling();
+  const { temperature, topP, presencePenalty, boring, stream, tools, keepTurns, restoreKeepTurns, setSampling } = useSampling();
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -171,7 +172,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
       </div>
       <div className="sampling-section">
         <h4 className="sampling-section-title">Delivery</h4>
-        <div className="sampling-row">
+        <div className={`sampling-row${tools ? ' is-disabled' : ''}`}>
           <div className="sampling-row-head">
             <label className="sampling-row-label" htmlFor={`${id}-stream`}>Stream the reply</label>
             <input
@@ -179,11 +180,41 @@ export default function SamplingPanel({ id, anchor, onClose }) {
               className="sampling-switch"
               type="checkbox"
               checked={stream}
+              disabled={tools}
+              aria-disabled={tools || undefined}
               onChange={() => setSampling((s) => ({ ...s, stream: !s.stream }))}
             />
           </div>
           <p className="sampling-row-note">The reply is built one token at a time either way — streaming just lets you watch.</p>
+          {tools && (
+            <p className="sampling-row-note">Tools are on, so this turn arrives whole. The first request ends in a tool call rather than in words — there is nothing to watch appear.</p>
+          )}
         </div>
+      </div>
+      <div className="sampling-section">
+        <h4 className="sampling-section-title">Tools</h4>
+        <div className="sampling-row">
+          <div className="sampling-row-head">
+            <label className="sampling-row-label" htmlFor={`${id}-tools`}>Let it call a weather tool</label>
+            <input
+              id={`${id}-tools`}
+              className="sampling-switch"
+              type="checkbox"
+              checked={tools}
+              onChange={() => setSampling((s) => ({ ...s, tools: !s.tools }))}
+            />
+          </div>
+          <p className="sampling-row-note">Off, the model answers from training alone, and its training stopped years ago. On, we offer it one function it can ask for &mdash; it still cannot run anything itself.</p>
+        </div>
+        <div className="tool-description">
+          <p className="tool-description-name">{WEATHER_TOOL.function.name}</p>
+          <p>{WEATHER_TOOL.function.description}</p>
+          <p className="tool-description-param">
+            location <span>(string, required)</span>
+          </p>
+          <p>{WEATHER_TOOL.function.parameters.properties.location.description}</p>
+        </div>
+        <p className="sampling-row-note">This is the whole briefing. The description is the only documentation the model gets: it reads this, decides whether your question needs it, and writes the arguments itself.</p>
       </div>
     </div>
   );
