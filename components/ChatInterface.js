@@ -13,19 +13,22 @@ import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary } from '../lib/usage';
-import { needsCutoffNote } from '../lib/cutoffRelevance';
+import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
 
+// There is deliberately no "watch it be confidently wrong" chip. Every version
+// of that demo depends on the model being bad at something, and gpt-4o-mini is
+// well calibrated on exactly the questions that used to work: it corrects the
+// famous myths, solves the classic riddles at 95-100% confidence, and hedges
+// ("this can vary by context") on judgment calls in 18 of 21 replies. What does
+// not depend on model quality is already here — three sample tabs disagreeing
+// on one prompt, the temperature control, forgetting, and the tool round trip.
 const STARTER_PROMPTS = [
   'The best pizza topping is',
   'Write two different metaphors for rain.',
-  'Yes or no: is a hot dog a sandwich?',
-];
-
-const FOOL_IT_PROMPTS = [
-  'What did the 1994 Geneva Protocol on Digital Privacy establish?',
-  'Which U.S. president invented the paperclip?',
-  'Why is the Great Wall of China visible from the Moon?',
+  // The weather prompt is the doorway to tool calling: cold, with tools off,
+  // the model has to admit it cannot know. Controls -> "Let it call a weather
+  // tool" is what turns that into a tool round trip.
   "What's the weather in Denver right now?",
 ];
 
@@ -82,7 +85,8 @@ export default function ChatInterface() {
   const [coachStep, setCoachStep] = useState(0);
   const [legendWhyOpen, setLegendWhyOpen] = useState(false);
   const [clearArmed, setClearArmed] = useState(false);
-  const [followupUsed, setFollowupUsed] = useState(false);
+  // Keyed by follow-up kind ('memory', 'tools'): each one is offered once.
+  const [followupsUsed, setFollowupsUsed] = useState({});
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
@@ -621,14 +625,27 @@ export default function ChatInterface() {
   messages.forEach((item, index) => {
     if (item.role === 'user') lastUserIndex = index;
   });
+  const lastUser = lastUserIndex >= 0 ? messages[lastUserIndex] : null;
   const replyAfterLastUser = lastUserIndex >= 0 ? messages[lastUserIndex + 1] : null;
-  const showFollowup = !followupUsed &&
-    lastUserIndex >= 0 &&
-    messages[lastUserIndex].source === 'chip-memory' &&
-    replyAfterLastUser?.role === 'assistant' &&
+  const replyLanded = replyAfterLastUser?.role === 'assistant' &&
     !replyAfterLastUser.isStreaming &&
     !replyAfterLastUser.error &&
     replyAfterLastUser.completions?.some((completion) => completion.tokenProbabilities?.length);
+  const replyUsedTool = !!replyAfterLastUser?.toolCall ||
+    (Array.isArray(replyAfterLastUser?.toolCalls) && replyAfterLastUser.toolCalls.length > 0);
+
+  // Both follow-ups turn a Control the visitor has not found yet into one tap,
+  // offered at the only moment its lesson is legible: straight after a reply
+  // that the Control would have changed. The tool one is offered for any
+  // weather question, chipped or typed — with tools off the model can only
+  // decline, and that decline is the setup for the tool round trip.
+  let followup = null;
+  if (replyLanded && !followupsUsed.memory && lastUser?.source === 'chip-memory') {
+    followup = { kind: 'memory', label: 'Now make it forget' };
+  } else if (replyLanded && !followupsUsed.tools && !sampling.tools && !replyUsedTool &&
+             mentionsWeather(lastUser?.content)) {
+    followup = { kind: 'tools', label: 'Now give it the tool' };
+  }
 
   let coachTargetIndex = -1;
   let coach = null;
@@ -830,7 +847,6 @@ export default function ChatInterface() {
               <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
                 { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter', hint: null },
-                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool', hint: 'then look at how green the wrong answer is' },
                 { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory', hint: 'then open Controls → Forget older turns, and ask "What is my name?"' },
               ].map(({ ariaLabel, label, prompts, source, hint }) => (
                 <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
@@ -901,19 +917,26 @@ export default function ChatInterface() {
           )}
           <div ref={messagesEndRef} />
         </div>
-        {showFollowup && (
+        {followup && (
           <div className="prompt-chips" aria-label="Follow-up prompt">
             <button
               type="button"
               className="prompt-chip"
               disabled={isLoading}
               onClick={() => {
-                setFollowupUsed(true);
-                setSampling((s) => ({ ...s, keepTurns: 0 }));
-                sendMessage('What is my name?', 'chip-memory', { keepTurns: 0 });
+                setFollowupsUsed((used) => ({ ...used, [followup.kind]: true }));
+                if (followup.kind === 'memory') {
+                  setSampling((s) => ({ ...s, keepTurns: 0 }));
+                  sendMessage('What is my name?', 'chip-memory', { keepTurns: 0 });
+                } else {
+                  // Same question, tool in hand: the two replies sit next to
+                  // each other in the transcript, which is the whole lesson.
+                  setSampling((s) => ({ ...s, tools: true }));
+                  sendMessage(lastUser.content, 'chip-tool', { tools: true });
+                }
               }}
             >
-              Now make it forget
+              {followup.label}
             </button>
           </div>
         )}
@@ -929,7 +952,7 @@ export default function ChatInterface() {
               }}
               onFocus={ensureTokenizer}
               onKeyDown={handleComposerKeyDown}
-              placeholder="Ask anything — every word you type becomes tokens"
+              placeholder="Your words become tokens"
               disabled={isLoading}
               className="message-input"
             />
