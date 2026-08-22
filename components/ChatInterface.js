@@ -371,12 +371,11 @@ export default function ChatInterface() {
         if (!last) return prev;
         const { isStreaming, ...partialFlushed } = last;
         const completions = (partialFlushed.completions || []).map((c) => ({ ...c, text: c.text.trim() }));
+        // Unlike finalizeSuccess, do NOT strip earlier turns' echoedMessages:
+        // the aborted turn has no usable disclosure of its own (usage is null),
+        // so stripping here would leave no viewable request anywhere.
         return [
-          ...prev.slice(0, -1).map((item) => (
-            item.role === 'assistant' && item.echoedMessages
-              ? { ...item, echoedMessages: undefined }
-              : item
-          )),
+          ...prev.slice(0, -1),
           {
             ...partialFlushed,
             completions,
