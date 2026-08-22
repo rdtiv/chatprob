@@ -7,8 +7,8 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 ## What it teaches
 
 - **Token confidence.** Each word is colored from the *sampled* token’s logprob — green when the model was sure, yellow when mixed, red when it took a long shot. The heatmap is not “most likely in the top 5”; it is the token that actually landed. Below 65% the word also picks up a thin underline, below 35% a thicker one, so the signal survives without color.
-- **What else was considered.** Hover or tap a word for the candidate list. **Among these** re-scales the shown candidates to add up to 100% at the current temperature; **Raw odds** shows the model’s real probabilities across the whole vocabulary, which do *not* add up to 100%. If the sampled token was outside the top 5, it still gets its own row with its real probability instead of `0.00%`.
-- **Temperature, live.** The candidate set is frozen when the card opens, so moving the temperature slider never makes rows appear or vanish — only the odds move. Adjusting temperature does not dismiss a pinned card, because watching the odds shift is the lesson. At `0` the top candidate takes 100% and everything else goes to zero, which is winner-take-all sampling made visible.
+- **What else was considered.** Hover or tap a word for the candidate list. **Among these** re-scales the shown candidates to add up to 100% at the current temperature; **Raw odds** shows the model’s real probabilities across the whole vocabulary, which do *not* add up to 100%. If the sampled token was outside the top 5, it still gets its own row with a real percentage instead of `0.00%` — under **Raw odds**, that is its exact model probability.
+- **Temperature, live.** The candidate set is frozen when the card opens, so moving the temperature slider never makes rows appear or vanish — only the odds move. Adjusting temperature does not dismiss a pinned card, because watching the odds shift is the lesson. At `0` the top candidate takes 100% and everything else goes to zero, which is winner-take-all sampling made visible (the card rounds those zeros to `<0.001%`).
 - **Your text is tokens too.** The composer tokenizes what you type with `o200k_base` and the user bubble shows the pieces as alternating tints, with an `≈ N tokens` count. Send **strawberry** and watch it arrive as three pieces, not ten letters.
 - **Three full replies, and where they fork.** Each turn requests `n=3` completions. Tabs **1 / 2 / 3** switch among them, each with a confidence dot. A ring marks the first token where the three replies diverge — everything before it is identical, because the same prompt and the same weights produced the same tokens until the dice landed differently. Each tab also reports perplexity (“picking from ~N plausible words”) and the joint odds of that exact wording.
 - **Conversation cost.** The API has no memory. Every turn resends the whole prompt, so input tokens climb as a staircase — one stacked bar per request, split into replayed, cached, and new. You can open the literal JSON array that was sent, and the rate card turns the tokens into dollars for this turn and for the conversation.
@@ -37,7 +37,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Presence penalty | `-2`–`2`, step `0.05` | `0.45` | `presence_penalty` |
 | Make it boring | on / off | off | `temperature: 0` plus `seed: 7` |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same numbers, so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise.
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise.
 
 ## Stack
 
@@ -69,7 +69,7 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-`OPENAI_MODEL` must support Chat Completions logprobs and `n`. Changing it does not automatically update the rate card; unknown models fall back to the gpt-4o-mini list price and are marked approximate.
+`OPENAI_MODEL` must support Chat Completions logprobs and `n`. The rate card follows the served model when it is one of the five priced in `lib/openaiRates.js`; anything else falls back to the gpt-4o-mini list price and is labelled a similar-mini-model estimate.
 
 3. Run the app:
 
@@ -111,7 +111,7 @@ With **Stream the reply** on — the default — the client posts `stream: true`
 
 | Event | Carries |
 | --- | --- |
-| `meta` | `echoedMessages`, `model`, `sampling` — sent *before* the model call, so the request disclosure survives a stream that dies |
+| `meta` | `echoedMessages`, `model`, `sampling` — sent *before* the model call; if the stream dies, the previous turn's request disclosure stays viewable |
 | `delta` | `index`, `text`, `tokens` — one per choice, so all three samples stream at once |
 | `done` | the same `usage` object as the JSON path |
 | `error` | a `message` the UI shows instead of a generic “connection dropped” |
@@ -120,7 +120,7 @@ Deltas are batched into one React update per animation frame, and tokens stay in
 
 ## What gets saved
 
-The conversation lives in `localStorage` under `chatMessages`. To stay inside the browser’s quota, only the 20 newest successful turns keep their `top_logprobs`; older turns keep each token and its logprob but lose the alternatives, so the heatmap, underlines, tab statistics, and fork detection all survive a reload while the candidate list does not. When you open a card on one of those turns it says so and points you at Raw odds, which still works. Errored and aborted turns do not occupy one of the 20 slots. Refreshing mid-stream heals the interrupted turn into that same aborted note rather than leaving a reply that never finishes.
+The conversation lives in `localStorage` under `chatMessages`. To stay inside the browser’s quota, only the 20 newest successful turns keep their `top_logprobs`; older turns keep each token and its logprob but lose the alternatives, so the heatmap, underlines, tab statistics, and fork detection all survive a reload while the candidate list does not. When you open a card on one of those turns it says so and points you at Raw odds, which still works. Errored and aborted turns do not occupy one of the 20 slots, and recent ones keep their alternatives too — only errored turns older than the oldest kept successful turn are stripped. Refreshing mid-stream heals the interrupted turn into that same aborted note rather than leaving a reply that never finishes.
 
 ## Project layout
 
@@ -142,7 +142,7 @@ The conversation lives in `localStorage` under `chatMessages`. To stay inside th
 | `lib/openaiRates.js` | List prices and in/out/cached spend |
 | `lib/persistence.js` | Storage pruning for old turns |
 | `pages/api/chat.js` | OpenAI Chat Completions + logprobs, JSON and NDJSON |
-| `scripts/` | Manual live-API gates — not part of `npm test` or CI |
+| `scripts/` | Manual live-API gates — run by hand, never in CI |
 
 ## Deploy
 
