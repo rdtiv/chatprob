@@ -273,7 +273,7 @@ export default function ChatInterface() {
       setMessages(prev => [
         ...prev.map((item) => (
           item.role === 'assistant' && item.echoedMessages
-            ? { ...item, echoedMessages: undefined }
+            ? { ...item, echoedMessages: undefined, echoedTools: undefined, echoedToolChoice: undefined }
             : item
         )),
         {
@@ -286,6 +286,8 @@ export default function ChatInterface() {
           sampling: data.usage?.sampling ?? null,
           sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+          echoedTools: Array.isArray(data.echoedTools) ? data.echoedTools : null,
+          echoedToolChoice: data.echoedToolChoice ?? null,
           toolCall: data.toolCall ?? null,
           toolResult: data.toolResult ?? null,
           toolCalls: data.toolCalls ?? null,
@@ -396,7 +398,7 @@ export default function ChatInterface() {
         return [
           ...prev.slice(0, -1).map((item) => (
             item.role === 'assistant' && item.echoedMessages
-              ? { ...item, echoedMessages: undefined }
+              ? { ...item, echoedMessages: undefined, echoedTools: undefined, echoedToolChoice: undefined }
               : item
           )),
           finalMessage,
@@ -720,7 +722,11 @@ export default function ChatInterface() {
                 prevIn={prevIn}
                 toolRoundIn={toolRoundIn}
               />
-              <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
+              <RequestEcho
+                echoedMessages={lastAssistant?.echoedMessages}
+                echoedTools={lastAssistant?.echoedTools}
+                echoedToolChoice={lastAssistant?.echoedToolChoice}
+              />
             </div>
           </div>
         )}

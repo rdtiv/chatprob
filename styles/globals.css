@@ -1296,6 +1296,8 @@ main {
    the solid staircase #6d28d9 is too dark to type on. */
 .request-echo-message.is-new { background-color: rgba(109, 40, 217, 0.3); }
 .request-echo-note { margin: 6px 0 0; font-size: 0.66rem; line-height: 1.35; color: #64748b; }
+.request-echo-tools { border-top: 1px dashed #e5e7eb; }
+.request-echo-tools-label { margin: 0; padding: 6px 8px 0; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
 
 .sampling-panel {
   position: fixed;
