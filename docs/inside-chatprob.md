@@ -137,7 +137,7 @@ Here is the second of three facts about temperature that this document keeps apa
 
 So where is the live dice — the thing on screen that does move when the slider moves? It is in the next chapter, and it is the reason the next chapter's Try-it and this one are the same step.
 
-### Try it — step 3
+### Try it — step 3, shared with chapter 4
 
 Shared with chapter 4: pin a word first, then move the slider. Read chapter 4 and do the step once, for both.
 
@@ -286,7 +286,7 @@ Look where the line is. It is above the Ada exchange, not below it. The window i
 
 Send **What is my name?** The moment you do, that question becomes the newest user message, the window is measured from it, and the Ada exchange falls above the line. The request goes out carrying the system prompt and four words. The model answers that it does not know your name — and it is right not to. It never knew it; it had been shown it.
 
-This is **[truncation](glossary.md#truncation)**: cutting the front of the message array before sending. The transcript on your screen keeps everything. Your saved conversation keeps everything. Only the request shrank, and the line and the request come from one function, so the line can never claim a rule the request did not follow. Each step up the **Exchanges replayed** slider adds one earlier exchange back into the window; the system prompt is never counted and never falls off, because the server adds it after the cut.
+This is **[truncation](glossary.md#truncation)**: cutting the front of the message array before sending. The transcript on your screen keeps every message. Your saved conversation keeps every message. Only the request shrank, and the line and the request come from one function, so the line can never claim a rule the request did not follow. Each step up the **Exchanges replayed** slider adds one earlier exchange back into the window; the system prompt is never counted and never falls off, because the server adds it after the cut.
 
 Glance at the cost card before you turn the switch off. The earlier bars in its chart stayed tall; the newest bar is just the name question. That shrinking bar is where chapter 7 starts. Then **turn Forget older turns off** so the rest of the sitting replays the whole transcript again.
 

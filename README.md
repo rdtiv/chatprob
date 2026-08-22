@@ -26,7 +26,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 
 ## Glossary
 
-The glossary lives in [docs/glossary.md](docs/glossary.md), built from the terms [Inside ChatProb](docs/inside-chatprob.md) introduces, in the order it introduces them.
+The glossary lives in [docs/glossary.md](docs/glossary.md), an alphabetical list of the terms [Inside ChatProb](docs/inside-chatprob.md) introduces, each pointing back to the chapter that needs it.
 
 ### Using the controls
 

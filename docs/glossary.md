@@ -28,7 +28,7 @@ The tokens in a request: system prompt, every replayed message, the chat wrapper
 
 ## list price
 
-The published per-million-token rate for a model — for `gpt-4o-mini`, $0.15 in, $0.60 out, $0.075 cached in. The app's rate card quotes it; an unknown model gets the mini-model rates, labelled as an estimate. See [chapter 7](inside-chatprob.md#7-what-a-conversation-costs).
+The published per-million-token rate for a model, in three figures: input, output, and cached input. The app's rate card quotes the current numbers from `lib/openaiRates.js`; an unknown model gets the mini-model rates, labelled as an estimate. See [chapter 7](inside-chatprob.md#7-what-a-conversation-costs).
 
 ## live dice
 
