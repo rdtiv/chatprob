@@ -48,7 +48,7 @@ Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (to
 
 ## Stack
 
-- Next.js 13.5.6 pages router, React 18, CSS in `styles/globals.css`
+- Next.js 13.5.11 pages router, React 18, CSS in `styles/globals.css`
 - `gpt-tokenizer` for the composer’s `o200k_base` count, dynamically imported on first use so its ~1 MB table never enters the initial bundle
 - One serverless route: `POST /api/chat` (`maxDuration` 60), answering with JSON or an NDJSON stream. Not Edge, and not the Vercel AI Gateway — those paths drop logprobs.
 - OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3`
@@ -97,6 +97,8 @@ node --test "lib/*.test.js"
 ```
 
 The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals, and the model-facts table — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
+
+`next`, `@next/env`, and `eslint-config-next` are pinned to the exact `13.5.11`, and an `overrides` entry in `package.json` (`"minimatch@9": "^9.0.7"`) lifts the copy of `minimatch` that `@typescript-eslint` brings in past the 9.x ReDoS advisories, which are first patched in `9.0.7`. `npm audit` still reports two high findings — `next` itself and the `postcss` that comes in with it — and the only fix npm offers for either is a Next major, which would take the app off the 13.5 pages router it is built on. Those two are left in place on purpose: do not run `npm audit fix --force` here.
 
 ## How a turn works
 
