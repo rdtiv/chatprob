@@ -1,27 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
-
-function useSheetMode() {
-  const [isSheet, setIsSheet] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse), (hover: none)').matches
-  );
-  useEffect(() => {
-    const media = window.matchMedia('(pointer: coarse), (hover: none)');
-    const sync = () => setIsSheet(media.matches);
-    sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
-  }, []);
-  return isSheet;
-}
+import { TEMP_MIN, TEMP_MAX, TEMP_STEP } from '../lib/sampling';
+import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
+import { useSampling } from './SamplingContext';
 
 export default function TokenProbabilities({
   probabilities,
   position,
   selectedToken,
   selectedLogprob,
-  temperature,
-  onTemperatureChange,
   sampledTemperature,
   forkNote,
   onDismiss,
@@ -31,60 +18,9 @@ export default function TokenProbabilities({
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
   const [mode, setMode] = useState('among');
+  const { temperature, setTemperature, boring } = useSampling();
 
-  useEffect(() => {
-    if (!cardRef.current) return;
-    const card = cardRef.current;
-    if (isSheet) {
-      card.style.top = '';
-      card.style.left = '';
-      return;
-    }
-    const apply = () => {
-      if (!cardRef.current) return;
-      const rect = card.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const padding = 12;
-      const header = document.querySelector('.chat-header');
-      const legend = document.querySelector('.confidence-legend');
-      const form = document.querySelector('.message-form');
-      const chromeBottom = (legend || header)?.getBoundingClientRect().bottom ?? 0;
-      const topSafe = Math.max(padding, chromeBottom + 8);
-      const bottomSafe = form
-        ? form.getBoundingClientRect().top - 8
-        : window.innerHeight - 80;
-
-      // Prefer below the token so the card does not cover the header/legend.
-      let top = position.y + 20;
-      let left = position.x - (rect.width / 2);
-
-      if (top + rect.height > bottomSafe) {
-        top = position.y - rect.height - 8;
-      }
-      if (top < topSafe) {
-        top = topSafe;
-      }
-      if (top + rect.height > bottomSafe) {
-        top = Math.max(topSafe, bottomSafe - rect.height);
-      }
-
-      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
-
-      card.style.top = `${top}px`;
-      card.style.left = `${left}px`;
-    };
-    apply();
-    const form = document.querySelector('.message-form');
-    const observer = typeof ResizeObserver !== 'undefined' && form
-      ? new ResizeObserver(apply)
-      : null;
-    observer?.observe(form);
-    window.addEventListener('resize', apply);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', apply);
-    };
-  }, [position, probabilities, isSheet, mode]);
+  useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
   // never appear or disappear while the slider moves.
@@ -93,46 +29,6 @@ export default function TokenProbabilities({
     [probabilities, selectedToken, selectedLogprob]
   );
   const rows = useMemo(() => frozenRows(frozenSet), [frozenSet]);
-
-  // `bottom` on a fixed element is measured from the layout viewport, which iOS does
-  // not shrink for the keyboard; `visualViewport.offsetTop + height` is the bottom of
-  // what is actually visible; `min(formTop, viewportBottom)` docks above the composer
-  // when visible, above the keyboard when not.
-  useEffect(() => {
-    if (!isSheet) {
-      const card = cardRef.current;
-      if (card) { card.style.bottom = ''; card.style.maxHeight = ''; }
-      return undefined;
-    }
-    const vv = window.visualViewport;
-    const apply = () => {
-      const card = cardRef.current;
-      if (!card) return;
-      const vvTop = vv ? vv.offsetTop : 0;
-      const vvHeight = vv ? vv.height : window.innerHeight;
-      const viewportBottom = vvTop + vvHeight;
-      const form = document.querySelector('.message-form');
-      const formTop = form ? form.getBoundingClientRect().top : viewportBottom;
-      const dockTop = Math.min(formTop, viewportBottom) - 8;
-      card.style.bottom = `${window.innerHeight - dockTop}px`;
-      card.style.maxHeight = `${Math.min(dockTop - vvTop - 12, Math.max(160, Math.round(vvHeight * 0.55)))}px`;
-    };
-    apply();
-    vv?.addEventListener('resize', apply);
-    vv?.addEventListener('scroll', apply);
-    window.addEventListener('resize', apply);
-    const form = document.querySelector('.message-form');
-    const observer = typeof ResizeObserver !== 'undefined' && form
-      ? new ResizeObserver(apply)
-      : null;
-    observer?.observe(form);
-    return () => {
-      vv?.removeEventListener('resize', apply);
-      vv?.removeEventListener('scroll', apply);
-      window.removeEventListener('resize', apply);
-      observer?.disconnect();
-    };
-  }, [isSheet, frozenSet]);
 
   if (rows.length === 0) return null;
 
@@ -205,17 +101,19 @@ export default function TokenProbabilities({
       {isSheet && (
         <div className="token-probabilities-sheet-temp">
           <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
-            Temp {t.toFixed(1)}
+            Temp {t.toFixed(1)}{boring ? ' — locked by Make it boring' : ''}
           </label>
           <input
             id="token-card-temperature"
             className="token-probabilities-sheet-temp-range"
             type="range"
-            min="0.2"
-            max="1.8"
-            step="0.1"
+            min={TEMP_MIN}
+            max={TEMP_MAX}
+            step={TEMP_STEP}
             value={t}
-            onChange={(e) => onTemperatureChange?.(Number(e.target.value))}
+            disabled={boring}
+            aria-disabled={boring}
+            onChange={(e) => setTemperature(Number(e.target.value))}
             aria-label="Sampling temperature"
           />
         </div>

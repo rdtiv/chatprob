@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
-export default function PromptStaircase({ messages }) {
+function PromptStaircase({ messages }) {
   const rows = useMemo(() => {
     let prevPrompt = null;
     let turn = 0;
@@ -42,8 +42,11 @@ export default function PromptStaircase({ messages }) {
     const cachedPct = row.prompt > 0 ? (row.cached / row.prompt) * 100 : 0;
     const replayedPct = row.prompt > 0 ? (row.replayedUncached / row.prompt) * 100 : 0;
     const newPct = row.prompt > 0 ? (row.added / row.prompt) * 100 : 0;
-    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in — ${row.replayed} replayed, ${row.prompt - row.replayed > 0 ? row.prompt - row.replayed : 0} new`
-      + (row.cached > 0 ? `, ${row.cached} from cache` : '');
+    const ariaParts = [];
+    if (row.cached > 0) ariaParts.push(`${row.cached} from cache`);
+    if (row.replayedUncached > 0) ariaParts.push(`${row.replayedUncached} resent`);
+    if (row.added > 0) ariaParts.push(`${row.added} new`);
+    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in${ariaParts.length ? ` — ${ariaParts.join(', ')}` : ''}`;
 
     return {
       ...row,
@@ -85,3 +88,5 @@ export default function PromptStaircase({ messages }) {
     </div>
   );
 }
+
+export default memo(PromptStaircase);

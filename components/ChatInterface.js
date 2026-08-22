@@ -1,14 +1,23 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import Message from './Message';
 import ConversationExplainer from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
+import SamplingPanel from './SamplingPanel';
+import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
+import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
   'Write two different metaphors for rain.',
   'Yes or no: is a hot dog a sandwich?',
+];
+
+const FOOL_IT_PROMPTS = [
+  'What did the 1994 Geneva Protocol on Digital Privacy establish?',
+  'Which U.S. president invented the paperclip?',
+  'Why is the Great Wall of China visible from the Moon?',
 ];
 
 const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
@@ -19,15 +28,28 @@ export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [temperature, setTemperature] = useState(1.2);
+  const [sampling, setSampling] = useState({
+    temperature: TEMP_DEFAULT,
+    topP: TOP_P_DEFAULT,
+    presencePenalty: PENALTY_DEFAULT,
+    boring: false,
+    restoreTemperature: TEMP_DEFAULT,
+  });
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelAnchor, setPanelAnchor] = useState({ x: 0, y: 0 });
+  const panelId = useId();
   const messagesEndRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
   const tokenizerStartedRef = useRef(false);
+  const samplingButtonRef = useRef(null);
+
+  const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
+  const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
 
   // Update page title
   useEffect(() => {
@@ -52,6 +74,21 @@ export default function ChatInterface() {
   useEffect(() => {
     measureComposer();
   }, [currentMessage]);
+
+  const closeSamplingPanel = useCallback(() => {
+    setPanelOpen(false);
+    samplingButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!panelOpen) return undefined;
+    const sync = () => {
+      const rect = samplingButtonRef.current?.getBoundingClientRect();
+      if (rect) setPanelAnchor({ x: rect.left + rect.width / 2, y: rect.bottom });
+    };
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, [panelOpen]);
 
   useEffect(() => {
     let raf = 0;
@@ -80,10 +117,10 @@ export default function ChatInterface() {
     setStorageReady(true);
   }, []);
 
-  const dismissHoverHint = () => {
+  const dismissHoverHint = useCallback(() => {
     setHoverHintVisible(false);
     localStorage.setItem(HOVER_HINT_KEY, '1');
-  };
+  }, []);
 
   const ensureTokenizer = useCallback(() => {
     if (tokenizerStartedRef.current) return;
@@ -111,7 +148,7 @@ export default function ChatInterface() {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
-    const sampledTemperature = temperature;
+    const snapshot = sampling;
     inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
@@ -123,7 +160,13 @@ export default function ChatInterface() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversation.filter((m) => !m.error), temperature: sampledTemperature })
+        body: JSON.stringify({
+          messages: conversation.filter((m) => !m.error),
+          temperature: snapshot.temperature,
+          top_p: snapshot.topP,
+          presence_penalty: snapshot.presencePenalty,
+          ...(snapshot.boring ? { seed: BORING_SEED } : {}),
+        })
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -143,7 +186,8 @@ export default function ChatInterface() {
           activeIndex: 0,
           timestamp: new Date().toISOString(),
           usage: data.usage || null,
-          sampledTemperature,
+          sampling: data.usage?.sampling ?? null,
+          sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
         },
       ]);
@@ -173,7 +217,7 @@ export default function ChatInterface() {
     sendMessage(currentMessage);
   };
 
-  const selectCompletion = (messageIndex, completionIndex) => {
+  const selectCompletion = useCallback((messageIndex, completionIndex) => {
     setMessages((prev) => {
       if (prev.slice(messageIndex + 1).some((item) => item.role === 'user')) {
         return prev;
@@ -187,7 +231,7 @@ export default function ChatInterface() {
         };
       });
     });
-  };
+  }, []);
 
   const clearChat = () => {
     setMessages([]);
@@ -218,6 +262,7 @@ export default function ChatInterface() {
   const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
 
   return (
+    <SamplingProvider value={samplingValue}>
     <div style={{
       display: 'flex',
       flexDirection: 'column',
@@ -253,20 +298,22 @@ export default function ChatInterface() {
             <span className="title-short">ChatProb</span>
           </h3>
           <div className="header-actions">
-            <label className="sampling-control" title="Higher temperature samples more freely. Hover colors still show raw model confidence.">
-              <span>Temp {temperature.toFixed(1)}</span>
-              <input
-                type="range"
-                min="0.2"
-                max="1.8"
-                step="0.1"
-                value={temperature}
-                onChange={(e) => setTemperature(Number(e.target.value))}
-                aria-label="Sampling temperature"
-              />
-            </label>
-          <button 
-            onClick={clearChat} 
+            <button
+              ref={samplingButtonRef}
+              type="button"
+              className="sampling-button"
+              aria-expanded={panelOpen}
+              aria-controls={panelOpen ? panelId : undefined}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setPanelAnchor({ x: rect.left + rect.width / 2, y: rect.bottom });
+                setPanelOpen((open) => !open);
+              }}
+            >
+              Sampling · {sampling.temperature.toFixed(1)}
+            </button>
+          <button
+            onClick={clearChat}
             className="refresh-button"
             title="Clear chat history"
           >
@@ -294,15 +341,16 @@ export default function ChatInterface() {
             <span className="legend-swatch legend-swatch-high" />
             more sure
           </span>
-          <span className="legend-item">
+          <span className="legend-item is-unsure">
             <span className="legend-swatch legend-swatch-mid" />
             mixed
           </span>
-          <span className="legend-item">
+          <span className="legend-item is-very-unsure">
             <span className="legend-swatch legend-swatch-low" />
             less sure
           </span>
           <span className="legend-hover">Tap or hover a word for the other choices</span>
+          <span className="legend-honesty">Green means expected, not true.</span>
         </div>
         {sessionBilled > 0 && (
           <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`}>
@@ -357,6 +405,20 @@ export default function ChatInterface() {
                   </button>
                 ))}
               </div>
+              <div className="prompt-chips" aria-label="Prompts that invite confident mistakes">
+                <span className="fool-it-label">Try to fool it:</span>
+                {FOOL_IT_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="prompt-chip"
+                    disabled={isLoading}
+                    onClick={() => sendMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {messages.map((message, index) => {
@@ -373,18 +435,17 @@ export default function ChatInterface() {
               ? Math.max(0, thisIn - previousIn)
               : null;
             return (
-            <Message 
+            <Message
               key={index}
               message={message}
-              onSelect={(completionIndex) => selectCompletion(index, completionIndex)}
+              onSelect={selectCompletion}
+              messageIndex={index}
               showHoverHint={hoverHintVisible && index === firstHintableIndex}
               onHoverUsed={dismissHoverHint}
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
-              temperature={temperature}
-              onTemperatureChange={setTemperature}
               tokenizer={tokenizer}
             />
             );
@@ -469,7 +530,11 @@ export default function ChatInterface() {
             </button>
           </div>
         </form>
+        {panelOpen && (
+          <SamplingPanel id={panelId} anchor={panelAnchor} onClose={closeSamplingPanel} />
+        )}
       </div>
     </div>
+    </SamplingProvider>
   );
-} 
+}

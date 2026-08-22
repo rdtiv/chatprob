@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
-import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor } from '../lib/completionStats';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 
 const EMPTY_TOP_LOGPROBS = {};
@@ -38,7 +38,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-export default function Message({ message, onSelect, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, temperature, onTemperatureChange, tokenizer }) {
+function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer }) {
   const { role, completions, activeIndex = 0, content } = message;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
@@ -103,6 +103,11 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
   useEffect(() => {
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
+      // Interacting with the sampling surfaces must not dismiss a pinned card:
+      // adjusting temperature while watching the card's what-if IS the lesson.
+      if (event.target.closest('.sampling-panel, .sampling-button')) {
+        return;
+      }
       const hit = event.target.closest('.token, .token-probabilities-card');
       if (hit && rootRef.current?.contains(hit)) {
         return;
@@ -168,7 +173,7 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
     invalidateHoverTimer();
     setPinned(false);
     setHoveredToken(null);
-    onSelect?.(index);
+    onSelect?.(messageIndex, index);
   };
 
   const activeStats = tabStats[safeIndex];
@@ -225,10 +230,12 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
       <div className="message-text">
         {tokenProbabilities.map((tp, idx) => {
           const backgroundColor = getBackgroundColor(tp);
+          const percentage = sampledPercentage(tp);
+          const band = confidenceBand(percentage);
           return (
             <span
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
-              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}`}
+              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
               role="button"
@@ -238,9 +245,9 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
               onClick={(e) => handleTokenClick(tp.token, idx, e)}
               onMouseLeave={handleTokenMouseLeave}
               onKeyDown={(e) => {
-                if (e.repeat) return;
                 if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.preventDefault();
+                e.preventDefault(); // before the repeat check: held Space must never scroll the page
+                if (e.repeat) return;
                 handleTokenClick(tp.token, idx, e);
               }}
             >
@@ -396,8 +403,6 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
             position={mousePosition}
             selectedToken={hoveredToken.token}
             selectedLogprob={tokenData?.logprob}
-            temperature={temperature}
-            onTemperatureChange={onTemperatureChange}
             sampledTemperature={typeof message.sampledTemperature === 'number' ? message.sampledTemperature : null}
             forkNote={forkIndex >= 0 && hoveredToken.index === forkIndex ? forkNoteCopy : null}
             onDismiss={closeCard}
@@ -408,4 +413,6 @@ export default function Message({ message, onSelect, showHoverHint = false, onHo
       })()}
     </div>
   );
-} 
+}
+
+export default memo(Message);
