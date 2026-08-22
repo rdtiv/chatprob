@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
-import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor, confidenceBand } from '../lib/completionStats';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 import { knowledgeCutoff } from '../lib/modelFacts';
+import { mentionsWeather } from '../lib/cutoffRelevance';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -50,7 +51,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false }) {
+function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -60,6 +61,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   const lockNoteId = useId();
   const [usageOpen, setUsageOpen] = useState(false);
   const usageId = useId();
+  const [cutoffOpen, setCutoffOpen] = useState(false);
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
@@ -196,7 +198,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
 
   const activeStats = tabStats[safeIndex];
   const statsLine = activeStats
-    ? [formatPerplexity(activeStats.perplexity), formatJointOdds(activeStats.jointLog10)].filter(Boolean).join(' · ')
+    ? [formatPerplexity(activeStats.perplexity)].filter(Boolean).join(' · ')
     : '';
   const baseForkCopy = forkIndex === 0
     ? 'The replies split right here, at the very first word — they had nothing in common to begin with.'
@@ -310,7 +312,6 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                     const parts = [
                       `Response ${index + 1}`,
                       stats && formatPerplexity(stats.perplexity),
-                      stats && formatJointOdds(stats.jointLog10),
                     ].filter(Boolean);
                     return (
                       <button
@@ -418,9 +419,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             </div>
           )}
           {renderContent()}
-          {showCutoffNote && (
+          {(showCutoffNote || cutoffOpen) && (
             <p className="cutoff-note">
-              This model was trained on text that stops around {cutoff.label}. Nothing after that is in there &mdash; today&rsquo;s weather included. However sure it sounds, the colors only tell you the wording was expected, not that the facts are current.
+              This model was trained on text that stops around {cutoff.label}. Nothing after that is in there{mentionsWeather(cutoffPrompt?.content) ? <> &mdash; today&rsquo;s weather included</> : null}. However sure it sounds, the colors only tell you the wording was expected, not that the facts are current.
             </p>
           )}
           {message.aborted && (
@@ -450,7 +451,16 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               )}
               {showCutoffPill && (
                 <span className="cutoff-pill" title="Training data ends here; it cannot know anything after that.">
-                  knowledge ends ~{cutoff.label}
+                  <span>knowledge ends ~{cutoff.label}</span>
+                  <button
+                    type="button"
+                    className="cutoff-pill-why"
+                    aria-label="What does the cutoff mean?"
+                    aria-expanded={showCutoffNote || cutoffOpen}
+                    onClick={() => setCutoffOpen((open) => !open)}
+                  >
+                    ?
+                  </button>
                 </span>
               )}
               {role === 'user' && userChunks && (
