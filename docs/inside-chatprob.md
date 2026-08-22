@@ -111,7 +111,7 @@ The first coach mark is on this reply; hovering a word advances it. Do not click
 
 `confidenceColor` and `confidenceBand` in `lib/completionStats.js` turn a sampled token's logprob into the gradient and the three bands (`sure` / `unsure` / `very-unsure` internally; `likely` / `toss-up` / `long shot` in the legend in `components/ChatInterface.js`). The API route in `pages/api/chat.js` asks for these numbers with `logprobs: true` and `top_logprobs: 5` on every Chat Completions call. Streaming is the same route answering `application/x-ndjson`: a `meta` event with the request as sent, a `delta` event per streamed chunk per reply, carrying that chunk's tokens, a `done` event carrying `usage`, and an `error` event when something goes wrong mid-stream. `scripts/stream-spike.mjs` is the live check that streaming, three replies and logprobs all work together — run by hand, never in CI.
 
-## 3. Turning the dice
+## 3. Tuning the dice
 
 The colors told you how likely each landed word was. This chapter is about the picking itself — the step between "the model has a probability for every token" and "one token lands" — because that step has knobs, and the app lets you turn them.
 
