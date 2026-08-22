@@ -1,7 +1,7 @@
 // Mission 9 gate spike: tools + n:3 + logprobs, logprobs-over-tool-calls, and
 // usage accounting across a two-round tool-call/tool-result exchange.
 // Live API calls — run manually only, never in CI.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { OpenAI } from 'openai';
 import { WEATHER_TOOLS } from '../lib/weatherTool.js';
 
@@ -155,8 +155,6 @@ async function main() {
   console.log('\nRound 1 usage:', JSON.stringify(r1.usage, null, 2));
   console.log('Round 1 chosen message:', JSON.stringify(r1ToolChoice.message, null, 2));
 
-  writeFileSync('/Users/dant/.claude/jobs/87c0abf6/tmp/spike-round1.json', JSON.stringify(r1, null, 2));
-
   const toolCall = r1ToolChoice.message.tool_calls?.[0];
   let r2 = null;
   if (!toolCall) {
@@ -218,8 +216,6 @@ async function main() {
       const lp = describeLogprobs(choice);
       console.log('  logprobs for final text present:', lp.present && !lp.content_is_null_or_empty, JSON.stringify(lp));
     }
-
-    writeFileSync('/Users/dant/.claude/jobs/87c0abf6/tmp/spike-round2.json', JSON.stringify(r2, null, 2));
   }
 
   // ---------------- EXTRA PROBE: no tools, n:3, logprobs ----------------

@@ -5,7 +5,13 @@ export default function RequestEcho({ echoedMessages }) {
   const panelId = useId();
   if (!Array.isArray(echoedMessages) || echoedMessages.length === 0) return null;
 
-  const lastAssistantIdx = echoedMessages.map((m) => m.role).lastIndexOf('assistant');
+  // An assistant message with tool_calls and null content is part of THIS
+  // request (the injected round-2 replay), not an earlier reply — only a
+  // string-content assistant message is a real past turn.
+  const lastAssistantIdx = echoedMessages.reduce(
+    (found, m, i) => (m.role === 'assistant' && typeof m.content === 'string' ? i : found),
+    -1
+  );
   const newFrom = lastAssistantIdx >= 0 ? lastAssistantIdx : 0;
 
   return (

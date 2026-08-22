@@ -275,6 +275,8 @@ export default function ChatInterface() {
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
           toolCall: data.toolCall ?? null,
           toolResult: data.toolResult ?? null,
+          toolCalls: data.toolCalls ?? null,
+          toolResults: data.toolResults ?? null,
           timing: { ttftMs: totalMs, totalMs, streamed: false },
         },
       ]);
@@ -541,8 +543,11 @@ export default function ChatInterface() {
     [messages, sampling.keepTurns]
   );
 
+  // The last message with role 'assistant' — streaming and error states are
+  // handled by Message.js itself (it hides the note while streaming or when
+  // the newest turn errored), not by filtering the index here.
   const latestAssistantIndex = messages.reduce(
-    (found, item, index) => (item.role === 'assistant' && !item.isStreaming ? index : found),
+    (found, item, index) => (item.role === 'assistant' ? index : found),
     -1
   );
 

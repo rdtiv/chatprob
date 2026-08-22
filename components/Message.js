@@ -206,9 +206,11 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   const cutoff = (role === 'assistant' && !message.toolCall && !message.error && message.usage?.model)
     ? knowledgeCutoff(message.usage.model)
     : null;
-  const showCutoffNote = isLatestAssistant && !!cutoff;
+  const showCutoffNote = isLatestAssistant && !isStreaming && !!cutoff;
   const toolCall = message.toolCall || null;
   const toolResult = message.toolResult || null;
+  const calls = Array.isArray(message.toolCalls) && message.toolCalls.length ? message.toolCalls : (toolCall ? [toolCall] : []);
+  const results = Array.isArray(message.toolResults) && message.toolResults.length ? message.toolResults : (toolResult ? [toolResult] : []);
   const rounds = Array.isArray(message.usage?.rounds) ? message.usage.rounds : null;
 
   const renderContent = () => {
@@ -361,42 +363,57 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               </div>
             )}
           </div>
-          {toolCall && (
+          {calls.length > 0 && (
             <div className="tool-round">
-              <div className="tool-card is-call">
-                <div className="tool-card-head">
-                  <span className="tool-card-badge">the model asked for a tool</span>
-                  <span className="tool-card-name">{toolCall.name}</span>
-                </div>
-                <pre className="tool-code">{formatToolArguments(toolCall.arguments)}</pre>
-                {toolCall.samples?.total > 1 && (
-                  <p className="tool-card-samples">
-                    {toolCall.samples.agreed === toolCall.samples.total
-                      ? `All ${toolCall.samples.total} samples asked for this same call.`
-                      : `${toolCall.samples.agreed} of ${toolCall.samples.total} samples asked for this call.`}
-                  </p>
-                )}
-                <p className="tool-card-note">
-                  It did not run anything. It wrote this request &mdash; a function name and a JSON argument &mdash; one token at a time, the same way it writes words. Our server read it and made the HTTP call. The API returns no probabilities for these tokens, so there is nothing to shade here.
-                </p>
-              </div>
-              {toolResult && (
-                <div className={`tool-card is-result${toolResult.ok ? '' : ' is-error'}`}>
-                  <div className="tool-card-head">
-                    <span className="tool-card-badge">our server called the weather API</span>
-                    <span className="tool-card-status">
-                      {toolResult.ok ? (toolResult.status ?? 'ok') : 'failed'}
-                      {Number.isFinite(toolResult.durationMs) ? ` · ${(toolResult.durationMs / 1000).toFixed(1)}s` : ''}
-                    </span>
+              {calls.map((call, i) => {
+                const result = results[i];
+                return (
+                  <div key={call.id ?? i}>
+                    <div className="tool-card is-call">
+                      <div className="tool-card-head">
+                        <span className="tool-card-badge">the model asked for a tool</span>
+                        <span className="tool-card-name">{call.name}</span>
+                      </div>
+                      <pre className="tool-code">{formatToolArguments(call.arguments)}</pre>
+                      {i === 0 && call.samples?.total > 1 && (
+                        <p className="tool-card-samples">
+                          {calls.length > 1
+                            ? (call.samples.agreed === call.samples.total
+                              ? `All ${call.samples.total} samples asked for these same calls.`
+                              : `${call.samples.agreed} of ${call.samples.total} samples asked for these calls.`)
+                            : (call.samples.agreed === call.samples.total
+                              ? `All ${call.samples.total} samples asked for this same call.`
+                              : `${call.samples.agreed} of ${call.samples.total} samples asked for this call.`)}
+                        </p>
+                      )}
+                      {i === 0 && (
+                        <p className="tool-card-note">
+                          It did not run anything. It wrote this request &mdash; a function name and a JSON argument &mdash; one token at a time, the same way it writes words. Our server read it and made the HTTP call. The API returns no probabilities for these tokens, so there is nothing to shade here.
+                        </p>
+                      )}
+                    </div>
+                    {result && (
+                      <div className={`tool-card is-result${result.ok ? '' : ' is-error'}`}>
+                        <div className="tool-card-head">
+                          <span className="tool-card-badge">our server called the weather API</span>
+                          <span className="tool-card-status">
+                            {result.ok ? (result.status ?? 'ok') : 'failed'}
+                            {Number.isFinite(result.durationMs) ? ` · ${(result.durationMs / 1000).toFixed(1)}s` : ''}
+                          </span>
+                        </div>
+                        <pre className="tool-code">{result.content}</pre>
+                        {i === 0 && (
+                          <p className="tool-card-note">
+                            {result.ok
+                              ? 'Unedited, exactly as it came back. This text goes to the model as a new message — it is everything the model knows about the weather right now.'
+                              : 'The call failed. We hand the model the error, unedited, and let it answer from that.'}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <pre className="tool-code">{toolResult.content}</pre>
-                  <p className="tool-card-note">
-                    {toolResult.ok
-                      ? 'Unedited, exactly as it came back. This text goes to the model as a new message — it is everything the model knows about the weather right now.'
-                      : 'The call failed. We hand the model the error, unedited, and let it answer from that.'}
-                  </p>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
           {renderContent()}
@@ -467,12 +484,11 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
           {usageOpen && message.usage?.prompt_tokens != null && (
             <div id={usageId} className="token-usage-details">
               <span>{rounds ? `${message.usage.prompt_tokens} in — everything sent this turn, across two requests` : `${message.usage.prompt_tokens} in — everything sent this request`}</span>
-              {rounds && rounds.length > 1 && (
-                <>
-                  <span>{rounds[0].prompt_tokens} in · {rounds[0].completion_tokens} out — first request, the one that ended in a tool call</span>
-                  <span>{rounds[1].prompt_tokens} in · {rounds[1].completion_tokens} out — second request, the same prompt plus the tool call and its result</span>
-                </>
-              )}
+              {rounds && rounds.length > 1 && rounds.map((r, i) => (
+                <span key={i}>
+                  {r.prompt_tokens} in · {r.completion_tokens} out — {i === 0 ? 'first request, the one that ended in a tool call' : 'next request, the same prompt plus the tool call and its result'}
+                </span>
+              ))}
               {replayedIn != null && <span>{replayedIn} replayed — last turn&rsquo;s prompt, sent again</span>}
               {addedIn != null && <span>{addedIn} new — last reply plus your latest message</span>}
               {Number.isFinite(message.usage.cached_tokens) && message.usage.cached_tokens > 0 && (

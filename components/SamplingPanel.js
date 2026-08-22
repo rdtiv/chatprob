@@ -181,7 +181,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
               type="checkbox"
               checked={stream}
               disabled={tools}
-              aria-disabled={tools}
+              aria-disabled={tools || undefined}
               onChange={() => setSampling((s) => ({ ...s, stream: !s.stream }))}
             />
           </div>

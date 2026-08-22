@@ -2,10 +2,16 @@ import { OpenAI } from 'openai';
 import { clampTemperature, clampTopP, clampPresencePenalty, clampSeed } from '../../lib/sampling';
 import { getWeather } from '../../lib/weather';
 import { WEATHER_TOOLS, WEATHER_TOOL_NAME, parseWeatherArguments } from '../../lib/weatherTool';
+import { buildUsage } from '../../lib/usage';
 
 export const config = {
   maxDuration: 60,
 };
+
+// A multi-city prompt ("weather in Denver and Boston") makes the model emit
+// two tool_calls in one response — parallel calls in a single request. Beyond
+// this many we stop running them; the cap is structural, not a convention.
+const MAX_TOOL_CALLS = 3;
 
 function assistantText(msg) {
   if (msg.completions?.length) {
@@ -47,34 +53,6 @@ function toUiCompletion(choice) {
   return {
     text,
     tokenProbabilities: (choice.logprobs?.content || []).map(toTokenProbability),
-  };
-}
-
-function sumNullable(values) {
-  const present = values.filter((v) => Number.isFinite(v));
-  return present.length ? present.reduce((a, b) => a + b, 0) : null;
-}
-
-function roundUsage(raw) {
-  return {
-    prompt_tokens: raw?.prompt_tokens ?? null,
-    completion_tokens: raw?.completion_tokens ?? null,
-    cached_tokens: raw?.prompt_tokens_details?.cached_tokens ?? null,
-  };
-}
-
-// One turn can cost more than one request. The totals are what you paid;
-// `rounds` is the itemised receipt, and only appears when there is more
-// than one line on it.
-function buildUsage(rawUsages, model, sampling) {
-  const rounds = rawUsages.map(roundUsage);
-  return {
-    prompt_tokens: sumNullable(rounds.map((r) => r.prompt_tokens)),
-    completion_tokens: sumNullable(rounds.map((r) => r.completion_tokens)),
-    cached_tokens: sumNullable(rounds.map((r) => r.cached_tokens)),
-    model,
-    sampling,
-    ...(rounds.length > 1 ? { rounds } : {}),
   };
 }
 
@@ -196,10 +174,11 @@ export default async function handler(req, res) {
 
     const response = await openai.chat.completions.create(round1Options);
 
-    const first = (response.choices || [])[0];
-    const toolCallRaw = first?.message?.tool_calls?.[0];
+    // Some choices call the tool, some may answer in text (sampling is noisy);
+    // pick the first choice that actually asked for a tool, not just choice 0.
+    const chosen = (response.choices || []).find((c) => c.message?.tool_calls?.length);
 
-    if (!wantsTools || !toolCallRaw) {
+    if (!wantsTools || !chosen) {
       const completions = (response.choices || []).map(toUiCompletion);
       if (completions.length === 0) {
         return res.status(502).json({ error: 'Model returned no completions' });
@@ -213,45 +192,60 @@ export default async function handler(req, res) {
       });
     }
 
-    const toolCall = {
-      id: toolCallRaw.id,
-      name: toolCallRaw.function?.name ?? null,
-      arguments: toolCallRaw.function?.arguments ?? '',
-      samples: {
-        total: (response.choices || []).length,
-        agreed: (response.choices || []).filter((c) => {
-          const tc = c.message?.tool_calls?.[0];
-          return tc?.function?.name === toolCallRaw.function?.name
-            && tc?.function?.arguments === toolCallRaw.function?.arguments;
-        }).length,
-      },
+    const chosenCallPairs = JSON.stringify(
+      (chosen.message.tool_calls || []).map((tc) => [tc.function?.name ?? null, tc.function?.arguments ?? ''])
+    );
+    const samples = {
+      total: (response.choices || []).length,
+      agreed: (response.choices || []).filter((c) => {
+        const pairs = JSON.stringify(
+          (c.message?.tool_calls || []).map((tc) => [tc.function?.name ?? null, tc.function?.arguments ?? ''])
+        );
+        return pairs === chosenCallPairs;
+      }).length,
     };
 
-    const startedAt = Date.now();
-    let toolResult;
-    if (toolCall.name !== WEATHER_TOOL_NAME) {
-      toolResult = { ok: false, content: JSON.stringify({ error: `Unknown tool "${toolCall.name}"` }), durationMs: Date.now() - startedAt };
-    } else {
-      const parsed = parseWeatherArguments(toolCall.arguments);
+    const calls = chosen.message.tool_calls.slice(0, MAX_TOOL_CALLS).map((call) => ({
+      id: call.id,
+      name: call.function?.name ?? null,
+      arguments: call.function?.arguments ?? '',
+    }));
+    calls[0].samples = samples;
+
+    const results = [];
+    for (const call of calls) {
+      const startedAt = Date.now();
+      if (call.name !== WEATHER_TOOL_NAME) {
+        results.push({ ok: false, content: JSON.stringify({ error: `Unknown tool "${call.name ?? '(unnamed)'}"` }), durationMs: Date.now() - startedAt });
+        continue;
+      }
+      const parsed = parseWeatherArguments(call.arguments);
       if (!parsed.ok) {
-        toolResult = { ok: false, content: JSON.stringify({ error: parsed.error }), durationMs: Date.now() - startedAt };
-      } else {
-        try {
-          const weather = await getWeather(parsed.location);
-          toolResult = { ok: true, content: JSON.stringify(weather), durationMs: Date.now() - startedAt, status: 200 };
-        } catch (error) {
-          console.error('Weather tool failed:', error.message);
-          toolResult = { ok: false, content: JSON.stringify({ error: error.message }), durationMs: Date.now() - startedAt };
-        }
+        results.push({ ok: false, content: JSON.stringify({ error: parsed.error }), durationMs: Date.now() - startedAt });
+        continue;
+      }
+      try {
+        const weather = await getWeather(parsed.location);
+        results.push({ ok: true, content: JSON.stringify(weather), durationMs: Date.now() - startedAt, status: 200 });
+      } catch (error) {
+        console.error('Weather tool failed:', error.message);
+        results.push({ ok: false, content: JSON.stringify({ error: error.message }), durationMs: Date.now() - startedAt });
       }
     }
 
     const round2Messages = [
       ...sentMessages,
-      { role: 'assistant', content: null, tool_calls: [{ id: toolCall.id, type: 'function', function: { name: toolCallRaw.function.name, arguments: toolCallRaw.function.arguments } }] },
-      { role: 'tool', tool_call_id: toolCall.id, content: toolResult.content },
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: calls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name ?? '', arguments: c.arguments } })),
+      },
+      ...calls.map((c, i) => ({ role: 'tool', tool_call_id: c.id, content: results[i].content })),
     ];
-    const round2 = await openai.chat.completions.create({ ...round1Options, messages: round2Messages });
+    // No `tools` here: offering the tool again would let the model ask a second
+    // time and answer with nothing. Without it the one-round cap is structural,
+    // not a convention.
+    const round2 = await openai.chat.completions.create({ ...createOptions, messages: round2Messages });
 
     const completions = (round2.choices || []).map(toUiCompletion);
     if (completions.length === 0) {
@@ -263,8 +257,10 @@ export default async function handler(req, res) {
       completions,
       echoedMessages: round2Messages,
       usage: buildUsage([response.usage, round2.usage], round2.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
-      toolCall,
-      toolResult,
+      toolCalls: calls,
+      toolResults: results,
+      toolCall: calls[0],
+      toolResult: results[0],
     });
   } catch (error) {
     console.error('Error calling OpenAI API:', error);
