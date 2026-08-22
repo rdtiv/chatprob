@@ -315,7 +315,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
             {completionCount > 1 && (
               <div className={`completion-tabs-wrap${tabsLocked ? ' is-locked' : ''}`}>
                 <span className="completion-tabs-label">
-                  <span className="completion-tabs-label-full">Three replies were written. You are reading reply</span>
+                  <span className="completion-tabs-label-full">{completionCount} replies were written. You are reading reply</span>
                   <span className="completion-tabs-label-short">Reply</span>
                 </span>
                 <div

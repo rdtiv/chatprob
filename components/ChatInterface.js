@@ -123,6 +123,13 @@ export default function ChatInterface() {
     nextScrollBehaviorRef.current = 'auto';
   }, [messages]);
 
+  // The cost card lives inside the scrolling transcript, so opening or
+  // closing it changes the scroll height; keep the view pinned to the bottom
+  // if that is where the user was.
+  useEffect(() => {
+    if (atBottomRef.current) scrollToBottom('auto');
+  }, [lessonOpen]);
+
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return undefined;
@@ -758,7 +765,7 @@ export default function ChatInterface() {
         margin: '0 auto'
       }}>
         <div className="chat-header">
-          <span className="chat-promise">See how a language model picks each word.</span>
+          <span className="chat-promise">How a language model picks each word</span>
           <div className="header-actions">
             <div className="legend-inline">
               <span className="legend-item">

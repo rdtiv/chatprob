@@ -22,9 +22,10 @@ function totalCachedTokens(messages) {
 }
 
 function breakdown(spend) {
-  return spend.cachedInput > 0
-    ? `${formatUsd(spend.input)} in + ${formatUsd(spend.cachedInput)} cached in + ${formatUsd(spend.output)} out`
-    : `${formatUsd(spend.input)} in + ${formatUsd(spend.output)} out`;
+  const parts = [`input ${formatUsd(spend.input)}`];
+  if (spend.cachedInput > 0) parts.push(`cached input ${formatUsd(spend.cachedInput)}`);
+  parts.push(`output ${formatUsd(spend.output)}`);
+  return `${formatUsd(spend.total)} — ${parts.join(', ')}`;
 }
 
 export function CostFooter({ messages, lastAssistant, sessionBilled, whyText }) {

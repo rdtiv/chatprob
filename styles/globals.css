@@ -490,7 +490,7 @@ main {
 .token-probabilities-card {
   position: fixed;
   background-color: #fafafa;
-  border-radius: var(--r-pill);
+  border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   overflow: hidden;
@@ -652,7 +652,7 @@ main {
   right: 8px;
   width: auto;
   max-width: none;
-  border-radius: var(--r-pill);
+  border-radius: 12px 12px 0 0;
   animation: tokenSheetRise 180ms ease-out forwards;
 }
 
@@ -1085,6 +1085,8 @@ main {
 .token {
   cursor: pointer;
   display: inline-block;
+  /* A token's leading space is part of the token; inline-block would drop it. */
+  white-space: pre-wrap;
   margin: 0;
   padding: 2px 0;
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1260,7 +1262,7 @@ main {
   .message-input {
     margin: 0;
     padding: 12px 16px;
-    border-radius: var(--r-pill);
+    border-radius: 12px;
     border: 1px solid var(--line);
     background-color: #f3f4f6;
     font-size: var(--fs-4);
@@ -1479,7 +1481,7 @@ main {
 .sampling-panel {
   position: fixed;
   background-color: #fafafa;
-  border-radius: var(--r-pill);
+  border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   overflow: hidden;
