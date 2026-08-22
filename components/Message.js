@@ -40,6 +40,7 @@ const getBackgroundColor = (tokenData) => {
 
 function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer }) {
   const { role, completions, activeIndex = 0, content } = message;
+  const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -61,10 +62,13 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     return tokenizeForDisplay(tokenizer, content).chunks;
   }, [role, tokenizer, content]);
 
-  const forkIndex = useMemo(
+  const forkIndexMemo = useMemo(
     () => (role === 'assistant' ? findForkIndex(completions) : -1),
     [role, completions]
   );
+  // Force no-fork while streaming: every span keys as a stable p{idx} so no
+  // is-after-fork crossfade fires mid-stream.
+  const forkIndex = isStreaming ? -1 : forkIndexMemo;
   const tabStats = useMemo(
     () => (Array.isArray(completions) ? completions.map(completionStats) : []),
     [completions]
@@ -232,24 +236,27 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
           const backgroundColor = getBackgroundColor(tp);
           const percentage = sampledPercentage(tp);
           const band = confidenceBand(percentage);
+          const interactiveProps = isStreaming ? {} : {
+            role: 'button',
+            tabIndex: 0,
+            'aria-expanded': hoveredToken?.index === idx,
+            onMouseEnter: (e) => handleTokenMouseEnter(tp.token, idx, e),
+            onClick: (e) => handleTokenClick(tp.token, idx, e),
+            onMouseLeave: handleTokenMouseLeave,
+            onKeyDown: (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+              e.preventDefault(); // before the repeat check: held Space must never scroll the page
+              if (e.repeat) return;
+              handleTokenClick(tp.token, idx, e);
+            },
+          };
           return (
             <span
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
               className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
-              role="button"
-              tabIndex={0}
-              aria-expanded={hoveredToken?.index === idx}
-              onMouseEnter={(e) => handleTokenMouseEnter(tp.token, idx, e)}
-              onClick={(e) => handleTokenClick(tp.token, idx, e)}
-              onMouseLeave={handleTokenMouseLeave}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.preventDefault(); // before the repeat check: held Space must never scroll the page
-                if (e.repeat) return;
-                handleTokenClick(tp.token, idx, e);
-              }}
+              {...interactiveProps}
             >
               {tp.token}
             </span>
@@ -260,7 +267,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   };
   
   return (
-    <div className={`message ${role}-message`} ref={rootRef}>
+    <div className={`message ${role}-message`} ref={rootRef} aria-busy={isStreaming ? 'true' : undefined}>
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">
@@ -285,16 +292,16 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                         type="button"
                         role="tab"
                         aria-selected={index === safeIndex}
-                        disabled={tabsLocked}
+                        disabled={tabsLocked || isStreaming}
                         className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
-                        title={tabsLocked ? 'This reply is locked into the conversation' : parts.join(' · ')}
+                        title={tabsLocked ? 'This reply is locked into the conversation' : isStreaming ? undefined : parts.join(' · ')}
                         onClick={(e) => {
                           e.currentTarget.focus();
                           handleSelect(index);
                         }}
                       >
                         <span className="completion-tab-number">{index + 1}</span>
-                        {stats?.confidence != null && (
+                        {!isStreaming && stats?.confidence != null && (
                           <span
                             className="completion-tab-dot"
                             aria-hidden="true"
@@ -332,6 +339,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             )}
           </div>
           {renderContent()}
+          {message.aborted && (
+            <div className="message-aborted-note">The connection dropped partway. This partial reply is not part of the conversation.</div>
+          )}
           {(message.timing || message.usage || (role === 'user' && userChunks)) && (
             <div className="message-meta">
               {message.timing && (
