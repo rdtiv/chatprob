@@ -18,7 +18,7 @@ export default function TokenProbabilities({
 }) {
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
-  const [mode, setMode] = useState('among');
+  const [mode, setMode] = useState('raw');
   const { temperature, setTemperature, boring } = useSampling();
 
   useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
@@ -44,12 +44,12 @@ export default function TokenProbabilities({
   };
 
   const noteCopy = alternativesUnavailable
-    ? `This reply is old enough that only the chosen token was kept, to stay inside the browser's storage limit. Its alternatives are gone; newer replies still have theirs. Switch to Raw odds for the model's actual confidence.`
+    ? `This reply is old enough that only the chosen token was kept, to stay inside the browser's storage limit. Its alternatives are gone; newer replies still have theirs. Switch to Of all words for the model's actual confidence.`
     : mode !== 'among'
-      ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
+      ? `The model's real odds across its whole vocabulary — they do not add up to 100%.`
       : rows.length === 1
-        ? `Only one token is shown here, so it takes the whole 100% no matter the temperature. Switch to Raw odds for the model's actual confidence.`
-        : `Odds among the ${rows.length} tokens shown at temp ${t.toFixed(1)} — rescaled to add up to 100%.`;
+        ? `Only one word is shown, so the what-if gives it 100%. Switch to Of all words for the real odds.`
+        : `What-if: rescaled as if only these ${rows.length} words existed, at temp ${t.toFixed(1)}.`;
   const sampledLine = sampledTemperature == null
     ? null
     : (mode === 'among' && t !== sampledTemperature
@@ -66,10 +66,10 @@ export default function TokenProbabilities({
       onMouseLeave={onMouseLeave}
     >
       <div className="token-probabilities-header">
-        <h3 className="token-probabilities-title">Most likely</h3>
+        <h3 className="token-probabilities-title">What it considered</h3>
         <div className="token-probabilities-toggle" role="group" aria-label="Probability view">
-          <button type="button" className={`token-probabilities-toggle-button${mode === 'among' ? ' is-active' : ''}`} aria-pressed={mode === 'among'} onClick={() => setMode('among')}>Among these</button>
-          <button type="button" className={`token-probabilities-toggle-button${mode === 'raw' ? ' is-active' : ''}`} aria-pressed={mode === 'raw'} onClick={() => setMode('raw')}>Raw odds</button>
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'raw' ? ' is-active' : ''}`} aria-pressed={mode === 'raw'} onClick={() => setMode('raw')}>Of all words</button>
+          <button type="button" className={`token-probabilities-toggle-button${mode === 'among' ? ' is-active' : ''}`} aria-pressed={mode === 'among'} onClick={() => setMode('among')}>What-if: only these</button>
         </div>
         {isSheet && (
           <button type="button" className="token-probabilities-sheet-close" aria-label="Close" onClick={onDismiss}>×</button>
@@ -95,7 +95,7 @@ export default function TokenProbabilities({
             <span className="sampled-outside-top-token">{formatToken(frozenSet.sampledOutside.token)}</span>
             <span className="sampled-outside-top-pct">{formatPercent(values[values.length - 1])}</span>
           </div>
-          <p className="sampled-outside-top-note">Sampled, but not in the top 5</p>
+          <p className="sampled-outside-top-note">landed — not in the top 5</p>
         </div>
       )}
       {forkNote && <p className="token-probabilities-fork-note">{forkNote}</p>}

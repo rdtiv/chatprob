@@ -11,6 +11,7 @@ import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../li
 import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
+import { needsCutoffNote } from '../lib/cutoffRelevance';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -223,13 +224,13 @@ export default function ChatInterface() {
     }
   }, [messages, storageReady]);
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text, source = 'typed') => {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
     const snapshot = sampling;
     inFlightRef.current = true;
-    const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
+    const userMessage = { role: 'user', content, timestamp: new Date().toISOString(), source };
     const conversation = [...messages, userMessage];
     setMessages(conversation);
     atBottomRef.current = true;
@@ -583,18 +584,21 @@ export default function ChatInterface() {
     [messages, sampling.keepTurns]
   );
 
-  // The long cutoff note is shown once per conversation, on the first reply
-  // it applies to; every other qualifying reply carries only the pill. So
-  // this finds the FIRST assistant message (not the latest) that is a plain
-  // text reply — no tool call, no error — whose model resolves to a known
-  // cutoff, and that index never moves once found.
-  const firstCutoffIndex = messages.findIndex((item) => (
-    item.role === 'assistant' &&
-    !item.error &&
-    !item.toolCall &&
-    !(Array.isArray(item.toolCalls) && item.toolCalls.length) &&
-    !!knowledgeCutoff(item.usage?.model)
-  ));
+  // The long cutoff note opens by itself once per conversation, on the first
+  // reply where it is relevant: a plain text reply (no tool call, no error)
+  // from a model with a known cutoff, whose prompt asked for something recent
+  // or came from a "Try to fool it" chip (needsCutoffNote). Every other
+  // qualifying reply carries only the pill, and the pill's "?" can open the
+  // same note on any of them. This index never moves once found.
+  const firstCutoffIndex = messages.findIndex((item, index, arr) => {
+    if (item.role !== 'assistant') return false;
+    if (item.error) return false;
+    if (item.toolCall) return false;
+    if (Array.isArray(item.toolCalls) && item.toolCalls.length) return false;
+    if (!knowledgeCutoff(item.usage?.model)) return false;
+    const precedingUser = [...arr.slice(0, index)].reverse().find((m) => m.role === 'user');
+    return needsCutoffNote(precedingUser);
+  });
 
   return (
     <SamplingProvider value={samplingValue}>
@@ -738,10 +742,10 @@ export default function ChatInterface() {
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
               {[
-                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS },
-                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS },
-                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS },
-              ].map(({ ariaLabel, label, prompts }) => (
+                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter' },
+                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool' },
+                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory' },
+              ].map(({ ariaLabel, label, prompts, source }) => (
                 <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
                   {label && <span className="prompt-chips-label">{label}</span>}
                   {prompts.map((prompt) => (
@@ -750,7 +754,7 @@ export default function ChatInterface() {
                       type="button"
                       className="prompt-chip"
                       disabled={isLoading}
-                      onClick={() => sendMessage(prompt)}
+                      onClick={() => sendMessage(prompt, source)}
                     >
                       {prompt}
                     </button>
@@ -772,6 +776,9 @@ export default function ChatInterface() {
             const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
               ? Math.max(0, thisIn - previousIn)
               : null;
+            const cutoffPrompt = [...messages.slice(0, index)]
+              .reverse()
+              .find((item) => item.role === 'user') ?? null;
             const node = (
             <Message
               key={index}
@@ -787,6 +794,7 @@ export default function ChatInterface() {
               tokenizer={tokenizer}
               forgotten={forgetting.truncated && index < forgetting.cutoffIndex}
               showCutoffDetail={index === firstCutoffIndex}
+              cutoffPrompt={cutoffPrompt}
             />
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];

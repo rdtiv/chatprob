@@ -99,7 +99,7 @@ export default function ConversationExplainer({
   }
 
   const forgettingText = droppedMessages > 0 && keepTurns != null
-    ? `Right now the memory control is on: ${droppedMessages} older message${droppedMessages === 1 ? '' : 's'} sit above the line and are not replayed. Only the last ${keepTurns} exchange${keepTurns === 1 ? '' : 's'} plus your newest message go out, so watch the prompt count fall instead of climb — forgetting is cheaper. The system prompt never falls off; the server adds it to every request.`
+    ? `Right now the memory control is on: ${droppedMessages} older message${droppedMessages === 1 ? '' : 's'} sit above the line and are not replayed. ${keepTurns === 0 ? 'Only the message you just typed goes out' : `Only the last ${keepTurns} exchange${keepTurns === 1 ? '' : 's'} plus your newest message go out`}, so watch the prompt count fall instead of climb — forgetting is cheaper. The system prompt never falls off; the server adds it to every request.`
     : null;
 
   return (
