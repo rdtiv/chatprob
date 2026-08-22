@@ -17,7 +17,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
   const panelRef = useRef(null);
   const isSheet = useSheetMode();
   useAnchoredSurface({ ref: panelRef, isSheet, anchor, remeasureKey: isSheet });
-  const { temperature, topP, presencePenalty, boring, setSampling } = useSampling();
+  const { temperature, topP, presencePenalty, boring, stream, setSampling } = useSampling();
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -124,6 +124,22 @@ export default function SamplingPanel({ id, anchor, onClose }) {
           />
         </div>
         <p className="sampling-row-note">Sets temperature to 0 and pins a seed. Repeat a message and the replies should come back nearly identical — the seed is best-effort, so not guaranteed.</p>
+      </div>
+      <div className="sampling-section">
+        <h4 className="sampling-section-title">Delivery</h4>
+        <div className="sampling-row">
+          <div className="sampling-row-head">
+            <label className="sampling-row-label" htmlFor={`${id}-stream`}>Stream the reply</label>
+            <input
+              id={`${id}-stream`}
+              className="sampling-switch"
+              type="checkbox"
+              checked={stream}
+              onChange={() => setSampling((s) => ({ ...s, stream: !s.stream }))}
+            />
+          </div>
+          <p className="sampling-row-note">The reply is built one token at a time either way — streaming just lets you watch.</p>
+        </div>
       </div>
     </div>
   );

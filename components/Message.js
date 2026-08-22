@@ -420,6 +420,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             selectedLogprob={tokenData?.logprob}
             sampledTemperature={typeof message.sampledTemperature === 'number' ? message.sampledTemperature : null}
             forkNote={forkIndex >= 0 && hoveredToken.index === forkIndex ? forkNoteCopy : null}
+            alternativesUnavailable={Boolean(completions?.[safeIndex]?.alternativesPruned)}
             onDismiss={closeCard}
             onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
             onMouseLeave={handleTokenMouseLeave}

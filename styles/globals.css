@@ -1386,6 +1386,22 @@ main {
   color: #64748b;
 }
 
+.sampling-section {
+  border-top: 1px solid #eaeaea;
+  margin-top: 6px;
+  padding-top: 4px;
+}
+
+.sampling-section-title {
+  margin: 0;
+  padding: 4px 16px 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* Must stay after the .sampling-panel base rules: equal specificity, source order decides. */
 @media (prefers-reduced-motion: reduce) {
   .sampling-panel,

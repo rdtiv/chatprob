@@ -11,6 +11,7 @@ export default function TokenProbabilities({
   selectedLogprob,
   sampledTemperature,
   forkNote,
+  alternativesUnavailable,
   onDismiss,
   onMouseEnter,
   onMouseLeave,
@@ -42,11 +43,13 @@ export default function TokenProbabilities({
     return token;
   };
 
-  const noteCopy = mode !== 'among'
-    ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
-    : rows.length === 1
-      ? `Only one token is shown here, so it takes the whole 100% no matter the temperature. Switch to Raw odds for the model's actual confidence.`
-      : `Odds among the ${rows.length} tokens shown at temp ${t.toFixed(1)} — rescaled to add up to 100%.`;
+  const noteCopy = alternativesUnavailable
+    ? `This reply is old enough that only the chosen token was kept, to stay inside the browser's storage limit. Its alternatives are gone; newer replies still have theirs.`
+    : mode !== 'among'
+      ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
+      : rows.length === 1
+        ? `Only one token is shown here, so it takes the whole 100% no matter the temperature. Switch to Raw odds for the model's actual confidence.`
+        : `Odds among the ${rows.length} tokens shown at temp ${t.toFixed(1)} — rescaled to add up to 100%.`;
   const sampledLine = sampledTemperature == null
     ? null
     : (mode === 'among' && t !== sampledTemperature
