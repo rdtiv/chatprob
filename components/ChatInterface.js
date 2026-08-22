@@ -4,10 +4,12 @@ import ConversationExplainer from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
 import SamplingPanel from './SamplingPanel';
+import ForgottenDivider from './ForgottenDivider';
 import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 import { pruneForStorage } from '../lib/persistence';
+import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -19,6 +21,10 @@ const FOOL_IT_PROMPTS = [
   'What did the 1994 Geneva Protocol on Digital Privacy establish?',
   'Which U.S. president invented the paperclip?',
   'Why is the Great Wall of China visible from the Moon?',
+];
+
+const MEMORY_PROMPTS = [
+  'My name is Ada. Remember it.',
 ];
 
 const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
@@ -44,6 +50,8 @@ export default function ChatInterface() {
     boring: false,
     restoreTemperature: TEMP_DEFAULT,
     stream: true,
+    keepTurns: KEEP_ALL,                   // null = replay the whole transcript
+    restoreKeepTurns: KEEP_TURNS_DEFAULT,  // remembered slider position while the switch is off
   });
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
@@ -212,8 +220,9 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     const startedAt = performance.now();
+    const outbound = buildOutboundMessages(conversation, snapshot.keepTurns);
     const requestBody = {
-      messages: conversation.filter((m) => !m.error),
+      messages: outbound.messages,
       temperature: snapshot.temperature,
       top_p: snapshot.topP,
       presence_penalty: snapshot.presencePenalty,
@@ -514,6 +523,11 @@ export default function ChatInterface() {
   const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
   const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
 
+  const forgetting = useMemo(
+    () => buildOutboundMessages(messages, sampling.keepTurns),
+    [messages, sampling.keepTurns]
+  );
+
   return (
     <SamplingProvider value={samplingValue}>
     <div style={{
@@ -636,6 +650,8 @@ export default function ChatInterface() {
                 sessionSeries={sessionSeries}
                 lastAssistant={lastAssistant}
                 messages={messages}
+                droppedMessages={forgetting.cutoffIndex}
+                keepTurns={sampling.keepTurns}
               />
               <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
             </div>
@@ -645,36 +661,29 @@ export default function ChatInterface() {
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
-              <div className="prompt-chips" aria-label="Starter prompts">
-                {STARTER_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    disabled={isLoading}
-                    onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-              <div className="prompt-chips" aria-label="Prompts that invite confident mistakes">
-                <span className="fool-it-label">Try to fool it:</span>
-                {FOOL_IT_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    disabled={isLoading}
-                    onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              {[
+                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS },
+                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS },
+                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS },
+              ].map(({ ariaLabel, label, prompts }) => (
+                <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
+                  {label && <span className="prompt-chips-label">{label}</span>}
+                  {prompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="prompt-chip"
+                      disabled={isLoading}
+                      onClick={() => sendMessage(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
-          {messages.map((message, index) => {
+          {messages.flatMap((message, index) => {
             const billedThrough = messages
               .slice(0, index + 1)
               .reduce((sum, item) => sum + turnBilled(item), 0);
@@ -687,7 +696,7 @@ export default function ChatInterface() {
             const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
               ? Math.max(0, thisIn - previousIn)
               : null;
-            return (
+            const node = (
             <Message
               key={index}
               message={message}
@@ -700,8 +709,14 @@ export default function ChatInterface() {
               addedIn={message.role === 'assistant' ? addedIn : null}
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               tokenizer={tokenizer}
+              forgotten={forgetting.truncated && index < forgetting.cutoffIndex}
             />
             );
+            if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];
+            return [
+              <ForgottenDivider key="forgotten-divider" messageCount={forgetting.cutoffIndex} />,
+              node,
+            ];
           })}
           {isLoading && !messages.some((m) => m.isStreaming && m.completions?.[0]?.tokenProbabilities?.length) && (
             <div style={{

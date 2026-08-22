@@ -19,6 +19,8 @@ export default function ConversationExplainer({
   sessionSeries,
   lastAssistant,
   messages,
+  droppedMessages = 0,
+  keepTurns = null,
 }) {
   const turns = inSeries.length;
   const rates = rateFor(lastAssistant?.usage?.model);
@@ -69,9 +71,18 @@ export default function ConversationExplainer({
     text += ` Across this conversation, ${cachedTokens} input tokens came back from OpenAI's prompt cache at the discounted rate.`;
   }
 
+  const forgettingText = droppedMessages > 0 && keepTurns != null
+    ? `Right now the memory control is on: ${droppedMessages} older message${droppedMessages === 1 ? '' : 's'} sit above the line and are not replayed. Only the last ${keepTurns} exchange${keepTurns === 1 ? '' : 's'} plus your newest message go out, so watch the prompt count fall instead of climb — forgetting is cheaper. The system prompt never falls off; the server adds it to every request.`
+    : null;
+
   return (
     <>
       <p className="conversation-explainer">{text}</p>
+      {forgettingText && (
+        <p className="conversation-explainer">
+          <strong>Why did it forget?</strong> {forgettingText}
+        </p>
+      )}
       <p className="rate-card">
         {rates.model} rate card: ${rates.inputPerMillion.toFixed(2)} / 1M in · ${rates.outputPerMillion.toFixed(2)} / 1M out
         {rates.approximate ? ' (list price for a similar mini model)' : ''}

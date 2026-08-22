@@ -12,6 +12,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 - **Your text is tokens too.** The composer tokenizes what you type with `o200k_base` and the user bubble shows the pieces as alternating tints, with an `≈ N tokens` count. Send **strawberry** and watch it arrive as three pieces, not ten letters.
 - **Three full replies, and where they fork.** Each turn requests `n=3` completions. Tabs **1 / 2 / 3** switch among them, each with a confidence dot. A ring marks the first token where the three replies diverge — everything before it is identical, because the same prompt and the same weights produced the same tokens until the dice landed differently. Each tab also reports perplexity (“picking from ~N plausible words”) and the joint odds of that exact wording.
 - **Conversation cost.** The API has no memory. Every turn resends the whole prompt, so input tokens climb as a staircase — one stacked bar per request, split into replayed, cached, and new. You can open the literal JSON array that was sent, and the rate card turns the tokens into dollars for this turn and for the conversation.
+- **No memory, made visible.** The model has no memory of its own; the app replays the transcript every request. Turn on **Forget older turns** and the request stops carrying the top of the chat — a line appears in the transcript, the turns above it dim, and the model can no longer answer a question about a fact you seeded before the line. The transcript and your saved conversation keep everything; only the request shrinks. The system prompt never falls off, because the server adds it every time.
 - **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 0.4s · all replies 2.1s` streamed, `reply 2.1s` when the whole thing lands at once.
 - **Green means expected, not true.** A standing note in the legend says so, and the “Try to fool it” prompts ask about things that never happened so you can watch the model be confidently wrong in bright green.
 
@@ -36,8 +37,10 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Top-p | `0.05`–`1`, step `0.05` | `1` | `top_p` (server floor `0.01`) |
 | Presence penalty | `-2`–`2`, step `0.05` | `0.45` | `presence_penalty` |
 | Make it boring | on / off | off | `temperature: 0` plus `seed: 7` |
+| Forget older turns | on / off | off | `messages` (trimmed before sending) |
+| Turns replayed | `0`–`6`, step `1` | `2` | `messages` (last N exchanges + the newest message) |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise.
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same call places the forgotten line in the transcript, so what the line claims about the *next* request always matches what will actually be sent. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
 
 ## Stack
 
@@ -129,13 +132,15 @@ The conversation lives in `localStorage` under `chatMessages`. To stay inside th
 | `components/ChatInterface.js` | Conversation state, persistence, streaming client, chips, lock rule |
 | `components/Message.js` | Heatmap, tabs, fork ring, timing and usage lines, hover/tap card |
 | `components/TokenProbabilities.js` | Candidate card: Among-these vs Raw odds, what-if temperature |
-| `components/SamplingPanel.js` | Temperature, top-p, presence penalty, boring switch, delivery toggle |
+| `components/SamplingPanel.js` | Temperature, top-p, presence penalty, boring switch, delivery toggle, memory control |
 | `components/SamplingContext.js` | Shares sampling state with the card so pinned cards react live |
 | `components/useAnchoredSurface.js` | Sheet-vs-popover mode and viewport-aware placement |
 | `components/PromptStaircase.js` | Per-turn stacked bars of replayed / cached / new prompt tokens |
 | `components/RequestEcho.js` | The exact JSON array that was sent |
 | `components/ConversationExplainer.js` | Teacher copy + rate card |
+| `components/ForgottenDivider.js` | The line where the replayed context stops |
 | `lib/sampling.js` | Sampling bounds and clamps, shared by the panel and the route |
+| `lib/contextWindow.js` | Client-side truncation: what actually gets sent |
 | `lib/resoftmax.js` | Frozen candidate set and the temperature re-softmax |
 | `lib/tokenizer.js` | Lazy `o200k_base` loader and display chunking |
 | `lib/completionStats.js` | Fork detection, perplexity, joint odds, confidence palette |

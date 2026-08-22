@@ -12,12 +12,13 @@ import {
   PENALTY_MAX,
   PENALTY_STEP,
 } from '../lib/sampling';
+import { KEEP_TURNS_MIN, KEEP_TURNS_MAX, KEEP_TURNS_STEP, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 
 export default function SamplingPanel({ id, anchor, onClose }) {
   const panelRef = useRef(null);
   const isSheet = useSheetMode();
   useAnchoredSurface({ ref: panelRef, isSheet, anchor, remeasureKey: isSheet });
-  const { temperature, topP, presencePenalty, boring, stream, setSampling } = useSampling();
+  const { temperature, topP, presencePenalty, boring, stream, keepTurns, restoreKeepTurns, setSampling } = useSampling();
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -38,6 +39,9 @@ export default function SamplingPanel({ id, anchor, onClose }) {
   useEffect(() => {
     panelRef.current?.focus();
   }, []);
+
+  const forgetting = keepTurns != null;
+  const keepValue = keepTurns ?? restoreKeepTurns ?? KEEP_TURNS_DEFAULT;
 
   return (
     <div
@@ -124,6 +128,46 @@ export default function SamplingPanel({ id, anchor, onClose }) {
           />
         </div>
         <p className="sampling-row-note">Sets temperature to 0 and pins a seed. Repeat a message and the replies should come back nearly identical — the seed is best-effort, so not guaranteed.</p>
+      </div>
+      <div className="sampling-section">
+        <h4 className="sampling-section-title">Memory</h4>
+        <div className="sampling-row">
+          <div className="sampling-row-head">
+            <label className="sampling-row-label" htmlFor={`${id}-forget`}>Forget older turns</label>
+            <input
+              id={`${id}-forget`}
+              className="sampling-switch"
+              type="checkbox"
+              checked={forgetting}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setSampling((s) => (on
+                  ? { ...s, keepTurns: s.restoreKeepTurns ?? KEEP_TURNS_DEFAULT }
+                  : { ...s, keepTurns: null, restoreKeepTurns: s.keepTurns ?? s.restoreKeepTurns ?? KEEP_TURNS_DEFAULT }));
+              }}
+            />
+          </div>
+          <p className="sampling-row-note">Your transcript keeps everything; the request stops carrying the older turns. Seed a fact, flip this on, then ask about that fact — the model cannot see what fell off the top.</p>
+        </div>
+        <div className={`sampling-row${forgetting ? '' : ' is-disabled'}`}>
+          <div className="sampling-row-head">
+            <label className="sampling-row-label" htmlFor={`${id}-keep`}>Turns replayed</label>
+            <span className="sampling-row-value">{keepValue === 0 ? 'none' : `last ${keepValue}`}</span>
+          </div>
+          <input
+            id={`${id}-keep`}
+            className="sampling-range"
+            type="range"
+            min={KEEP_TURNS_MIN}
+            max={KEEP_TURNS_MAX}
+            step={KEEP_TURNS_STEP}
+            value={keepValue}
+            disabled={!forgetting}
+            aria-disabled={!forgetting}
+            onChange={(e) => setSampling((s) => ({ ...s, keepTurns: Number(e.target.value) }))}
+          />
+          <p className="sampling-row-note">0 replays nothing but the message you just typed; each step adds one earlier exchange back. The system prompt never falls off — the server adds it to every request.</p>
+        </div>
       </div>
       <div className="sampling-section">
         <h4 className="sampling-section-title">Delivery</h4>
