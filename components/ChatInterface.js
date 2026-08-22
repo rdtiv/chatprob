@@ -584,11 +584,12 @@ export default function ChatInterface() {
     [messages, sampling.keepTurns]
   );
 
-  // The long cutoff note is shown once per conversation, on the first reply
-  // it applies to; every other qualifying reply carries only the pill. So
-  // this finds the FIRST assistant message (not the latest) that is a plain
-  // text reply — no tool call, no error — whose model resolves to a known
-  // cutoff, and that index never moves once found.
+  // The long cutoff note opens by itself once per conversation, on the first
+  // reply where it is relevant: a plain text reply (no tool call, no error)
+  // from a model with a known cutoff, whose prompt asked for something recent
+  // or came from a "Try to fool it" chip (needsCutoffNote). Every other
+  // qualifying reply carries only the pill, and the pill's "?" can open the
+  // same note on any of them. This index never moves once found.
   const firstCutoffIndex = messages.findIndex((item, index, arr) => {
     if (item.role !== 'assistant') return false;
     if (item.error) return false;

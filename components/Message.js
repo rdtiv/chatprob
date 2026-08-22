@@ -61,7 +61,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   const lockNoteId = useId();
   const [usageOpen, setUsageOpen] = useState(false);
   const usageId = useId();
-  const [cutoffOpen, setCutoffOpen] = useState(false);
+  // null = follow showCutoffNote (auto-shown on the first relevant reply);
+  // true/false = the user overrode it with the pill's "?" button.
+  const [cutoffOverride, setCutoffOverride] = useState(null);
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
@@ -210,6 +212,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     : null;
   const showCutoffPill = !!cutoff && !isStreaming;
   const showCutoffNote = showCutoffDetail && showCutoffPill;
+  const cutoffNoteVisible = cutoffOverride ?? showCutoffNote;
   const toolCall = message.toolCall || null;
   const toolResult = message.toolResult || null;
   const calls = Array.isArray(message.toolCalls) && message.toolCalls.length ? message.toolCalls : (toolCall ? [toolCall] : []);
@@ -419,7 +422,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             </div>
           )}
           {renderContent()}
-          {(showCutoffNote || cutoffOpen) && (
+          {cutoffNoteVisible && (
             <p className="cutoff-note">
               This model was trained on text that stops around {cutoff.label}. Nothing after that is in there{mentionsWeather(cutoffPrompt?.content) ? <> &mdash; today&rsquo;s weather included</> : null}. However sure it sounds, the colors only tell you the wording was expected, not that the facts are current.
             </p>
@@ -456,8 +459,8 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                     type="button"
                     className="cutoff-pill-why"
                     aria-label="What does the cutoff mean?"
-                    aria-expanded={showCutoffNote || cutoffOpen}
-                    onClick={() => setCutoffOpen((open) => !open)}
+                    aria-expanded={cutoffNoteVisible}
+                    onClick={() => setCutoffOverride(!cutoffNoteVisible)}
                   >
                     ?
                   </button>
