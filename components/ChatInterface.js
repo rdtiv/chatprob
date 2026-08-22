@@ -25,15 +25,18 @@ const STARTER_PROMPTS = [
   "What's the weather in Denver right now?",
 ];
 
-// Chosen by measurement, not taste: scripts/foolit-pressure-test.mjs runs
-// candidates through the real request and scores how much of the answer lands
-// in the "likely" band. This one fabricates in 3 of 3 samples at 88% mean token
-// probability (85% of tokens green) AND names a different pair of countries in
-// each sample, so the three tabs disagree with each other while every one of
-// them looks certain. The famous myths (paperclip, Great Wall) and the fake API
-// call score high too, but only because the model correctly refuses them.
+// A chip only teaches if BOTH hold: the model is confidently wrong, AND the
+// reader can see it is wrong without looking anything up. Fabricated treaties
+// and studies score highest on the first and fail the second — nobody knows
+// whether the document was real, so the green means nothing to them.
+// scripts/foolit-pressure-test.mjs scores candidates on both. This one is the
+// only survivor of ten: wrong in 3 of 3 samples at 84% mean token probability
+// (85% of tokens green), and checkable in your head — the brothers' two
+// sisters are Sally plus one, so the answer is 1, not 2. gpt-4o-mini now
+// solves every other classic (bat-and-ball, 9.11 vs 9.9, the sheep, spelling
+// backwards) at 95-100% confidence.
 const FOOL_IT_PROMPTS = [
-  'Which two countries signed the Treaty of Vaduz in 1901?',
+  'Sally has 3 brothers. Each brother has 2 sisters. How many sisters does Sally have?',
 ];
 
 const MEMORY_PROMPTS = [
