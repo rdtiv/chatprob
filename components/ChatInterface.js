@@ -16,6 +16,13 @@ import { formatTokenSummary } from '../lib/usage';
 import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
 
+// There is deliberately no "watch it be confidently wrong" chip. Every version
+// of that demo depends on the model being bad at something, and gpt-4o-mini is
+// well calibrated on exactly the questions that used to work: it corrects the
+// famous myths, solves the classic riddles at 95-100% confidence, and hedges
+// ("this can vary by context") on judgment calls in 18 of 21 replies. What does
+// not depend on model quality is already here — three sample tabs disagreeing
+// on one prompt, the temperature control, forgetting, and the tool round trip.
 const STARTER_PROMPTS = [
   'The best pizza topping is',
   'Write two different metaphors for rain.',
@@ -24,19 +31,6 @@ const STARTER_PROMPTS = [
   // tool" is what turns that into a tool round trip.
   "What's the weather in Denver right now?",
 ];
-
-// Confident judgement, not a wrong fact: ranking the three financial
-// statements has no single right answer, and the model ranks them anyway in
-// bright green. The pair below is the lesson — same three items, same
-// question, only the sentence shape moves. Measured over 18 samples with
-// scripts/phrasing-flip-check.mjs: listed first, the cash flow statement is
-// ranked #1 in 9 of 9 samples; asked at the end, the income statement is #1 in
-// 7 of 9. Both wordings answer at ~81% mean token probability with no hedging,
-// so what the visitor sees is two confident, incompatible answers.
-const JUDGMENT_PROMPT = 'Rank in order of importance: income statement, balance sheet, cash flow statement.';
-const JUDGMENT_REPHRASED = 'Income statement, balance sheet, cash flow statement. Rank them in order of importance.';
-
-const JUDGMENT_PROMPTS = [JUDGMENT_PROMPT];
 
 const MEMORY_PROMPTS = [
   'My name is Ada. Remember it.',
@@ -648,8 +642,6 @@ export default function ChatInterface() {
   let followup = null;
   if (replyLanded && !followupsUsed.memory && lastUser?.source === 'chip-memory') {
     followup = { kind: 'memory', label: 'Now make it forget' };
-  } else if (replyLanded && !followupsUsed.judgment && lastUser?.source === 'chip-judgment') {
-    followup = { kind: 'judgment', label: 'Now ask it the other way round' };
   } else if (replyLanded && !followupsUsed.tools && !sampling.tools && !replyUsedTool &&
              mentionsWeather(lastUser?.content)) {
     followup = { kind: 'tools', label: 'Now give it the tool' };
@@ -855,7 +847,6 @@ export default function ChatInterface() {
               <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
                 { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter', hint: null },
-                { ariaLabel: 'A prompt with no single right answer', label: 'Ask it for a judgment call:', prompts: JUDGMENT_PROMPTS, source: 'chip-judgment', hint: 'no right answer — watch how certain it sounds anyway' },
                 { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory', hint: 'then open Controls → Forget older turns, and ask "What is my name?"' },
               ].map(({ ariaLabel, label, prompts, source, hint }) => (
                 <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
@@ -937,10 +928,6 @@ export default function ChatInterface() {
                 if (followup.kind === 'memory') {
                   setSampling((s) => ({ ...s, keepTurns: 0 }));
                   sendMessage('What is my name?', 'chip-memory', { keepTurns: 0 });
-                } else if (followup.kind === 'judgment') {
-                  // Nothing changes but the word order of the question, which
-                  // is the point: the ranking moves anyway.
-                  sendMessage(JUDGMENT_REPHRASED, 'chip-judgment-flip');
                 } else {
                   // Same question, tool in hand: the two replies sit next to
                   // each other in the transcript, which is the whole lesson.
