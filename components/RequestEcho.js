@@ -32,7 +32,7 @@ export default function RequestEcho({ echoedMessages }) {
             ))}
           </div>
           <p className="request-echo-note">
-            This is the literal array we sent, system prompt included. Pale blocks were part of an earlier request; dark blocks are the newest exchange. The chart&rsquo;s token counts run a little higher than these message bodies — the chat wrapper is counted too.
+            This is the literal array we sent, system prompt included. Pale blocks were part of an earlier request; dark blocks are the newest exchange. The newest reply is missing on purpose: it didn&rsquo;t exist when this request was sent — it only gets replayed in the <em>next</em> request. The chart&rsquo;s token counts run a little higher than these message bodies — the chat wrapper is counted too.
           </p>
         </>
       )}
