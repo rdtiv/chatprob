@@ -13,12 +13,15 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 - **Three full replies, and where they fork.** Each turn requests `n=3` completions. Tabs **1 / 2 / 3** switch among them, each with a confidence dot. A ring marks the first token where the three replies diverge — everything before it is identical, because the same prompt and the same weights produced the same tokens until the dice landed differently. Each tab also reports perplexity (“picking from ~N plausible words”) and the joint odds of that exact wording.
 - **Conversation cost.** The API has no memory. Every turn resends the whole prompt, so input tokens climb as a staircase — one stacked bar per request, split into replayed, cached, and new. You can open the literal JSON array that was sent, and the rate card turns the tokens into dollars for this turn and for the conversation.
 - **No memory, made visible.** The model has no memory of its own; the app replays the transcript every request. Turn on **Forget older turns** and the request stops carrying the top of the chat — a line appears in the transcript, the turns above it dim, and the model can no longer answer a question about a fact you seeded before the line. The transcript and your saved conversation keep everything; only the request shrinks. The system prompt never falls off, because the server adds it every time.
+- **A cutoff, and a way past it.** The model's knowledge stops at its training cutoff — for `gpt-4o-mini`, around October 2023. Ask it for today's weather and it tells you, confidently, that it cannot know: a fact problem, not a memory problem. Turn on **Let it call a weather tool** and the same question runs a loop you can watch. The model never executes anything; it emits a structured request — a function name and JSON arguments it sampled token by token — our server makes the HTTP call, and the result comes back as more context tokens. The transcript shows all three in order, and the exact-request disclosure proves it: the second request literally contains the tool's answer.
 - **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 0.4s · all replies 2.1s` streamed, `reply 2.1s` when the whole thing lands at once.
 - **Green means expected, not true.** A standing note in the legend says so, and the “Try to fool it” prompts ask about things that never happened so you can watch the model be confidently wrong in bright green.
 
 ## Features
 
-- Sampling panel behind the header button: temperature, top-p, presence penalty, a **Make it boring** determinism switch, and a **Stream the reply** toggle
+- Sampling panel behind the header button: temperature, top-p, presence penalty, a **Make it boring** determinism switch, a **Stream the reply** toggle, and a **Let it call a weather tool** toggle
+- A **Tools** section in the sampling panel with one weather tool, off by default, showing the tool's description exactly as the model receives it
+- Inline tool-call and tool-result cards, plus a knowledge-cutoff note on replies where no tool ran
 - Starter prompt chips and “Try to fool it” chips on the empty screen (both send immediately)
 - Auto-growing composer — `Enter` sends, `Shift`+`Enter` starts a new line
 - Token heatmap, hover/tap probability card with Among-these / Raw-odds views, and a first-use hint
@@ -39,8 +42,9 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Make it boring | on / off | off | `temperature: 0` plus `seed: 7` |
 | Forget older turns | on / off | off | `messages` (trimmed before sending) |
 | Turns replayed | `0`–`6`, step `1` | `2` | `messages` (last N exchanges + the newest message) |
+| Let it call a weather tool | on / off | off | `tools: true` (forces the JSON path) |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same function draws the forgotten line, so the line and the payload can never disagree about the rule. The window is always measured back from the newest message in the transcript: right after a reply lands the line marks exactly what that request carried, and it steps down one exchange the moment you send again, because the message you just typed becomes the newest one. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same function draws the forgotten line, so the line and the payload can never disagree about the rule. The window is always measured back from the newest message in the transcript: right after a reply lands the line marks exactly what that request carried, and it steps down one exchange the moment you send again, because the message you just typed becomes the newest one. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on. With **Let it call a weather tool** on, the turn always takes the JSON path — the client skips streaming and the route ignores `stream`, because the first request ends in a tool call rather than in tokens.
 
 ## Stack
 
@@ -70,9 +74,12 @@ Optional:
 ```bash
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
+WEATHER_API_KEY=your_weatherapi_key_here
 ```
 
 `OPENAI_MODEL` must support Chat Completions logprobs and `n`. The rate card follows the served model when it is one of the five priced in `lib/openaiRates.js`; anything else falls back to the gpt-4o-mini list price and is labelled a similar-mini-model estimate.
+
+`WEATHER_API_KEY` is a free key from [weatherapi.com](https://www.weatherapi.com/) — without it, the tool call still happens and the model gets the error, which is a fine thing to demonstrate on purpose. The key is read only inside `lib/weather.js`, only on the server, and never appears in an error message or a response body.
 
 3. Run the app:
 
@@ -89,7 +96,7 @@ npm run lint
 node --test "lib/*.test.js"
 ```
 
-The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, and storage pruning — and make no network calls. The two files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
+The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, and the model-facts table — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
 
 ## How a turn works
 
@@ -107,6 +114,14 @@ The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunki
 | Logprobs | `true`, `top_logprobs=5` (sampled token is merged in if missing) |
 
 The response is three completions plus `echoedMessages` (the literal array that was sent, for the disclosure) and `usage` (`prompt_tokens`, `completion_tokens`, `cached_tokens`, `model`, and the clamped `sampling` values). The client stores all three samples; later turns send only the locked-in one.
+
+### The tool loop
+
+With **Let it call a weather tool** on, request 1 also carries a `tools` array with one function, `get_weather(location)`. If the model's `finish_reason` comes back `tool_calls`, the route runs the call server-side and makes a second request: the same conversation plus the assistant's tool-call message and a `role: "tool"` result appended. That is the whole loop — it is capped at one round structurally, there is no loop the model can re-enter.
+
+Both rounds still ask for `n: 3`. The spike found all three samples asked for the identical call, so the extra samples are summarized on the tool-call card ("all 3 samples asked for this same call") rather than shown as separate tabs. The API also returns no logprobs over tool-call arguments — `choice.logprobs` comes back as `{content: null, refusal: null}` — so those tokens show up as plain monospace JSON instead of a heatmap. The model still sampled them one token at a time; the API just doesn't expose their odds. That's a teaching point, not a gap.
+
+`usage` sums both rounds, so the staircase and rate card stay honest about what the whole turn cost, and `usage.rounds` carries the per-request split for the disclosure. `echoedMessages` is request 2's array, so the exact-request disclosure shows the tool result sitting in the prompt as new tokens. The tool exchange itself is never replayed — later turns resend the model's final sentence only, the same way any other assistant turn is echoed back. The weather lived in the context window for exactly one request.
 
 ### Streaming
 
@@ -132,9 +147,9 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | Path | Role |
 | --- | --- |
 | `components/ChatInterface.js` | Conversation state, persistence, streaming client, chips, lock rule |
-| `components/Message.js` | Heatmap, tabs, fork ring, timing and usage lines, hover/tap card |
+| `components/Message.js` | Heatmap, tabs, fork ring, timing and usage lines, hover/tap card, tool-call and tool-result cards, cutoff note |
 | `components/TokenProbabilities.js` | Candidate card: Among-these vs Raw odds, what-if temperature |
-| `components/SamplingPanel.js` | Temperature, top-p, presence penalty, boring switch, delivery toggle, memory control |
+| `components/SamplingPanel.js` | Temperature, top-p, presence penalty, boring switch, delivery toggle, memory control, tools toggle |
 | `components/SamplingContext.js` | Shares sampling state with the card so pinned cards react live |
 | `components/useAnchoredSurface.js` | Sheet-vs-popover mode and viewport-aware placement |
 | `components/PromptStaircase.js` | Per-turn stacked bars of replayed / cached / new prompt tokens |
@@ -148,12 +163,15 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | `lib/completionStats.js` | Fork detection, perplexity, joint odds, confidence palette |
 | `lib/openaiRates.js` | List prices and in/out/cached spend |
 | `lib/persistence.js` | Storage pruning for old turns |
+| `lib/weather.js` | Server-side weather fetch; the key never leaves it |
+| `lib/weatherTool.js` | The tool schema the model is told — single source for the panel and the route |
+| `lib/modelFacts.js` | Published training cutoffs; `null` for unknown models |
 | `pages/api/chat.js` | OpenAI Chat Completions + logprobs, JSON and NDJSON |
 | `scripts/` | Manual live-API gates — run by hand, never in CI |
 
 ## Deploy
 
-A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Keep the function on the Node runtime so logprobs survive.
+A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. `WEATHER_API_KEY` must be set in the Vercel project environment alongside it for the weather tool to work in preview and production. Keep the function on the Node runtime so logprobs survive.
 
 ## License
 
