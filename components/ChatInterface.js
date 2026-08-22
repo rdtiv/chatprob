@@ -222,8 +222,10 @@ export default function ChatInterface() {
     if (clearArmedTimeoutRef.current) clearTimeout(clearArmedTimeoutRef.current);
   }, []);
 
-  const advanceCoach = useCallback(() => {
-    setCoachStep((s) => Math.min(s + 1, 3));
+  // Advance FROM a given step only: a hover and a click can both fire from the
+  // same render with the same coach closure, and must not skip a step together.
+  const advanceCoach = useCallback((from) => {
+    setCoachStep((s) => (s === from ? Math.min(s + 1, 3) : s));
   }, []);
 
   const ensureTokenizer = useCallback(() => {
@@ -597,7 +599,7 @@ export default function ChatInterface() {
   const step2TargetIndex = [...settledReplies].reverse().find((index) => !isTabsLocked(index)) ?? -1;
 
   useEffect(() => {
-    if (coachStep === 1 && step2TargetIndex < 0) advanceCoach();
+    if (coachStep === 1 && step2TargetIndex < 0) advanceCoach(1);
   }, [coachStep, step2TargetIndex, advanceCoach]);
 
   const step3Eligible = settledReplies.length >= 2;
@@ -625,10 +627,10 @@ export default function ChatInterface() {
   let coach = null;
   if (coachStep === 0 && step1TargetIndex >= 0) {
     coachTargetIndex = step1TargetIndex;
-    coach = { step: 1, total: COACH_TOTAL, text: COACH_TEXT_COLOR, onDone: advanceCoach };
+    coach = { step: 1, total: COACH_TOTAL, text: COACH_TEXT_COLOR, onDone: () => advanceCoach(0) };
   } else if (coachStep === 1 && step2TargetIndex >= 0) {
     coachTargetIndex = step2TargetIndex;
-    coach = { step: 2, total: COACH_TOTAL, text: COACH_TEXT_TABS, onDone: advanceCoach };
+    coach = { step: 2, total: COACH_TOTAL, text: COACH_TEXT_TABS, onDone: () => advanceCoach(1) };
   }
 
   const turnBilled = (item) => {
@@ -810,7 +812,7 @@ export default function ChatInterface() {
               </span>
             </button>
             {coachStep === 2 && step3Eligible && (
-              <CoachMark step={3} total={COACH_TOTAL} text={COACH_TEXT_COST} onDone={advanceCoach} />
+              <CoachMark step={3} total={COACH_TOTAL} text={COACH_TEXT_COST} onDone={() => advanceCoach(2)} />
             )}
             <div id="conversation-lesson-body" className="conversation-lesson-body">
               <PromptStaircase messages={messages} />
@@ -889,7 +891,7 @@ export default function ChatInterface() {
               onSelect={selectCompletion}
               messageIndex={index}
               coach={index === coachTargetIndex ? coach : null}
-              onCoachAdvance={index === coachTargetIndex ? advanceCoach : undefined}
+              onCoachAdvance={index === coachTargetIndex ? () => advanceCoach(coachStep) : undefined}
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
