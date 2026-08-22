@@ -9,7 +9,7 @@ export default function ForgottenDivider({ messageCount }) {
     <div className="forgotten-divider">
       <span className="forgotten-divider-rule" aria-hidden="true" />
       <p className="forgotten-divider-text">
-        <strong>Everything above is forgotten.</strong>{' '}
+        <strong>Everything above this line is forgotten.</strong>{' '}
         {`These ${messageCount} message${messageCount === 1 ? '' : 's'} are still on your screen, but they are not part of the request anymore — the model never sees them.`}
       </p>
     </div>

@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
+import CoachMark from './CoachMark';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 import { formatTokenSummary } from '../lib/usage';
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { mentionsWeather } from '../lib/cutoffRelevance';
+import { COACH_TEXT_TABS } from '../lib/coachCopy';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -52,7 +54,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
+function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -65,6 +67,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   // null = follow showCutoffNote (auto-shown on the first relevant reply);
   // true/false = the user overrode it with the pill's "?" button.
   const [cutoffOverride, setCutoffOverride] = useState(null);
+  const [tabWhyOpen, setTabWhyOpen] = useState(false);
   const hoverTimeoutRef = useRef(null);
   const hoverGenerationRef = useRef(0);
   const activeTokenElRef = useRef(null);
@@ -100,7 +103,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   );
 
   const markHoverUsed = () => {
-    if (showHoverHint) onHoverUsed?.();
+    if (coach) onCoachAdvance?.();
   };
 
   const clearHoverTimer = () => {
@@ -197,6 +200,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     setPinned(false);
     setHoveredToken(null);
     onSelect?.(messageIndex, index);
+    if (coach) onCoachAdvance?.();
   };
 
   const activeStats = tabStats[safeIndex];
@@ -263,7 +267,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
       return <div className="message-text">{text || content || 'No response available'}</div>;
     }
     
-    const hintIndex = showHoverHint ? pickHintTokenIndex(tokenProbabilities) : -1;
+    const hintIndex = coach?.step === 1 ? pickHintTokenIndex(tokenProbabilities) : -1;
 
     return (
       <div className="message-text">
@@ -369,7 +373,21 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                     )}
                   </>
                 )}
+                {!tabsLocked && (
+                  <button
+                    type="button"
+                    className="why-button"
+                    aria-label="What does this mean?"
+                    aria-expanded={tabWhyOpen}
+                    onClick={() => setTabWhyOpen((open) => !open)}
+                  >
+                    ?
+                  </button>
+                )}
               </div>
+            )}
+            {!tabsLocked && tabWhyOpen && (
+              <p className="why-note">{COACH_TEXT_TABS}</p>
             )}
           </div>
           {calls.length > 0 && (
@@ -521,8 +539,8 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               {sessionBilled ? <span>{sessionBilled} conversation total — billed so far</span> : null}
             </div>
           )}
-          {showHoverHint && (
-            <div className="hover-hint">Tap or hover a highlighted word to see what else the model considered</div>
+          {coach && (
+            <CoachMark step={coach.step} total={coach.total} text={coach.text} onDone={coach.onDone} />
           )}
         </div>
       </div>

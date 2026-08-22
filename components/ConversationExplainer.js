@@ -27,8 +27,9 @@ function breakdown(spend) {
     : `${formatUsd(spend.input)} in + ${formatUsd(spend.output)} out`;
 }
 
-export function CostFooter({ messages, lastAssistant, sessionBilled }) {
+export function CostFooter({ messages, lastAssistant, sessionBilled, whyText }) {
   const [rateCardOpen, setRateCardOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   if (!lastAssistant?.usage) return null;
 
   const rates = rateFor(lastAssistant.usage.model);
@@ -41,7 +42,19 @@ export function CostFooter({ messages, lastAssistant, sessionBilled }) {
     <div className="cost-footer">
       <p className="cost-footer-line">
         Conversation so far <strong>{sessionBilled.toLocaleString()} tokens</strong> {formatUsd(paidSoFar.total)}{scale ? ` · ${scale}` : ''}
+        {whyText && (
+          <button
+            type="button"
+            className="why-button"
+            aria-label="What does this mean?"
+            aria-expanded={whyOpen}
+            onClick={() => setWhyOpen((open) => !open)}
+          >
+            ?
+          </button>
+        )}
       </p>
+      {whyOpen && whyText && <p className="why-note">{whyText}</p>}
       <button
         type="button"
         className="cost-footer-toggle"
@@ -91,7 +104,7 @@ export default function ConversationExplainer({
   if (!turns || !lastAssistant?.usage) {
     return (
       <p className="conversation-explainer">
-        Send a message and I will walk you through what the model did with your tokens, like reading the receipt together.
+        Green means the word was expected — not that it&rsquo;s true.
         {' '}Try sending <strong>strawberry</strong>: your message will show it as three pieces, not ten letters. That is why counting letters is hard for a model.
       </p>
     );

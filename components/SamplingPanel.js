@@ -51,14 +51,16 @@ export default function SamplingPanel({ id, anchor, onClose }) {
       tabIndex={-1}
       className={`sampling-panel ${isSheet ? 'is-sheet' : 'is-popover'}`}
       role="dialog"
-      aria-label="Sampling controls"
+      aria-label="Controls"
     >
       <div className="sampling-panel-header">
-        <h3 className="sampling-panel-title">Sampling</h3>
+        <h3 className="sampling-panel-title">Controls</h3>
         {isSheet && (
           <button type="button" className="sampling-panel-close" aria-label="Close" onClick={onClose}>×</button>
         )}
       </div>
+      <div className="sampling-section">
+      <h4 className="sampling-section-title">Sampling</h4>
       <div className={`sampling-row${boring ? ' is-disabled' : ''}`}>
         <div className="sampling-row-head">
           <label className="sampling-row-label" htmlFor={`${id}-temp`}>Temperature</label>
@@ -114,7 +116,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
       </div>
       <div className="sampling-row">
         <div className="sampling-row-head">
-          <label className="sampling-row-label" htmlFor={`${id}-boring`}>Make it boring</label>
+          <label className="sampling-row-label" htmlFor={`${id}-boring`}>Make it repeatable</label>
           <input
             id={`${id}-boring`}
             className="sampling-switch"
@@ -128,7 +130,8 @@ export default function SamplingPanel({ id, anchor, onClose }) {
             }}
           />
         </div>
-        <p className="sampling-row-note">Sets temperature to 0 and pins a seed. Repeat a message and the replies should come back nearly identical — the seed is best-effort, so not guaranteed.</p>
+        <p className="sampling-row-note">Send the same message twice and the replies should come back nearly identical. Sets temperature to 0 and pins a seed — best-effort, not guaranteed.</p>
+      </div>
       </div>
       <div className="sampling-section">
         <h4 className="sampling-section-title">Memory</h4>
@@ -152,7 +155,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
         </div>
         <div className={`sampling-row${forgetting ? '' : ' is-disabled'}`}>
           <div className="sampling-row-head">
-            <label className="sampling-row-label" htmlFor={`${id}-keep`}>Turns replayed</label>
+            <label className="sampling-row-label" htmlFor={`${id}-keep`}>Exchanges replayed</label>
             <span className="sampling-row-value">{keepValue === 0 ? 'none' : `last ${keepValue}`}</span>
           </div>
           <input

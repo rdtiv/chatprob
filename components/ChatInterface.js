@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import Message from './Message';
+import CoachMark from './CoachMark';
 import ConversationExplainer, { CostFooter } from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
@@ -13,6 +14,7 @@ import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/cont
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary } from '../lib/usage';
 import { needsCutoffNote } from '../lib/cutoffRelevance';
+import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -33,7 +35,11 @@ const MEMORY_PROMPTS = [
 
 const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height in globals.css
 
-const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
+// coachStep: 0 = show the color coach mark, 1 = show the tabs coach mark,
+// 2 = show the cost coach mark, 3 = done. Persisted so a returning visitor
+// does not see marks they already dismissed.
+const COACH_KEY = 'chatprobCoach';
+const COACH_TOTAL = 3;
 
 const SCROLL_SLOP = 48;
 
@@ -73,7 +79,10 @@ export default function ChatInterface() {
     keepTurns: KEEP_ALL,                   // null = replay the whole transcript
     restoreKeepTurns: KEEP_TURNS_DEFAULT,  // remembered slider position while the switch is off
   });
-  const [hoverHintVisible, setHoverHintVisible] = useState(false);
+  const [coachStep, setCoachStep] = useState(0);
+  const [legendWhyOpen, setLegendWhyOpen] = useState(false);
+  const [clearArmed, setClearArmed] = useState(false);
+  const [followupUsed, setFollowupUsed] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
@@ -92,6 +101,8 @@ export default function ChatInterface() {
   const pendingRef = useRef(null);
   const rafRef = useRef(0);
   const unmountedRef = useRef(false);
+  const clearArmedTimeoutRef = useRef(null);
+  const step3OpenedRef = useRef(false);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
   const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
@@ -190,16 +201,29 @@ export default function ChatInterface() {
           setMessages(healed);
         }
       }
-      setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
+      const rawCoach = Number(localStorage.getItem(COACH_KEY)) || 0;
+      setCoachStep(Math.min(Math.max(rawCoach, 0), 3));
     } catch (error) {
       console.error('Could not read saved chat:', error);
     }
     setStorageReady(true);
   }, []);
 
-  const dismissHoverHint = useCallback(() => {
-    setHoverHintVisible(false);
-    localStorage.setItem(HOVER_HINT_KEY, '1');
+  useEffect(() => {
+    if (!storageReady) return;
+    try {
+      localStorage.setItem(COACH_KEY, String(coachStep));
+    } catch (error) {
+      console.error('Could not save coach progress:', error);
+    }
+  }, [coachStep, storageReady]);
+
+  useEffect(() => () => {
+    if (clearArmedTimeoutRef.current) clearTimeout(clearArmedTimeoutRef.current);
+  }, []);
+
+  const advanceCoach = useCallback(() => {
+    setCoachStep((s) => Math.min(s + 1, 3));
   }, []);
 
   const ensureTokenizer = useCallback(() => {
@@ -537,11 +561,72 @@ export default function ChatInterface() {
     localStorage.removeItem('chatMessages');
   };
 
-  const firstHintableIndex = messages.findIndex((item) => (
-    !item.isStreaming &&
-    item.role === 'assistant' &&
-    item.completions?.some((completion) => completion.tokenProbabilities?.length)
-  ));
+  const handleClearClick = () => {
+    if (clearArmed) {
+      if (clearArmedTimeoutRef.current) {
+        clearTimeout(clearArmedTimeoutRef.current);
+        clearArmedTimeoutRef.current = null;
+      }
+      setClearArmed(false);
+      clearChat();
+      return;
+    }
+    setClearArmed(true);
+    clearArmedTimeoutRef.current = setTimeout(() => setClearArmed(false), 3000);
+  };
+
+  // A settled reply is one that finished (no longer streaming), did not
+  // error, and actually has token probabilities to look at — the surface
+  // the coach marks and the "?" affordances are all built around.
+  const settledReplies = [];
+  messages.forEach((item, index) => {
+    if (
+      item.role === 'assistant' &&
+      !item.isStreaming &&
+      !item.error &&
+      item.completions?.some((completion) => completion.tokenProbabilities?.length)
+    ) {
+      settledReplies.push(index);
+    }
+  });
+  const isTabsLocked = (index) => messages.slice(index + 1).some((item) => item.role === 'user');
+  const step1TargetIndex = settledReplies.length ? settledReplies[0] : -1;
+  const step2TargetIndex = [...settledReplies].reverse().find((index) => !isTabsLocked(index)) ?? -1;
+
+  useEffect(() => {
+    if (coachStep === 1 && step2TargetIndex < 0) advanceCoach();
+  }, [coachStep, step2TargetIndex, advanceCoach]);
+
+  const step3Eligible = settledReplies.length >= 2;
+  useEffect(() => {
+    if (coachStep === 2 && step3Eligible && !step3OpenedRef.current) {
+      step3OpenedRef.current = true;
+      setLessonOpen(true);
+    }
+  }, [coachStep, step3Eligible]);
+
+  let lastUserIndex = -1;
+  messages.forEach((item, index) => {
+    if (item.role === 'user') lastUserIndex = index;
+  });
+  const replyAfterLastUser = lastUserIndex >= 0 ? messages[lastUserIndex + 1] : null;
+  const showFollowup = !followupUsed &&
+    lastUserIndex >= 0 &&
+    messages[lastUserIndex].source === 'chip-memory' &&
+    replyAfterLastUser?.role === 'assistant' &&
+    !replyAfterLastUser.isStreaming &&
+    !replyAfterLastUser.error &&
+    replyAfterLastUser.completions?.some((completion) => completion.tokenProbabilities?.length);
+
+  let coachTargetIndex = -1;
+  let coach = null;
+  if (coachStep === 0 && step1TargetIndex >= 0) {
+    coachTargetIndex = step1TargetIndex;
+    coach = { step: 1, total: COACH_TOTAL, text: COACH_TEXT_COLOR, onDone: advanceCoach };
+  } else if (coachStep === 1 && step2TargetIndex >= 0) {
+    coachTargetIndex = step2TargetIndex;
+    coach = { step: 2, total: COACH_TOTAL, text: COACH_TEXT_TABS, onDone: advanceCoach };
+  }
 
   const turnBilled = (item) => {
     if (item.role !== 'assistant' || item.usage?.prompt_tokens == null) return 0;
@@ -635,7 +720,7 @@ export default function ChatInterface() {
       }}>
         <div className="chat-header">
           <h3 style={{ margin: 0 }}>
-            <span className="title-full">Explore Token Probabilities & Alternative Responses</span>
+            <span className="title-full">See how a language model picks each word.</span>
             <span className="title-short">ChatProb</span>
           </h3>
           <div className="header-actions">
@@ -651,48 +736,52 @@ export default function ChatInterface() {
                 setPanelOpen((open) => !open);
               }}
             >
-              Sampling · {sampling.temperature.toFixed(1)}
+              Controls
+              <span className="control-chip">temp {sampling.temperature.toFixed(1)}</span>
+              {sampling.stream === false && <span className="control-chip">streaming off</span>}
+              {sampling.keepTurns != null && (
+                <span className="control-chip">
+                  {sampling.keepTurns === 0 ? 'memory none' : `memory last ${sampling.keepTurns}`}
+                </span>
+              )}
+              {sampling.tools && <span className="control-chip">tool on</span>}
+              {sampling.boring && <span className="control-chip">repeatable</span>}
             </button>
           <button
-            onClick={clearChat}
-            className="refresh-button"
-            title="Clear chat history"
+            onClick={handleClearClick}
+            className="refresh-button is-text"
+            aria-label={clearArmed ? 'Confirm clear chat history' : 'Clear chat history'}
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="20" 
-              height="20" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
+            {clearArmed ? 'Clear?' : 'Clear'}
           </button>
           </div>
         </div>
         <div className="confidence-legend">
           <span className="legend-item">
             <span className="legend-swatch legend-swatch-high" />
-            more sure
+            likely
           </span>
           <span className="legend-item is-unsure">
             <span className="legend-swatch legend-swatch-mid" />
-            mixed
+            toss-up
           </span>
           <span className="legend-item is-very-unsure">
             <span className="legend-swatch legend-swatch-low" />
-            less sure
+            long shot
           </span>
           <span className="legend-hover">Tap or hover a word for the other choices</span>
-          <span className="legend-honesty">Green means expected, not true.</span>
+          <span className="legend-honesty">Likely ≠ true.</span>
+          <button
+            type="button"
+            className="why-button"
+            aria-label="What does this mean?"
+            aria-expanded={legendWhyOpen}
+            onClick={() => setLegendWhyOpen((open) => !open)}
+          >
+            ?
+          </button>
         </div>
+        {legendWhyOpen && <p className="why-note">{COACH_TEXT_COLOR}</p>}
         {sessionBilled > 0 && (
           <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`} data-lesson="cost">
             <button
@@ -717,12 +806,16 @@ export default function ChatInterface() {
                 <span className="conversation-lesson-chevron" aria-hidden="true" />
               </span>
             </button>
+            {coachStep === 2 && step3Eligible && (
+              <CoachMark step={3} total={COACH_TOTAL} text={COACH_TEXT_COST} onDone={advanceCoach} />
+            )}
             <div id="conversation-lesson-body" className="conversation-lesson-body">
               <PromptStaircase messages={messages} />
               <CostFooter
                 messages={messages}
                 lastAssistant={lastAssistant}
                 sessionBilled={sessionBilled}
+                whyText={COACH_TEXT_COST}
               />
               <ConversationExplainer
                 inSeries={inSeries}
@@ -748,10 +841,10 @@ export default function ChatInterface() {
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
-                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter' },
-                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool' },
-                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory' },
-              ].map(({ ariaLabel, label, prompts, source }) => (
+                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter', hint: null },
+                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool', hint: 'then look at how green the wrong answer is' },
+                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory', hint: 'then open Controls → Forget older turns, and ask "What is my name?"' },
+              ].map(({ ariaLabel, label, prompts, source, hint }) => (
                 <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
                   {label && <span className="prompt-chips-label">{label}</span>}
                   {prompts.map((prompt) => (
@@ -765,6 +858,7 @@ export default function ChatInterface() {
                       {prompt}
                     </button>
                   ))}
+                  {hint && <span className="prompt-chips-hint">{hint}</span>}
                 </div>
               ))}
             </div>
@@ -791,8 +885,8 @@ export default function ChatInterface() {
               message={message}
               onSelect={selectCompletion}
               messageIndex={index}
-              showHoverHint={hoverHintVisible && index === firstHintableIndex}
-              onHoverUsed={dismissHoverHint}
+              coach={index === coachTargetIndex ? coach : null}
+              onCoachAdvance={index === coachTargetIndex ? advanceCoach : undefined}
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
@@ -850,7 +944,22 @@ export default function ChatInterface() {
           )}
           <div ref={messagesEndRef} />
         </div>
-        
+        {showFollowup && (
+          <div className="prompt-chips" aria-label="Follow-up prompt">
+            <button
+              type="button"
+              className="prompt-chip"
+              disabled={isLoading}
+              onClick={() => {
+                setFollowupUsed(true);
+                setSampling((s) => ({ ...s, keepTurns: 0 }));
+                sendMessage('What is my name?', 'chip-memory');
+              }}
+            >
+              Now make it forget
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="message-form">
           <div className="composer-row">
             <textarea
@@ -863,7 +972,7 @@ export default function ChatInterface() {
               }}
               onFocus={ensureTokenizer}
               onKeyDown={handleComposerKeyDown}
-              placeholder="Type your message..."
+              placeholder="Ask anything — every word you type becomes tokens"
               disabled={isLoading}
               className="message-input"
             />
