@@ -40,7 +40,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Forget older turns | on / off | off | `messages` (trimmed before sending) |
 | Turns replayed | `0`–`6`, step `1` | `2` | `messages` (last N exchanges + the newest message) |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same call places the forgotten line in the transcript, so what the line claims about the *next* request always matches what will actually be sent. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same function draws the forgotten line, so the line and the payload can never disagree about the rule. The window is always measured back from the newest message in the transcript: right after a reply lands the line marks exactly what that request carried, and it steps down one exchange the moment you send again, because the message you just typed becomes the newest one. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
 
 ## Stack
 
@@ -89,7 +89,7 @@ npm run lint
 node --test "lib/*.test.js"
 ```
 
-The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, and storage pruning — and make no network calls. The two files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
+The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, and storage pruning — and make no network calls. The two files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
 
 ## How a turn works
 
@@ -124,6 +124,8 @@ Deltas are batched into one React update per animation frame, and tokens stay in
 ## What gets saved
 
 The conversation lives in `localStorage` under `chatMessages`. To stay inside the browser’s quota, only the 20 newest successful turns keep their `top_logprobs`; older turns keep each token and its logprob but lose the alternatives, so the heatmap, underlines, tab statistics, and fork detection all survive a reload while the candidate list does not. When you open a card on one of those turns it says so and points you at Raw odds, which still works. Errored and aborted turns do not occupy one of the 20 slots, and recent ones keep their alternatives too — only errored turns older than the oldest kept successful turn are stripped. Refreshing mid-stream heals the interrupted turn into that same aborted note rather than leaving a reply that never finishes.
+
+This 20-turn window is not the one **Forget older turns** moves. Storage pruning (`lib/persistence.js`) counts assistant turns and only ever drops *alternatives*; request truncation (`lib/contextWindow.js`) counts user turns and only ever drops *messages from the payload*. Neither one changes what the other does.
 
 ## Project layout
 
