@@ -3,6 +3,7 @@ import TokenProbabilities from './TokenProbabilities';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, confidenceColor, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
+import { knowledgeCutoff } from '../lib/modelFacts';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -10,6 +11,17 @@ function sampledPercentage(tokenData) {
   const logprob = sampledLogprob(tokenData);
   if (logprob == null) return null;
   return Math.exp(logprob) * 100;
+}
+
+// The model emits arguments as a string, token by token. It can be malformed —
+// pretty-print when it parses, show the raw bytes when it does not, and never throw.
+function formatToolArguments(raw) {
+  if (typeof raw !== 'string' || raw === '') return '';
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
 }
 
 function pickHintTokenIndex(tokenProbabilities) {
@@ -38,7 +50,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false }) {
+function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, isLatestAssistant = false }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -191,6 +203,14 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     : `Identical until here. All ${comparedCount} replies produced exactly the same tokens up to this point, then chose differently.`;
   const forkNoteCopy = [baseForkCopy, statsLine && `This reply: ${statsLine}.`].filter(Boolean).join(' ');
 
+  const cutoff = (role === 'assistant' && !message.toolCall && !message.error && message.usage?.model)
+    ? knowledgeCutoff(message.usage.model)
+    : null;
+  const showCutoffNote = isLatestAssistant && !!cutoff;
+  const toolCall = message.toolCall || null;
+  const toolResult = message.toolResult || null;
+  const rounds = Array.isArray(message.usage?.rounds) ? message.usage.rounds : null;
+
   const renderContent = () => {
     // Handle non-assistant messages or messages without completions
     if (!completions || role !== 'assistant') {
@@ -341,7 +361,50 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               </div>
             )}
           </div>
+          {toolCall && (
+            <div className="tool-round">
+              <div className="tool-card is-call">
+                <div className="tool-card-head">
+                  <span className="tool-card-badge">the model asked for a tool</span>
+                  <span className="tool-card-name">{toolCall.name}</span>
+                </div>
+                <pre className="tool-code">{formatToolArguments(toolCall.arguments)}</pre>
+                {toolCall.samples?.total > 1 && (
+                  <p className="tool-card-samples">
+                    {toolCall.samples.agreed === toolCall.samples.total
+                      ? `All ${toolCall.samples.total} samples asked for this same call.`
+                      : `${toolCall.samples.agreed} of ${toolCall.samples.total} samples asked for this call.`}
+                  </p>
+                )}
+                <p className="tool-card-note">
+                  It did not run anything. It wrote this request &mdash; a function name and a JSON argument &mdash; one token at a time, the same way it writes words. Our server read it and made the HTTP call. The API returns no probabilities for these tokens, so there is nothing to shade here.
+                </p>
+              </div>
+              {toolResult && (
+                <div className={`tool-card is-result${toolResult.ok ? '' : ' is-error'}`}>
+                  <div className="tool-card-head">
+                    <span className="tool-card-badge">our server called the weather API</span>
+                    <span className="tool-card-status">
+                      {toolResult.ok ? (toolResult.status ?? 'ok') : 'failed'}
+                      {Number.isFinite(toolResult.durationMs) ? ` · ${(toolResult.durationMs / 1000).toFixed(1)}s` : ''}
+                    </span>
+                  </div>
+                  <pre className="tool-code">{toolResult.content}</pre>
+                  <p className="tool-card-note">
+                    {toolResult.ok
+                      ? 'Unedited, exactly as it came back. This text goes to the model as a new message — it is everything the model knows about the weather right now.'
+                      : 'The call failed. We hand the model the error, unedited, and let it answer from that.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           {renderContent()}
+          {showCutoffNote && (
+            <p className="cutoff-note">
+              This model was trained on text that stops around {cutoff.label}. Nothing after that is in there &mdash; today&rsquo;s weather included. However sure it sounds, the colors only tell you the wording was expected, not that the facts are current.
+            </p>
+          )}
           {message.aborted && (
             <div className="message-aborted-note">
               {(message.abortReason ? message.abortReason.replace(/\.*$/, '.') : 'The connection dropped partway.')}
@@ -403,7 +466,13 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
           )}
           {usageOpen && message.usage?.prompt_tokens != null && (
             <div id={usageId} className="token-usage-details">
-              <span>{message.usage.prompt_tokens} in — everything sent this request</span>
+              <span>{rounds ? `${message.usage.prompt_tokens} in — everything sent this turn, across two requests` : `${message.usage.prompt_tokens} in — everything sent this request`}</span>
+              {rounds && rounds.length > 1 && (
+                <>
+                  <span>{rounds[0].prompt_tokens} in · {rounds[0].completion_tokens} out — first request, the one that ended in a tool call</span>
+                  <span>{rounds[1].prompt_tokens} in · {rounds[1].completion_tokens} out — second request, the same prompt plus the tool call and its result</span>
+                </>
+              )}
               {replayedIn != null && <span>{replayedIn} replayed — last turn&rsquo;s prompt, sent again</span>}
               {addedIn != null && <span>{addedIn} new — last reply plus your latest message</span>}
               {Number.isFinite(message.usage.cached_tokens) && message.usage.cached_tokens > 0 && (

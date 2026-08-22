@@ -1,5 +1,7 @@
 import { OpenAI } from 'openai';
 import { clampTemperature, clampTopP, clampPresencePenalty, clampSeed } from '../../lib/sampling';
+import { getWeather } from '../../lib/weather';
+import { WEATHER_TOOLS, WEATHER_TOOL_NAME, parseWeatherArguments } from '../../lib/weatherTool';
 
 export const config = {
   maxDuration: 60,
@@ -48,6 +50,34 @@ function toUiCompletion(choice) {
   };
 }
 
+function sumNullable(values) {
+  const present = values.filter((v) => Number.isFinite(v));
+  return present.length ? present.reduce((a, b) => a + b, 0) : null;
+}
+
+function roundUsage(raw) {
+  return {
+    prompt_tokens: raw?.prompt_tokens ?? null,
+    completion_tokens: raw?.completion_tokens ?? null,
+    cached_tokens: raw?.prompt_tokens_details?.cached_tokens ?? null,
+  };
+}
+
+// One turn can cost more than one request. The totals are what you paid;
+// `rounds` is the itemised receipt, and only appears when there is more
+// than one line on it.
+function buildUsage(rawUsages, model, sampling) {
+  const rounds = rawUsages.map(roundUsage);
+  return {
+    prompt_tokens: sumNullable(rounds.map((r) => r.prompt_tokens)),
+    completion_tokens: sumNullable(rounds.map((r) => r.completion_tokens)),
+    cached_tokens: sumNullable(rounds.map((r) => r.cached_tokens)),
+    model,
+    sampling,
+    ...(rounds.length > 1 ? { rounds } : {}),
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -78,7 +108,9 @@ export default async function handler(req, res) {
       ? apiMessages
       : [{ role: 'system', content: VARIETY_SYSTEM_PROMPT }, ...apiMessages];
 
-    const wantsStream = req.body?.stream === true;
+    const wantsTools = req.body?.tools === true;
+    const wantsStream = req.body?.stream === true && !wantsTools;
+    const samplingSnapshot = { temperature, top_p: topP, presence_penalty: presencePenalty, seed };
 
     const createOptions = {
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -92,6 +124,8 @@ export default async function handler(req, res) {
       logprobs: true,
       top_logprobs: 5,
     };
+
+    const round1Options = wantsTools ? { ...createOptions, tools: WEATHER_TOOLS } : createOptions;
 
     if (wantsStream) {
       res.writeHead(200, {
@@ -118,7 +152,7 @@ export default async function handler(req, res) {
           type: 'meta',
           echoedMessages: sentMessages,
           model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-          sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
+          sampling: samplingSnapshot,
         });
 
         stream = await openai.chat.completions.create({
@@ -148,14 +182,8 @@ export default async function handler(req, res) {
         if (!aborted) {
           send({
             type: 'done',
-            usage: {
-              prompt_tokens: usage?.prompt_tokens ?? null,
-              completion_tokens: usage?.completion_tokens ?? null,
-              cached_tokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
-              // Prefer the served model id, like the non-streaming path does.
-              model: servedModel || process.env.OPENAI_MODEL || 'gpt-4o-mini',
-              sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
-            },
+            // Prefer the served model id, like the non-streaming path does.
+            usage: buildUsage([usage], servedModel || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
           });
         }
         return res.end();
@@ -166,24 +194,77 @@ export default async function handler(req, res) {
       }
     }
 
-    const response = await openai.chat.completions.create(createOptions);
+    const response = await openai.chat.completions.create(round1Options);
 
-    const completions = (response.choices || []).map(toUiCompletion);
+    const first = (response.choices || [])[0];
+    const toolCallRaw = first?.message?.tool_calls?.[0];
+
+    if (!wantsTools || !toolCallRaw) {
+      const completions = (response.choices || []).map(toUiCompletion);
+      if (completions.length === 0) {
+        return res.status(502).json({ error: 'Model returned no completions' });
+      }
+
+      return res.status(200).json({
+        model: response.model,
+        completions,
+        echoedMessages: sentMessages,
+        usage: buildUsage([response.usage], response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
+      });
+    }
+
+    const toolCall = {
+      id: toolCallRaw.id,
+      name: toolCallRaw.function?.name ?? null,
+      arguments: toolCallRaw.function?.arguments ?? '',
+      samples: {
+        total: (response.choices || []).length,
+        agreed: (response.choices || []).filter((c) => {
+          const tc = c.message?.tool_calls?.[0];
+          return tc?.function?.name === toolCallRaw.function?.name
+            && tc?.function?.arguments === toolCallRaw.function?.arguments;
+        }).length,
+      },
+    };
+
+    const startedAt = Date.now();
+    let toolResult;
+    if (toolCall.name !== WEATHER_TOOL_NAME) {
+      toolResult = { ok: false, content: JSON.stringify({ error: `Unknown tool "${toolCall.name}"` }), durationMs: Date.now() - startedAt };
+    } else {
+      const parsed = parseWeatherArguments(toolCall.arguments);
+      if (!parsed.ok) {
+        toolResult = { ok: false, content: JSON.stringify({ error: parsed.error }), durationMs: Date.now() - startedAt };
+      } else {
+        try {
+          const weather = await getWeather(parsed.location);
+          toolResult = { ok: true, content: JSON.stringify(weather), durationMs: Date.now() - startedAt, status: 200 };
+        } catch (error) {
+          console.error('Weather tool failed:', error.message);
+          toolResult = { ok: false, content: JSON.stringify({ error: error.message }), durationMs: Date.now() - startedAt };
+        }
+      }
+    }
+
+    const round2Messages = [
+      ...sentMessages,
+      { role: 'assistant', content: null, tool_calls: [{ id: toolCall.id, type: 'function', function: { name: toolCallRaw.function.name, arguments: toolCallRaw.function.arguments } }] },
+      { role: 'tool', tool_call_id: toolCall.id, content: toolResult.content },
+    ];
+    const round2 = await openai.chat.completions.create({ ...round1Options, messages: round2Messages });
+
+    const completions = (round2.choices || []).map(toUiCompletion);
     if (completions.length === 0) {
       return res.status(502).json({ error: 'Model returned no completions' });
     }
 
     return res.status(200).json({
-      model: response.model,
+      model: round2.model,
       completions,
-      echoedMessages: sentMessages,
-      usage: {
-        prompt_tokens: response.usage?.prompt_tokens ?? null,
-        completion_tokens: response.usage?.completion_tokens ?? null,
-        cached_tokens: response.usage?.prompt_tokens_details?.cached_tokens ?? null,
-        model: response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
-      },
+      echoedMessages: round2Messages,
+      usage: buildUsage([response.usage, round2.usage], round2.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
+      toolCall,
+      toolResult,
     });
   } catch (error) {
     console.error('Error calling OpenAI API:', error);

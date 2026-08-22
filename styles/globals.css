@@ -1445,3 +1445,46 @@ main {
     transform: none;
   }
 }
+
+/* Tool-call cards, the tool description panel, and the knowledge-cutoff note.
+   No transitions/animations/transforms here, so the existing
+   prefers-reduced-motion guards above remain sufficient. */
+
+.tool-round { margin: 6px 0 8px; display: flex; flex-direction: column; gap: 6px; }
+
+.tool-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 8px; background-color: #fff; }
+
+.tool-card.is-call { border-color: #c4b5fd; background-color: #f5f3ff; } /* violet = outbound request payload, same language as RequestEcho */
+
+.tool-card.is-result { border-color: #e5e7eb; background-color: #f8fafc; }
+
+.tool-card.is-error { border-color: #fecaca; background-color: #fef2f2; }
+
+.tool-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 4px; }
+
+.tool-card-badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+
+.tool-card-name { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.68rem; color: #4c1d95; font-weight: 600; }
+
+.tool-card-status { margin-left: auto; font-size: 0.62rem; color: #64748b; font-variant-numeric: tabular-nums; }
+
+.tool-card.is-error .tool-card-status { color: #b91c1c; }
+
+.tool-code { margin: 0; padding: 6px 8px; border-radius: 6px; background-color: rgba(15, 23, 42, 0.04); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.66rem; line-height: 1.4; white-space: pre-wrap; word-break: break-word; overflow-x: auto; -webkit-overflow-scrolling: touch; } /* pre-wrap, not pre: a tool result must never widen the bubble on a phone */
+
+.tool-card-samples,
+.tool-card-note { margin: 4px 0 0; font-size: 0.66rem; line-height: 1.35; color: #64748b; }
+
+.cutoff-note { margin: 6px 0 0; padding-left: 8px; border-left: 2px solid #cbd5e1; font-size: 0.66rem; line-height: 1.4; color: #64748b; }
+
+.tool-description { margin: 0 16px 6px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f8fafc; font-size: 0.66rem; line-height: 1.4; color: #475569; } /* 16px side margin matches .sampling-section-title padding */
+
+.tool-description p { margin: 0 0 4px; }
+
+.tool-description p:last-child { margin-bottom: 0; }
+
+.tool-description-name { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 600; color: #4c1d95; }
+
+.tool-description-param { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #334155; margin-top: 6px; }
+
+.tool-description-param span { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; color: #94a3b8; font-weight: 400; }

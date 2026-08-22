@@ -21,6 +21,7 @@ const FOOL_IT_PROMPTS = [
   'What did the 1994 Geneva Protocol on Digital Privacy establish?',
   'Which U.S. president invented the paperclip?',
   'Why is the Great Wall of China visible from the Moon?',
+  "What's the weather in Denver right now?",
 ];
 
 const MEMORY_PROMPTS = [
@@ -39,6 +40,12 @@ const emptyCompletions = () => [
   { text: '', tokenProbabilities: [] },
 ];
 
+// A tool turn is two requests. For cost we sum them; for "what was replayed
+// and what is new" the honest comparison is round to round: this turn's FIRST
+// request against the previous turn's LAST one.
+const firstRoundPrompt = (item) => item.usage?.rounds?.[0]?.prompt_tokens ?? item.usage?.prompt_tokens;
+const lastRoundPrompt = (item) => item.usage?.rounds?.[(item.usage?.rounds?.length ?? 1) - 1]?.prompt_tokens ?? item.usage?.prompt_tokens;
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -50,6 +57,7 @@ export default function ChatInterface() {
     boring: false,
     restoreTemperature: TEMP_DEFAULT,
     stream: true,
+    tools: false,                          // the weather tool is offered only when this is on
     keepTurns: KEEP_ALL,                   // null = replay the whole transcript
     restoreKeepTurns: KEEP_TURNS_DEFAULT,  // remembered slider position while the switch is off
   });
@@ -227,9 +235,12 @@ export default function ChatInterface() {
       top_p: snapshot.topP,
       presence_penalty: snapshot.presencePenalty,
       ...(snapshot.boring ? { seed: BORING_SEED } : {}),
+      ...(snapshot.tools ? { tools: true } : {}),
     };
 
-    if (snapshot.stream) {
+    // Tools force the JSON path — the first request ends in a tool call, not
+    // in tokens, and the server enforces the same rule.
+    if (snapshot.stream && !snapshot.tools) {
       await sendMessageStreaming(requestBody, snapshot, startedAt);
       return;
     }
@@ -262,6 +273,8 @@ export default function ChatInterface() {
           sampling: data.usage?.sampling ?? null,
           sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+          toolCall: data.toolCall ?? null,
+          toolResult: data.toolResult ?? null,
           timing: { ttftMs: totalMs, totalMs, streamed: false },
         },
       ]);
@@ -528,6 +541,11 @@ export default function ChatInterface() {
     [messages, sampling.keepTurns]
   );
 
+  const latestAssistantIndex = messages.reduce(
+    (found, item, index) => (item.role === 'assistant' && !item.isStreaming ? index : found),
+    -1
+  );
+
   return (
     <SamplingProvider value={samplingValue}>
     <div style={{
@@ -687,11 +705,11 @@ export default function ChatInterface() {
             const billedThrough = messages
               .slice(0, index + 1)
               .reduce((sum, item) => sum + turnBilled(item), 0);
-            const previousIn = [...messages.slice(0, index)]
+            const previousMessage = [...messages.slice(0, index)]
               .reverse()
-              .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null)
-              ?.usage?.prompt_tokens;
-            const thisIn = message.usage?.prompt_tokens;
+              .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null);
+            const previousIn = previousMessage ? lastRoundPrompt(previousMessage) : undefined;
+            const thisIn = firstRoundPrompt(message);
             const replayedIn = Number.isFinite(previousIn) ? previousIn : null;
             const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
               ? Math.max(0, thisIn - previousIn)
@@ -710,6 +728,7 @@ export default function ChatInterface() {
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               tokenizer={tokenizer}
               forgotten={forgetting.truncated && index < forgetting.cutoffIndex}
+              isLatestAssistant={index === latestAssistantIndex}
             />
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];
