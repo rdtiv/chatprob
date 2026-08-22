@@ -10,6 +10,7 @@ import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
+import { knowledgeCutoff } from '../lib/modelFacts';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -582,16 +583,18 @@ export default function ChatInterface() {
     [messages, sampling.keepTurns]
   );
 
-  // The last message with role 'assistant', regardless of usage — streaming
-  // and error states are handled by Message.js itself (it hides the note
-  // while streaming or when the newest turn errored), not by filtering the
-  // index here. This differs from lastAssistant (which requires a usage
-  // object to drive the cost/staircase math) because the note belongs to the
-  // newest reply even before usage has landed.
-  const latestAssistantIndex = messages.reduce(
-    (found, item, index) => (item.role === 'assistant' ? index : found),
-    -1
-  );
+  // The long cutoff note is shown once per conversation, on the first reply
+  // it applies to; every other qualifying reply carries only the pill. So
+  // this finds the FIRST assistant message (not the latest) that is a plain
+  // text reply — no tool call, no error — whose model resolves to a known
+  // cutoff, and that index never moves once found.
+  const firstCutoffIndex = messages.findIndex((item) => (
+    item.role === 'assistant' &&
+    !item.error &&
+    !item.toolCall &&
+    !(Array.isArray(item.toolCalls) && item.toolCalls.length) &&
+    !!knowledgeCutoff(item.usage?.model)
+  ));
 
   return (
     <SamplingProvider value={samplingValue}>
@@ -783,7 +786,7 @@ export default function ChatInterface() {
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               tokenizer={tokenizer}
               forgotten={forgetting.truncated && index < forgetting.cutoffIndex}
-              isLatestAssistant={index === latestAssistantIndex}
+              showCutoffDetail={index === firstCutoffIndex}
             />
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];

@@ -50,7 +50,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, isLatestAssistant = false }) {
+function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -206,7 +206,8 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   const cutoff = (role === 'assistant' && !message.toolCall && !message.error && message.usage?.model)
     ? knowledgeCutoff(message.usage.model)
     : null;
-  const showCutoffNote = isLatestAssistant && !isStreaming && !!cutoff;
+  const showCutoffPill = !!cutoff && !isStreaming;
+  const showCutoffNote = showCutoffDetail && showCutoffPill;
   const toolCall = message.toolCall || null;
   const toolResult = message.toolResult || null;
   const calls = Array.isArray(message.toolCalls) && message.toolCalls.length ? message.toolCalls : (toolCall ? [toolCall] : []);
@@ -445,6 +446,11 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                     const a = (message.timing.ttftMs / 1000).toFixed(1);
                     return a === b ? `reply ${b}s · streamed` : `first token ${a}s · all replies ${b}s`;
                   })()}
+                </span>
+              )}
+              {showCutoffPill && (
+                <span className="cutoff-pill" title="Training data ends here; it cannot know anything after that.">
+                  knowledge ends ~{cutoff.label}
                 </span>
               )}
               {role === 'user' && userChunks && (

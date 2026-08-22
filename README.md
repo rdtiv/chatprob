@@ -21,7 +21,7 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 
 - Sampling panel behind the header button: temperature, top-p, presence penalty, a **Make it boring** determinism switch, a **Stream the reply** toggle, and a **Let it call a weather tool** toggle
 - A **Tools** section in the sampling panel with one weather tool, off by default, showing the tool's description exactly as the model receives it
-- Inline tool-call and tool-result cards, plus a knowledge-cutoff note on replies where no tool ran
+- Inline tool-call and tool-result cards, plus a knowledge-cutoff pill on every reply where no tool ran, with the full note shown once per conversation
 - Starter prompt chips and “Try to fool it” chips on the empty screen (both send immediately)
 - Auto-growing composer — `Enter` sends, `Shift`+`Enter` starts a new line
 - Token heatmap, hover/tap probability card with Among-these / Raw-odds views, and a first-use hint
@@ -147,7 +147,7 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | Path | Role |
 | --- | --- |
 | `components/ChatInterface.js` | Conversation state, persistence, streaming client, chips, lock rule |
-| `components/Message.js` | Heatmap, tabs, fork ring, timing and usage lines, hover/tap card, tool-call and tool-result cards, cutoff note |
+| `components/Message.js` | Heatmap, tabs, fork ring, timing and usage lines, hover/tap card, tool-call and tool-result cards, cutoff pill and note |
 | `components/TokenProbabilities.js` | Candidate card: Among-these vs Raw odds, what-if temperature |
 | `components/SamplingPanel.js` | Temperature, top-p, presence penalty, boring switch, delivery toggle, memory control, tools toggle |
 | `components/SamplingContext.js` | Shares sampling state with the card so pinned cards react live |

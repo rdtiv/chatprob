@@ -1479,6 +1479,8 @@ main {
 
 .cutoff-note { margin: 6px 0 0; padding-left: 8px; border-left: 2px solid #cbd5e1; font-size: 0.66rem; line-height: 1.4; color: #64748b; }
 
+.cutoff-pill { display: inline-flex; align-items: center; padding: 1px 6px; border: 1px solid #e5e7eb; border-radius: 999px; font-size: 0.6rem; line-height: 1.4; color: #64748b; background-color: #f8fafc; white-space: nowrap; }
+
 .tool-description { margin: 0 16px 6px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f8fafc; font-size: 0.66rem; line-height: 1.4; color: #475569; } /* 16px side margin matches .sampling-section-title padding */
 
 .tool-description p { margin: 0 0 4px; }
