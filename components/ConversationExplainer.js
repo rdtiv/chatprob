@@ -1,4 +1,5 @@
-import { formatUsd, rateFor, sumCosts, turnCost } from '../lib/openaiRates';
+import { useState } from 'react';
+import { formatUsd, formatScale, rateFor, sumCosts, turnCost } from '../lib/openaiRates';
 
 function lastTabOut(assistant) {
   if (!assistant?.completions?.length) return null;
@@ -11,6 +12,55 @@ function conversationCost(messages, rates) {
     (messages || [])
       .filter((item) => item.role === 'assistant' && item.usage)
       .map((item) => turnCost(item.usage, rates))
+  );
+}
+
+function totalCachedTokens(messages) {
+  return (messages || [])
+    .filter((item) => item.role === 'assistant' && Number.isFinite(item.usage?.cached_tokens))
+    .reduce((sum, item) => sum + Math.min(Math.max(0, item.usage.cached_tokens), item.usage.prompt_tokens ?? Infinity), 0);
+}
+
+function breakdown(spend) {
+  return spend.cachedInput > 0
+    ? `${formatUsd(spend.input)} in + ${formatUsd(spend.cachedInput)} cached in + ${formatUsd(spend.output)} out`
+    : `${formatUsd(spend.input)} in + ${formatUsd(spend.output)} out`;
+}
+
+export function CostFooter({ messages, lastAssistant, sessionBilled }) {
+  const [rateCardOpen, setRateCardOpen] = useState(false);
+  if (!lastAssistant?.usage) return null;
+
+  const rates = rateFor(lastAssistant.usage.model);
+  const lastSpend = turnCost(lastAssistant.usage, rates);
+  const paidSoFar = conversationCost(messages, rates);
+  const scale = formatScale(lastSpend.total);
+  const cachedTokens = totalCachedTokens(messages);
+
+  return (
+    <div className="cost-footer">
+      <p className="cost-footer-line">
+        Conversation so far <strong>{sessionBilled.toLocaleString()} tokens</strong> {formatUsd(paidSoFar.total)}{scale ? ` · ${scale}` : ''}
+      </p>
+      <button
+        type="button"
+        className="cost-footer-toggle"
+        aria-expanded={rateCardOpen}
+        onClick={() => setRateCardOpen((open) => !open)}
+      >
+        How is this priced?
+      </button>
+      {rateCardOpen && (
+        <>
+          <p className="rate-card">
+            {rates.model} rate card: ${rates.inputPerMillion.toFixed(2)} / 1M in · ${rates.outputPerMillion.toFixed(2)} / 1M out
+            {rates.approximate ? ' (list price for a similar mini model)' : ''}
+            {cachedTokens > 0 ? ` · $${rates.cachedInputPerMillion.toFixed(3)} / 1M cached in` : ''}
+          </p>
+          <p className="cost-footer-breakdown">this turn {breakdown(lastSpend)}</p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -37,15 +87,7 @@ export default function ConversationExplainer({
   // Second-round prompt tokens for a tool turn, or null/undefined otherwise.
   toolRoundIn,
 }) {
-  const rates = rateFor(lastAssistant?.usage?.model);
-  const lastSpend = lastAssistant?.usage ? turnCost(lastAssistant.usage, rates) : null;
-  const paidSoFar = conversationCost(messages, rates);
-  const breakdown = (spend) => spend.cachedInput > 0
-    ? `${formatUsd(spend.input)} in + ${formatUsd(spend.cachedInput)} cached in + ${formatUsd(spend.output)} out`
-    : `${formatUsd(spend.input)} in + ${formatUsd(spend.output)} out`;
-  const cachedTokens = (messages || [])
-    .filter((item) => item.role === 'assistant' && Number.isFinite(item.usage?.cached_tokens))
-    .reduce((sum, item) => sum + Math.min(Math.max(0, item.usage.cached_tokens), item.usage.prompt_tokens ?? Infinity), 0);
+  const cachedTokens = totalCachedTokens(messages);
 
   if (!turns || !lastAssistant?.usage) {
     return (
@@ -60,38 +102,29 @@ export default function ConversationExplainer({
   // path), use it and prevIn as given — that pair is turn-to-turn,
   // first-request-to-first-request. Otherwise fall back to indexing the
   // last two entries of inSeries, exactly as before (the empty-conversation
-  // screen never passes these props). lastPaid/prevPaid stay per-turn — cost
-  // is billed once per turn regardless of how many requests it took.
+  // screen never passes these props).
   const usePropIn = Number.isFinite(lastInProp);
   const lastIn = usePropIn ? lastInProp : inSeries[inSeries.length - 1];
-  const lastPaid = sessionSeries[turns - 1];
   const prevIn = usePropIn
     ? (Number.isFinite(prevInProp) ? prevInProp : null)
     : (inSeries.length > 1 ? inSeries[inSeries.length - 2] : null);
-  const prevPaid = turns > 1 ? sessionSeries[turns - 2] : null;
   const tabOut = lastTabOut(lastAssistant);
   const totalOut = lastAssistant.usage.completion_tokens;
   const samples = lastAssistant.completions?.length || 3;
   const replayed = prevIn;
   const added = prevIn != null ? Math.max(0, lastIn - prevIn) : null;
-  const thisTurnBill = prevPaid != null ? lastPaid - prevPaid : lastPaid;
-  const millionTurns = lastSpend ? lastSpend.total * 1_000_000 : null;
 
   let text;
   if (turns === 1) {
-    text = `You sent ${lastIn} tokens in — a short system note plus your question. The model sampled ${samples} possible replies. This tab is ${tabOut ?? 'a few'} tokens; all ${samples} together were ${totalOut} out. This one request billed ${lastPaid} tokens, about ${formatUsd(lastSpend.total)} (${breakdown(lastSpend)}). The model will not remember this chat. Next message, those ${lastIn} tokens plus the tab you leave selected get shipped back in.`;
+    text = `You sent ${lastIn} tokens in and this reply is ${tabOut ?? 'a few'} tokens out (${totalOut} across all ${samples} samples). The model will not remember any of it — next message, all of this gets sent back in.`;
   } else if (turns === 2) {
-    text = `See the prompt jump ${prevIn} → ${lastIn}? About ${replayed} of that is last turn's prompt, sent again — the API has no memory. The other ${added} tokens are new: the reply you locked in, plus what you just typed. You already paid for those ${replayed} once. This request billed ${thisTurnBill} tokens, about ${formatUsd(lastSpend.total)} (${breakdown(lastSpend)}). Conversation total ${prevPaid} → ${lastPaid} tokens, about ${formatUsd(paidSoFar.total)}.`;
+    text = `The prompt jumped ${prevIn} → ${lastIn}: about ${replayed} of that is last turn sent again, ${added} is new. The API has no memory, so you pay to resend the past every turn.`;
   } else {
-    text = `Prompt so far: ${inSeries.join(' → ')}. That staircase is the conversation tax — each request resends everything. This tab only wrote ${tabOut ?? 'a short'} tokens, but ${lastIn} went in. This turn cost about ${formatUsd(lastSpend.total)} (${breakdown(lastSpend)}); paid so far ${sessionSeries.join(' → ')} tokens, about ${formatUsd(paidSoFar.total)}. Long chats get expensive even when answers stay short, because you are paying to re-read the past. Only the selected tab continues; the other samples were paid for at the higher output rate and then dropped.`;
+    text = `Prompt so far: ${inSeries.join(' → ')}. Each request resends everything before it — long chats get expensive even when answers stay short.`;
   }
 
   if (Number.isFinite(toolRoundIn)) {
     text += ` This turn took two requests: the second carried the tool call and its result — ${toolRoundIn} tokens in, ${Math.max(0, toolRoundIn - lastIn)} of them new.`;
-  }
-
-  if (millionTurns != null && millionTurns >= 1) {
-    text += ` A million turns like this last one would be about ${formatUsd(millionTurns)}.`;
   }
 
   if (cachedTokens > 0) {
@@ -110,15 +143,6 @@ export default function ConversationExplainer({
           <strong>Why did it forget?</strong> {forgettingText}
         </p>
       )}
-      <p className="rate-card">
-        {rates.model} rate card: ${rates.inputPerMillion.toFixed(2)} / 1M in · ${rates.outputPerMillion.toFixed(2)} / 1M out
-        {rates.approximate ? ' (list price for a similar mini model)' : ''}
-        {cachedTokens > 0 ? ` · $${rates.cachedInputPerMillion.toFixed(3)} / 1M cached in` : ''}
-        {' — '}
-        this turn {formatUsd(lastSpend.input)} in ·{lastSpend.cachedInput > 0 ? ` ${formatUsd(lastSpend.cachedInput)} cached in ·` : ''} {formatUsd(lastSpend.output)} out · {formatUsd(lastSpend.total)} total
-        {' | '}
-        conversation {formatUsd(paidSoFar.input)} in ·{paidSoFar.cachedInput > 0 ? ` ${formatUsd(paidSoFar.cachedInput)} cached in ·` : ''} {formatUsd(paidSoFar.output)} out · {formatUsd(paidSoFar.total)} total
-      </p>
     </>
   );
 }

@@ -218,6 +218,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   const calls = Array.isArray(message.toolCalls) && message.toolCalls.length ? message.toolCalls : (toolCall ? [toolCall] : []);
   const results = Array.isArray(message.toolResults) && message.toolResults.length ? message.toolResults : (toolResult ? [toolResult] : []);
   const rounds = Array.isArray(message.usage?.rounds) ? message.usage.rounds : null;
+  const spend = message.usage?.prompt_tokens != null
+    ? turnCost(message.usage, rateFor(message.usage.model))
+    : null;
 
   const renderContent = () => {
     // Handle non-assistant messages or messages without completions
@@ -475,13 +478,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                 </span>
               )}
               {message.usage?.prompt_tokens != null && (() => {
-                const rates = rateFor(message.usage.model);
-                const spend = turnCost(message.usage, rates);
-                const summary = [
-                  `${message.usage.prompt_tokens} in`,
-                  message.usage.completion_tokens != null ? `${message.usage.completion_tokens} out` : null,
-                  formatUsd(spend.total),
-                ].filter(Boolean).join(' · ');
+                const summary = rounds && rounds.length > 1
+                  ? `${rounds.map((r) => r.prompt_tokens).join(' + ')} in · ${message.usage.completion_tokens} out · ${rounds.length} requests`
+                  : `${message.usage.prompt_tokens} in · ${message.usage.completion_tokens} out`;
                 return (
                   <span className="token-usage token-usage-summary">
                     {summary}
@@ -519,6 +518,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               {message.usage.completion_tokens != null && (
                 <span>{message.usage.completion_tokens} total out this turn — all samples</span>
               )}
+              <span>{formatUsd(spend.total)} — this turn at list price</span>
               {sessionBilled ? <span>{sessionBilled} conversation total — billed so far</span> : null}
             </div>
           )}

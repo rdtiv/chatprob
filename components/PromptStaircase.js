@@ -62,7 +62,7 @@ function PromptStaircase({ messages }) {
   const maxPrompt = Math.max(...rows.map((row) => row.prompt), 1);
   const anyCached = rows.some((row) => row.cached > 0);
 
-  const finalRows = rows.map((row) => {
+  const finalRows = rows.map((row, index) => {
     const widthPct = (row.prompt / maxPrompt) * 100;
     const cachedPct = row.prompt > 0 ? (row.cached / row.prompt) * 100 : 0;
     const replayedPct = row.prompt > 0 ? (row.replayedUncached / row.prompt) * 100 : 0;
@@ -89,7 +89,7 @@ function PromptStaircase({ messages }) {
       newPct,
       ariaLabel,
       turnLabel,
-      label: `${row.prompt} in`,
+      label: `${row.prompt} tokens${row.added > 0 && index > 0 ? ` · ${row.added} new` : ''}`,
     };
   });
 

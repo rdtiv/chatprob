@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import Message from './Message';
-import ConversationExplainer from './ConversationExplainer';
+import ConversationExplainer, { CostFooter } from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
 import SamplingPanel from './SamplingPanel';
@@ -578,6 +578,13 @@ export default function ChatInterface() {
   const lastIn = roundPrompt(lastAssistant, 'first');
   const prevIn = roundPrompt(prevAssistant, 'first');
   const toolRoundIn = lastAssistant?.usage?.rounds?.length > 1 ? roundPrompt(lastAssistant, 'last') : null;
+  const lastRounds = Array.isArray(lastAssistant?.usage?.rounds) && lastAssistant.usage.rounds.length > 1
+    ? lastAssistant.usage.rounds
+    : null;
+  const lastOut = lastAssistant?.usage?.completion_tokens ?? '—';
+  const sentThisTurn = lastRounds
+    ? `${lastRounds.map((round) => round.prompt_tokens).join(' + ')} in · ${lastOut} out · ${lastRounds.length} requests`
+    : `${lastIn ?? '—'} in · ${lastOut} out`;
 
   const forgetting = useMemo(
     () => buildOutboundMessages(messages, sampling.keepTurns),
@@ -692,7 +699,7 @@ export default function ChatInterface() {
           <span className="legend-honesty">Green means expected, not true.</span>
         </div>
         {sessionBilled > 0 && (
-          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`}>
+          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`} data-lesson="cost">
             <button
               type="button"
               className="conversation-lesson-summary"
@@ -702,12 +709,12 @@ export default function ChatInterface() {
             >
               <div className="conversation-lesson-metrics">
                 <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Prompt this turn</span>
-                  <span className="conversation-lesson-values">{inSeries.join(' → ')} in</span>
+                  <span className="conversation-lesson-label">Sent this turn</span>
+                  <span className="conversation-lesson-values">{sentThisTurn}</span>
                 </div>
                 <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Paid so far</span>
-                  <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
+                  <span className="conversation-lesson-label">Conversation so far</span>
+                  <span className="conversation-lesson-values">{sessionBilled.toLocaleString()} tokens</span>
                 </div>
               </div>
               <span className="conversation-lesson-toggle">
@@ -717,6 +724,11 @@ export default function ChatInterface() {
             </button>
             <div id="conversation-lesson-body" className="conversation-lesson-body">
               <PromptStaircase messages={messages} />
+              <CostFooter
+                messages={messages}
+                lastAssistant={lastAssistant}
+                sessionBilled={sessionBilled}
+              />
               <ConversationExplainer
                 inSeries={inSeries}
                 sessionSeries={sessionSeries}

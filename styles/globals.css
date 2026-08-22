@@ -309,6 +309,36 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+.cost-footer {
+  margin: 6px 0 0;
+}
+
+.cost-footer-line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-footer-toggle {
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.72rem;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.cost-footer-breakdown {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
 
 
 .hover-hint {
