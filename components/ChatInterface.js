@@ -692,31 +692,65 @@ export default function ChatInterface() {
     return needsCutoffNote(precedingUser);
   });
 
+  const costPanel = sessionBilled > 0 && (
+    <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`} data-lesson="cost">
+      <button
+        type="button"
+        className="conversation-lesson-summary"
+        aria-expanded={lessonOpen}
+        aria-controls="conversation-lesson-body"
+        onClick={() => setLessonOpen((open) => !open)}
+      >
+        <div className="conversation-lesson-metrics">
+          <p className="conversation-lesson-title">What each request carried</p>
+          <div className="conversation-lesson-row">
+            <span className="conversation-lesson-label">Sent this turn</span>
+            <span className="conversation-lesson-values">{sentThisTurn}</span>
+          </div>
+          <div className="conversation-lesson-row">
+            <span className="conversation-lesson-label">Conversation so far</span>
+            <span className="conversation-lesson-values">{sessionBilled.toLocaleString()} tokens</span>
+          </div>
+        </div>
+        <span className="conversation-lesson-toggle">
+          {lessonOpen ? 'Hide' : 'Details'}
+          <span className="conversation-lesson-chevron" aria-hidden="true" />
+        </span>
+      </button>
+      {coachStep === 2 && step3Eligible && (
+        <CoachMark step={3} total={COACH_TOTAL} text={COACH_TEXT_COST} onDone={() => advanceCoach(2)} />
+      )}
+      <div id="conversation-lesson-body" className="conversation-lesson-body">
+        <PromptStaircase messages={messages} />
+        <CostFooter
+          messages={messages}
+          lastAssistant={lastAssistant}
+          sessionBilled={sessionBilled}
+          whyText={COACH_TEXT_COST}
+        />
+        <ConversationExplainer
+          inSeries={inSeries}
+          lastAssistant={lastAssistant}
+          messages={messages}
+          droppedMessages={forgetting.cutoffIndex}
+          keepTurns={sampling.keepTurns}
+          turns={turnCount}
+          lastIn={lastIn}
+          prevIn={prevIn}
+          toolRoundIn={toolRoundIn}
+        />
+        <RequestEcho
+          echoedMessages={lastAssistant?.echoedMessages}
+          echoedTools={lastAssistant?.echoedTools}
+          echoedToolChoice={lastAssistant?.echoedToolChoice}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <SamplingProvider value={samplingValue}>
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      width: '100%',
-      height: '100%',
-      backgroundColor: '#fff',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      margin: 0,
-      padding: 0,
-      overflow: 'hidden'
-    }}>
-      <h1 style={{ 
-        margin: '20px 0',
-        fontSize: '24px',
-        fontWeight: '600',
-        color: '#3b82f6',
-        display: 'none'
-      }} className="desktop-only">ChatProb</h1>
+    <div className="app-shell">
       <div className="chat-container" style={{
         maxWidth: '800px',
         width: '100%',
@@ -724,11 +758,32 @@ export default function ChatInterface() {
         margin: '0 auto'
       }}>
         <div className="chat-header">
-          <h3 style={{ margin: 0 }}>
-            <span className="title-full">See how a language model picks each word.</span>
-            <span className="title-short">ChatProb</span>
-          </h3>
+          <span className="chat-promise">See how a language model picks each word.</span>
           <div className="header-actions">
+            <div className="legend-inline">
+              <span className="legend-item">
+                <span className="legend-swatch legend-swatch-high" />
+                likely
+              </span>
+              <span className="legend-item is-unsure">
+                <span className="legend-swatch legend-swatch-mid" />
+                toss-up
+              </span>
+              <span className="legend-item is-very-unsure">
+                <span className="legend-swatch legend-swatch-low" />
+                long shot
+              </span>
+              <span className="legend-honesty">Likely ≠ true.</span>
+              <button
+                type="button"
+                className="why-button"
+                aria-label="What does this mean?"
+                aria-expanded={legendWhyOpen}
+                onClick={() => setLegendWhyOpen((open) => !open)}
+              >
+                ?
+              </button>
+            </div>
             <button
               ref={samplingButtonRef}
               type="button"
@@ -761,86 +816,7 @@ export default function ChatInterface() {
           </button>
           </div>
         </div>
-        <div className="confidence-legend">
-          <span className="legend-item">
-            <span className="legend-swatch legend-swatch-high" />
-            likely
-          </span>
-          <span className="legend-item is-unsure">
-            <span className="legend-swatch legend-swatch-mid" />
-            toss-up
-          </span>
-          <span className="legend-item is-very-unsure">
-            <span className="legend-swatch legend-swatch-low" />
-            long shot
-          </span>
-          <span className="legend-hover">Tap or hover a word for the other choices</span>
-          <span className="legend-honesty">Likely ≠ true.</span>
-          <button
-            type="button"
-            className="why-button"
-            aria-label="What does this mean?"
-            aria-expanded={legendWhyOpen}
-            onClick={() => setLegendWhyOpen((open) => !open)}
-          >
-            ?
-          </button>
-        </div>
         {legendWhyOpen && <p className="why-note">{COACH_TEXT_COLOR}</p>}
-        {sessionBilled > 0 && (
-          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`} data-lesson="cost">
-            <button
-              type="button"
-              className="conversation-lesson-summary"
-              aria-expanded={lessonOpen}
-              aria-controls="conversation-lesson-body"
-              onClick={() => setLessonOpen((open) => !open)}
-            >
-              <div className="conversation-lesson-metrics">
-                <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Sent this turn</span>
-                  <span className="conversation-lesson-values">{sentThisTurn}</span>
-                </div>
-                <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Conversation so far</span>
-                  <span className="conversation-lesson-values">{sessionBilled.toLocaleString()} tokens</span>
-                </div>
-              </div>
-              <span className="conversation-lesson-toggle">
-                {lessonOpen ? 'Hide' : 'Details'}
-                <span className="conversation-lesson-chevron" aria-hidden="true" />
-              </span>
-            </button>
-            {coachStep === 2 && step3Eligible && (
-              <CoachMark step={3} total={COACH_TOTAL} text={COACH_TEXT_COST} onDone={() => advanceCoach(2)} />
-            )}
-            <div id="conversation-lesson-body" className="conversation-lesson-body">
-              <PromptStaircase messages={messages} />
-              <CostFooter
-                messages={messages}
-                lastAssistant={lastAssistant}
-                sessionBilled={sessionBilled}
-                whyText={COACH_TEXT_COST}
-              />
-              <ConversationExplainer
-                inSeries={inSeries}
-                lastAssistant={lastAssistant}
-                messages={messages}
-                droppedMessages={forgetting.cutoffIndex}
-                keepTurns={sampling.keepTurns}
-                turns={turnCount}
-                lastIn={lastIn}
-                prevIn={prevIn}
-                toolRoundIn={toolRoundIn}
-              />
-              <RequestEcho
-                echoedMessages={lastAssistant?.echoedMessages}
-                echoedTools={lastAssistant?.echoedTools}
-                echoedToolChoice={lastAssistant?.echoedToolChoice}
-              />
-            </div>
-          </div>
-        )}
         <div className="messages-container" ref={messagesContainerRef}>
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
@@ -908,43 +884,12 @@ export default function ChatInterface() {
               node,
             ];
           })}
+          {costPanel}
           {isLoading && !messages.some((m) => m.isStreaming && m.completions?.[0]?.tokenProbabilities?.length) && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-start',
-              padding: '12px 16px',
-              marginTop: '8px'
-            }}>
-              <div style={{
-                display: 'flex',
-                gap: '4px',
-                alignItems: 'center'
-              }}>
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  backgroundColor: '#94a3b8',
-                  borderRadius: '50%',
-                  animation: 'pulse 1s infinite ease-in-out',
-                  animationDelay: '0s'
-                }}></span>
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  backgroundColor: '#94a3b8',
-                  borderRadius: '50%',
-                  animation: 'pulse 1s infinite ease-in-out',
-                  animationDelay: '0.2s'
-                }}></span>
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  backgroundColor: '#94a3b8',
-                  borderRadius: '50%',
-                  animation: 'pulse 1s infinite ease-in-out',
-                  animationDelay: '0.4s'
-                }}></span>
-              </div>
+            <div className="typing-dots">
+              <span />
+              <span />
+              <span />
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -982,24 +927,12 @@ export default function ChatInterface() {
               className="message-input"
             />
             <button
-              type="submit" 
-              disabled={isLoading} 
+              type="submit"
+              disabled={isLoading}
               className="send-button"
               aria-label="Send message"
             >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <path d="M22 2L11 13" />
-                <path d="M22 2L15 22L11 13L2 9L22 2" />
-              </svg>
+              Send
             </button>
           </div>
         </form>

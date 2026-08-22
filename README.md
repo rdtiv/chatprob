@@ -2,37 +2,40 @@
 
 An educational chat UI that shows how a language model samples text: token-by-token confidence, the other words it considered, how your own message is chopped into tokens, where three replies to the same prompt part ways, and what the whole conversation costs.
 
+![Turn 2: the staircase and the heatmap](public/readme/turn2.png)
+
 Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8).
 
 ## What it teaches
 
-- **Token confidence.** Each word is colored from the *sampled* token’s logprob — green when the model was sure, yellow when mixed, red when it took a long shot. The heatmap is not “most likely in the top 5”; it is the token that actually landed. Below 65% the word also picks up a thin underline, below 35% a thicker one, so the signal survives without color.
+- **Token confidence.** Each word is colored from the *sampled* token’s logprob — green when the model was sure, yellow when mixed, red when it took a long shot. The heatmap is not “most likely in the top 5”; it is the token that actually landed. Below 65% the word also picks up a thin underline, below 35% a thicker one, so the signal survives without color. Hover or tap any word for the candidate list, and a coach mark walks a first-time visitor through the color, the tabs, and the cost card once each.
 - **What else was considered.** Hover or tap a word for the candidate list. **Among these** re-scales the shown candidates to add up to 100% at the current temperature; **Raw odds** shows the model’s real probabilities across the whole vocabulary, which do *not* add up to 100%. If the sampled token was outside the top 5, it still gets its own row with a real percentage instead of `0.00%` — under **Raw odds**, that is its exact model probability.
-- **Temperature, live.** The candidate set is frozen when the card opens, so moving the temperature slider never makes rows appear or vanish — only the odds move. Adjusting temperature does not dismiss a pinned card, because watching the odds shift is the lesson. At `0` the top candidate takes 100% and everything else goes to zero, which is winner-take-all sampling made visible (the card rounds those zeros to `<0.001%`).
+- **Temperature, live.** The candidate set is frozen when the card opens, so moving the temperature slider never makes rows appear or vanish — only the odds move. Adjusting temperature does not dismiss a pinned card, because watching the odds shift is the lesson. At `0` the top candidate takes 100% and everything else goes to zero, which is winner-take-all sampling made visible (the card rounds those zeros to `<0.001%`). The full panel behind the header's **Controls** button holds temperature, top-p, presence penalty, a **Make it repeatable** determinism switch, a **Stream the reply** toggle, a **Forget older turns** memory control, and a **Let it call a weather tool** toggle; the button itself always shows the settings currently in effect.
 - **Your text is tokens too.** The composer tokenizes what you type with `o200k_base` and the user bubble shows the pieces as alternating tints, with an `≈ N tokens` count. Send **strawberry** and watch it arrive as three pieces, not ten letters.
-- **Three full replies, and where they fork.** Each turn requests `n=3` completions. Tabs **1 / 2 / 3** switch among them, each with a confidence dot. A ring marks the first token where the three replies diverge — everything before it is identical, because the same prompt and the same weights produced the same tokens until the dice landed differently. Each tab also reports perplexity (“picking from ~N plausible words”).
-- **Conversation cost.** The API has no memory. Every turn resends the whole prompt, so input tokens climb as a staircase — one stacked bar per request, split into replayed, cached, and new. You can open the literal JSON array that was sent, and the rate card turns the tokens into dollars for this turn and for the conversation.
+- **Three full replies, and where they fork.** Each turn requests `n=3` completions. Tabs **1 / 2 / 3** switch among them, each with a confidence dot; older turns lock after the next user message, and a padlock explains why. A ring marks the first token where the three replies diverge — everything before it is identical, because the same prompt and the same weights produced the same tokens until the dice landed differently. Each tab also reports perplexity (“picking from ~N plausible words”).
+- **Conversation cost.** The API has no memory. Every turn resends the whole prompt, so input tokens climb as a staircase — one stacked bar per request, split into replayed, cached, and new. You can open the literal JSON array that was sent, and the rate card turns the tokens into dollars for this turn and for the conversation, against a gpt-4o-mini rate card (list price: $0.15 / 1M in, $0.60 / 1M out, $0.075 / 1M cached in). Each message also carries its own usage line (`N in · M out · $x`), expandable to the full breakdown.
 - **No memory, made visible.** The model has no memory of its own; the app replays the transcript every request. Turn on **Forget older turns** and the request stops carrying the top of the chat — a line appears in the transcript, the turns above it dim, and the model can no longer answer a question about a fact you seeded before the line. The transcript and your saved conversation keep everything; only the request shrinks. The system prompt never falls off, because the server adds it every time.
-- **A cutoff, and a way past it.** The model's knowledge stops at its training cutoff — for `gpt-4o-mini`, around October 2023. Ask it for today's weather and it tells you, confidently, that it cannot know: a fact problem, not a memory problem. Turn on **Let it call a weather tool** and the same question runs a loop you can watch. The model never executes anything; it emits a structured request — a function name and JSON arguments it sampled token by token — our server makes the HTTP call, and the result comes back as more context tokens. The transcript shows all three in order, and the exact-request disclosure proves it: the second request literally contains the tool's answer.
-- **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 0.4s · all replies 2.1s` streamed, `reply 2.1s` when the whole thing lands at once.
-- **Green means expected, not true.** A standing note in the legend says so, and the “Try to fool it” prompts ask about things that never happened — and one asks for weather no training run could contain — so you can watch the model be confidently wrong in bright green.
+- **A cutoff, and a way past it.** The model's knowledge stops at its training cutoff — for `gpt-4o-mini`, around October 2023. Ask it for today's weather and it tells you, confidently, that it cannot know: a fact problem, not a memory problem. A knowledge-cutoff pill appears on every settled reply where no tool ran and the served model has a published cutoff in `lib/modelFacts.js` — an unknown model gets no pill rather than a guessed date — with the full note spelled out once per conversation, on the first reply it applies to. Turn on **Let it call a weather tool** and the same question runs a loop you can watch, using one weather tool that's off by default and shown exactly as the model receives it. The model never executes anything; it emits a structured request — a function name and JSON arguments it sampled token by token — our server makes the HTTP call, and the result comes back as more context tokens, shown inline as tool-call and tool-result cards. The transcript shows all three in order, and the exact-request disclosure proves it: the second request literally contains the tool's answer.
+- **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen, with the heatmap filling in as tokens arrive over NDJSON. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 0.4s · all replies 2.1s` streamed, `reply 2.1s` when the whole thing lands at once.
+- **Green means expected, not true.** A standing note in the legend says so, and the “Try to fool it” prompts — alongside starter prompts on the empty screen — ask about things that never happened, and one asks for weather no training run could contain, so you can watch the model be confidently wrong in bright green.
+- **It remembers your conversation, not your candidates.** The conversation is saved in `localStorage` and survives a reload. The app works on desktop and mobile alike: a bottom sheet on touch, an anchored popover on mouse, chosen by pointer type rather than screen width.
 
-## Features
+## Glossary
 
-- Controls panel behind the header button: temperature, top-p, presence penalty, a **Make it repeatable** determinism switch, a **Stream the reply** toggle, a **Forget older turns** memory control, and a **Let it call a weather tool** toggle
-- A **Tools** section in the sampling panel with one weather tool, off by default, showing the tool's description exactly as the model receives it
-- Inline tool-call and tool-result cards, plus a knowledge-cutoff pill on every settled reply where no tool ran and the served model has a published cutoff in `lib/modelFacts.js` — an unknown model gets no pill rather than a guessed date, and errored or aborted turns get none either — with the full note spelled out once per conversation, on the first reply it applies to
-- Starter prompt chips and “Try to fool it” chips on the empty screen (both send immediately)
-- Auto-growing composer — `Enter` sends, `Shift`+`Enter` starts a new line
-- Token heatmap, hover/tap probability card with Among-these / Raw-odds views, and coach marks
-- 1 / 2 / 3 response tabs with confidence dots; older turns lock after the next user message, and the padlock explains why
-- Fork ring on the first token where the three replies disagree
-- Prompt staircase, per-message usage line (`N in · M out · $x`, expandable to the full breakdown), exact-request disclosure, and a gpt-4o-mini rate card (list price: $0.15 / 1M in, $0.60 / 1M out, $0.075 / 1M cached in)
-- Streaming replies over NDJSON, with the heatmap filling in as tokens arrive
-- Conversation saved in `localStorage`
-- Works on desktop and mobile: a bottom sheet on touch, an anchored popover on mouse, chosen by pointer type rather than screen width
+- **Token** — the unit a model reads and writes; not a word or a character, but a chunk from its vocabulary (`o200k_base` here).
+- **Logprob** — the natural log of the probability the model assigned to the token it actually produced; the heatmap's color comes straight from this number.
+- **Top-5 candidates** — the five highest-probability alternatives the API reports alongside the sampled token, shown in the hover/tap card.
+- **Temperature** — a knob that reshapes the probability distribution before sampling; higher values flatten it toward more surprising choices, `0` collapses it to always picking the top candidate.
+- **Top-p** — nucleus sampling: keep only the smallest set of candidates whose probabilities sum past `p`, then sample from just that set.
+- **Presence penalty** — a flat penalty applied to any token already used in the reply, discouraging repetition regardless of how many times it has appeared.
+- **Perplexity** — `exp(-mean logprob)` over a reply's tokens; roughly, "how many plausible words was the model choosing among, on average."
+- **Prompt cache** — a provider-side cache that discounts input tokens the API has already seen in a recent, unchanged prefix of the same conversation.
+- **Tool call** — a structured request (a function name and JSON arguments) the model samples token by token instead of prose, which the app executes server-side and feeds back as a result.
+- **Training cutoff** — the date after which a model's training data stops; anything that happened later is simply not in its weights, no matter how confidently it answers.
 
-### Sampling controls
+### Using the controls
+
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them.
 
 | Control | Range | Default | Sent as |
 | --- | --- | --- | --- |
@@ -44,11 +47,16 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Exchanges replayed | `0`–`6`, step `1` | `0` | `messages` (last N exchanges + the newest message) |
 | Let it call a weather tool | on / off | off | `tools: true` (forces the JSON path) |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it repeatable** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same function draws the forgotten line, so the line and the payload can never disagree about the rule. The window is always measured back from the newest message in the transcript: right after a reply lands the line marks exactly what that request carried, and it steps down one exchange the moment you send again, because the message you just typed becomes the newest one. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on. With **Let it call a weather tool** on, the turn always takes the JSON path — the client skips streaming and the route ignores `stream`, because the first request ends in a tool call rather than in tokens. The **Stream the reply** switch is disabled while the tools switch is on and says why, so the panel can never show a setting the request is quietly ignoring.
+**Make it repeatable** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. The window for **Forget older turns** is always measured back from the newest message in the transcript: right after a reply lands the line marks exactly what that request carried, and it steps down one exchange the moment you send again, because the message you just typed becomes the newest one. With **Let it call a weather tool** on, the turn always takes the JSON path — the client skips streaming and the route ignores `stream`, because the first request ends in a tool call rather than in tokens. The **Stream the reply** switch is disabled while the tools switch is on and says why, so the panel can never show a setting the request is quietly ignoring.
+
+### Invariants
+
+Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same function draws the forgotten line, so the line and the payload can never disagree about the rule. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
 
 ## Stack
 
 - Next.js 13.5.11 pages router, React 18, CSS in `styles/globals.css`
+- `geist` — Geist Sans and Geist Mono, self-hosted via `next/font/local`
 - `gpt-tokenizer` for the composer’s `o200k_base` count, dynamically imported on first use so its ~1 MB table never enters the initial bundle
 - One serverless route: `POST /api/chat` (`maxDuration` 60), answering with JSON or an NDJSON stream. Not Edge, and not the Vercel AI Gateway — those paths drop logprobs.
 - OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3`
@@ -100,7 +108,9 @@ The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunki
 
 `next`, `@next/env`, and `eslint-config-next` are pinned to the exact `13.5.11`, and an `overrides` entry in `package.json` (`"minimatch@9": "^9.0.7"`) lifts the copy of `minimatch` that `@typescript-eslint` brings in past the 9.x ReDoS advisories, which are first patched in `9.0.7`. `npm audit` still reports two high findings — `next` itself and the `postcss` that comes in with it — and the only fix npm offers for either is a Next major, which would take the app off the 13.5 pages router it is built on. Those two are left in place on purpose: do not run `npm audit fix --force` here.
 
-## How a turn works
+## Internals
+
+### How a turn works
 
 `pages/api/chat.js` sends the conversation as chat messages. For assistant turns it uses only the **selected** tab’s text (`activeIndex`). It prepends a short system note asking for varied, concise wording, then calls:
 
@@ -117,7 +127,7 @@ The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunki
 
 The response is three completions plus `echoedMessages` (the literal array that was sent, for the disclosure) and `usage` (`prompt_tokens`, `completion_tokens`, `cached_tokens`, `model`, and the clamped `sampling` values). The client stores all three samples; later turns send only the locked-in one.
 
-### The tool loop
+#### The tool loop
 
 With **Let it call a weather tool** on, request 1 also carries a `tools` array with one function, `get_weather(location)`. The route then scans the three samples for the first one whose message carries `tool_calls` — not sample 0, and not `finish_reason`, because sampling is noisy enough that one sample can ask for the tool while another answers in text. When it finds one, it runs that sample's calls server-side and makes a second request: the same conversation plus the assistant's tool-call message and a `role: "tool"` result appended. If the model asks for more than one call in the same request — two cities, say — each one runs and each result goes back as its own tool message; only the first three calls are actually executed, and any call beyond that gets a skipped-error result instead of a fetch, so the model still sees one tool message per call it made. The second request keeps the tool schema in the prompt but sets `tool_choice` to `none`, so the model cannot ask again — the one-round cap is structural — and the two requests differ by exactly the tool call and its result, which is what the two staircase bars show. A tool turn draws one bar per request and numbers them `2a` and `2b` rather than collapsing into a single turn row; the second bar's baseline is its own first request, so the tool call and its result are what shows up as new.
 
@@ -125,7 +135,7 @@ Both rounds still ask for `n: 3`. The spike found all three samples asked for th
 
 `usage` sums both rounds, so the staircase and rate card stay honest about what the whole turn cost, and `usage.rounds` — present only when a turn took more than one request — carries the per-request split. That split is what the expandable usage line itemises (`N in · M out — first request, the one that ended in a tool call`), what the staircase splits into `2a` and `2b`, and what the rate-card copy means when it says the turn took two requests. `echoedMessages` is request 2's array, so the exact-request disclosure shows the tool result sitting in the prompt as new tokens. The disclosure also shows `echoedTools`, the `tools` array that rides beside the messages on every request while the switch is on — that block, not the system prompt, is how the model learns the `get_weather` function exists. Its label names the `tool_choice` the request carried, so request 2 reads `tool_choice: "none"` beside the schema it was forbidden to use. The tool exchange itself is never replayed — later turns resend the model's final sentence only, the same way any other assistant turn is echoed back. The weather lived in the context window for exactly one request.
 
-### Streaming
+#### Streaming
 
 With **Stream the reply** on — the default — the client posts `stream: true` and the route answers `application/x-ndjson`, one JSON object per line:
 
@@ -138,13 +148,13 @@ With **Stream the reply** on — the default — the client posts `stream: true`
 
 Deltas are batched into one React update per animation frame, and tokens stay inert until the reply settles — no hovering a card whose alternatives are still arriving. A stream that ends without `done` is finalized as an aborted turn: the partial text stays visible, marked as not part of the conversation, and it is never resent.
 
-## What gets saved
+### What gets saved
 
 The conversation lives in `localStorage` under `chatMessages`. To stay inside the browser’s quota, only the 20 newest successful turns keep their `top_logprobs`; older turns keep each token and its logprob but lose the alternatives, so the heatmap, underlines, tab statistics, and fork detection all survive a reload while the candidate list does not. When you open a card on one of those turns it says so and points you at Raw odds, which still works. Errored and aborted turns do not occupy one of the 20 slots, and recent ones keep their alternatives too — only errored turns older than the oldest kept successful turn are stripped. Refreshing mid-stream heals the interrupted turn into that same aborted note rather than leaving a reply that never finishes. A tool turn’s cards survive a reload intact — pruning only ever strips *alternatives*, so `toolCalls` and `toolResults` are never touched. The exact-request disclosure goes the other way: `echoedMessages` and the `echoedTools` block are kept for the newest turn only and dropped from the turn before it the moment you send again, because a stored copy of every request would dwarf the transcript.
 
 This 20-turn window is not the one **Forget older turns** moves. Storage pruning (`lib/persistence.js`) counts assistant turns and only ever drops *alternatives*; request truncation (`lib/contextWindow.js`) counts user turns and only ever drops *messages from the payload*. Neither one changes what the other does.
 
-## Project layout
+### Project layout
 
 | Path | Role |
 | --- | --- |
