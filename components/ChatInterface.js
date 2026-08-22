@@ -95,13 +95,18 @@ export default function ChatInterface() {
   }, []);
 
   // Abort any in-flight stream on unmount so a late chunk never lands on a gone component.
-  useEffect(() => () => {
-    unmountedRef.current = true;
-    abortRef.current?.abort();
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = 0;
-    }
+  // The flag must reset in the effect body: StrictMode's dev double-mount runs the cleanup
+  // once, and a latch that never clears would silently kill every finalize.
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      abortRef.current?.abort();
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    };
   }, []);
 
   const measureComposer = () => {
