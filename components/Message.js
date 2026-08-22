@@ -245,9 +245,9 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
               onClick={(e) => handleTokenClick(tp.token, idx, e)}
               onMouseLeave={handleTokenMouseLeave}
               onKeyDown={(e) => {
-                if (e.repeat) return;
                 if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.preventDefault();
+                e.preventDefault(); // before the repeat check: held Space must never scroll the page
+                if (e.repeat) return;
                 handleTokenClick(tp.token, idx, e);
               }}
             >
