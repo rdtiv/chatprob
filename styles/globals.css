@@ -676,7 +676,7 @@ main {
   cursor: not-allowed;
 }
 
-.fool-it-label {
+.prompt-chips-label {
   font-size: 0.72rem;
   color: #64748b;
   align-self: center;

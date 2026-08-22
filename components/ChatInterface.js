@@ -661,47 +661,26 @@ export default function ChatInterface() {
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
-              <div className="prompt-chips" aria-label="Starter prompts">
-                {STARTER_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    disabled={isLoading}
-                    onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-              <div className="prompt-chips" aria-label="Prompts that invite confident mistakes">
-                <span className="fool-it-label">Try to fool it:</span>
-                {FOOL_IT_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    disabled={isLoading}
-                    onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-              <div className="prompt-chips" aria-label="Prompts that seed a fact to forget">
-                <span className="fool-it-label">Give it a fact to remember:</span>
-                {MEMORY_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="prompt-chip"
-                    disabled={isLoading}
-                    onClick={() => sendMessage(prompt)}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+              {[
+                { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS },
+                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS },
+                { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS },
+              ].map(({ ariaLabel, label, prompts }) => (
+                <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
+                  {label && <span className="prompt-chips-label">{label}</span>}
+                  {prompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="prompt-chip"
+                      disabled={isLoading}
+                      onClick={() => sendMessage(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
           {messages.flatMap((message, index) => {
@@ -735,7 +714,7 @@ export default function ChatInterface() {
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];
             return [
-              <ForgottenDivider key="forgotten-divider" droppedCount={forgetting.cutoffIndex} />,
+              <ForgottenDivider key="forgotten-divider" messageCount={forgetting.cutoffIndex} />,
               node,
             ];
           })}
