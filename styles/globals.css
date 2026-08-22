@@ -864,7 +864,6 @@ main {
   margin-top: 4px;
 }
 
-.message-timestamp,
 .token-usage {
   line-height: 1;
   font-size: 0.65rem;
@@ -890,12 +889,6 @@ main {
   /* The panel must never set the bubble's width: containment keeps it out of the
      shrink-wrap measurement, so it fills wide bubbles and wraps in narrow ones. */
   contain: inline-size;
-}
-
-.user-message .message-timestamp {
-  margin-top: 2px;
-  line-height: 1;
-  font-size: 0.65rem;
 }
 
 .assistant-message {

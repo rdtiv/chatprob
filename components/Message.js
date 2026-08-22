@@ -332,11 +332,16 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             )}
           </div>
           {renderContent()}
-          {(message.timestamp || message.usage) && (
+          {(message.timing || message.usage || (role === 'user' && userChunks)) && (
             <div className="message-meta">
-              {message.timestamp && (
-                <span className="message-timestamp">
-                  {new Date(message.timestamp).toLocaleTimeString()}
+              {message.timing && (
+                <span
+                  className="token-usage message-timing"
+                  title={message.timing.streamed ? undefined : 'Nothing renders until the whole reply arrives, so the first token and the last arrive together.'}
+                >
+                  {message.timing.streamed
+                    ? `first token ${(message.timing.ttftMs / 1000).toFixed(1)}s · all replies ${(message.timing.totalMs / 1000).toFixed(1)}s`
+                    : `reply ${(message.timing.totalMs / 1000).toFixed(1)}s`}
                 </span>
               )}
               {role === 'user' && userChunks && (

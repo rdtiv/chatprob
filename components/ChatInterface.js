@@ -7,6 +7,7 @@ import SamplingPanel from './SamplingPanel';
 import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
+import { pruneForStorage } from '../lib/persistence';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -34,6 +35,7 @@ export default function ChatInterface() {
     presencePenalty: PENALTY_DEFAULT,
     boring: false,
     restoreTemperature: TEMP_DEFAULT,
+    stream: true,
   });
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
@@ -138,7 +140,7 @@ export default function ChatInterface() {
   useEffect(() => {
     if (!storageReady) return;
     try {
-      localStorage.setItem('chatMessages', JSON.stringify(messages));
+      localStorage.setItem('chatMessages', JSON.stringify(pruneForStorage(messages)));
     } catch (error) {
       console.error('Could not save chat:', error);
     }
@@ -156,6 +158,8 @@ export default function ChatInterface() {
     setCurrentMessage('');
     setIsLoading(true);
 
+    const startedAt = performance.now();
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -172,6 +176,7 @@ export default function ChatInterface() {
       if (!response.ok) throw new Error('Response was not ok');
       const data = await response.json();
       const first = data.completions?.[0];
+      const totalMs = Math.round(performance.now() - startedAt);
 
       setMessages(prev => [
         ...prev.map((item) => (
@@ -189,6 +194,7 @@ export default function ChatInterface() {
           sampling: data.usage?.sampling ?? null,
           sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+          timing: { ttftMs: totalMs, totalMs, streamed: false },
         },
       ]);
     } catch (error) {
