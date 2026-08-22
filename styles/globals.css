@@ -864,7 +864,6 @@ main {
   margin-top: 4px;
 }
 
-.message-timestamp,
 .token-usage {
   line-height: 1;
   font-size: 0.65rem;
@@ -873,6 +872,13 @@ main {
 
 .token-usage {
   font-variant-numeric: tabular-nums;
+}
+
+.message-aborted-note {
+  margin-top: 4px;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  color: #94a3b8;
 }
 
 .token-usage-summary { display: inline-flex; align-items: center; gap: 4px; }
@@ -890,12 +896,6 @@ main {
   /* The panel must never set the bubble's width: containment keeps it out of the
      shrink-wrap measurement, so it fills wide bubbles and wraps in narrow ones. */
   contain: inline-size;
-}
-
-.user-message .message-timestamp {
-  margin-top: 2px;
-  line-height: 1;
-  font-size: 0.65rem;
 }
 
 .assistant-message {
@@ -1262,7 +1262,9 @@ main {
 .request-echo-panel { margin-top: 6px; border: 1px solid #e5e7eb; border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .request-echo-message { margin: 0; padding: 6px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.66rem; line-height: 1.4; white-space: pre; }
 .request-echo-message.is-replayed { background-color: #ddd6fe; }
-.request-echo-message.is-new { background-color: rgba(109, 40, 217, 0.14); }
+/* Must sit clearly darker than the replayed #ddd6fe while keeping dark text readable —
+   the solid staircase #6d28d9 is too dark to type on. */
+.request-echo-message.is-new { background-color: rgba(109, 40, 217, 0.3); }
 .request-echo-note { margin: 6px 0 0; font-size: 0.66rem; line-height: 1.35; color: #64748b; }
 
 .sampling-panel {
@@ -1282,6 +1284,8 @@ main {
 .sampling-panel.is-popover {
   width: calc(100% - 32px);
   max-width: 320px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
 }
 
 .sampling-panel.is-sheet {
@@ -1384,6 +1388,22 @@ main {
   font-size: 0.68rem;
   line-height: 1.35;
   color: #64748b;
+}
+
+.sampling-section {
+  border-top: 1px solid #eaeaea;
+  margin-top: 6px;
+  padding-top: 4px;
+}
+
+.sampling-section-title {
+  margin: 0;
+  padding: 4px 16px 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Must stay after the .sampling-panel base rules: equal specificity, source order decides. */

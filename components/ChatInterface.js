@@ -7,6 +7,7 @@ import SamplingPanel from './SamplingPanel';
 import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
+import { pruneForStorage } from '../lib/persistence';
 
 const STARTER_PROMPTS = [
   'The best pizza topping is',
@@ -24,6 +25,14 @@ const COMPOSER_MAX_HEIGHT = 132; // keep in sync with .message-input max-height 
 
 const HOVER_HINT_KEY = 'chatprobHoverHintSeen';
 
+const SCROLL_SLOP = 48;
+
+const emptyCompletions = () => [
+  { text: '', tokenProbabilities: [] },
+  { text: '', tokenProbabilities: [] },
+  { text: '', tokenProbabilities: [] },
+];
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -34,6 +43,7 @@ export default function ChatInterface() {
     presencePenalty: PENALTY_DEFAULT,
     boring: false,
     restoreTemperature: TEMP_DEFAULT,
+    stream: true,
   });
   const [hoverHintVisible, setHoverHintVisible] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
@@ -43,10 +53,17 @@ export default function ChatInterface() {
   const [panelAnchor, setPanelAnchor] = useState({ x: 0, y: 0 });
   const panelId = useId();
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
   const tokenizerStartedRef = useRef(false);
   const samplingButtonRef = useRef(null);
+  const atBottomRef = useRef(true);
+  const nextScrollBehaviorRef = useRef('auto');
+  const abortRef = useRef(null);
+  const pendingRef = useRef(null);
+  const rafRef = useRef(0);
+  const unmountedRef = useRef(false);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
   const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
@@ -56,13 +73,41 @@ export default function ChatInterface() {
     document.title = 'ChatProb';
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Streaming flushes fire many times a second; only autoscroll while the user
+  // is already at (or near) the bottom, and only "smooth" right after a send.
   useEffect(() => {
-    scrollToBottom();
+    if (atBottomRef.current) scrollToBottom(nextScrollBehaviorRef.current);
+    nextScrollBehaviorRef.current = 'auto';
   }, [messages]);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return undefined;
+    const onScroll = () => {
+      atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_SLOP;
+    };
+    el.addEventListener('scroll', onScroll);
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Abort any in-flight stream on unmount so a late chunk never lands on a gone component.
+  // The flag must reset in the effect body: StrictMode's dev double-mount runs the cleanup
+  // once, and a latch that never clears would silently kill every finalize.
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      abortRef.current?.abort();
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    };
+  }, []);
 
   const measureComposer = () => {
     const el = composerRef.current;
@@ -108,7 +153,14 @@ export default function ChatInterface() {
       const savedMessages = localStorage.getItem('chatMessages');
       if (savedMessages) {
         const parsed = JSON.parse(savedMessages);
-        if (Array.isArray(parsed)) setMessages(parsed);
+        if (Array.isArray(parsed)) {
+          const healed = parsed.map((m) => {
+            if (!m?.isStreaming) return m;
+            const { isStreaming, ...rest } = m;
+            return { ...rest, error: true, aborted: true, usage: null, timing: null };
+          });
+          setMessages(healed);
+        }
       }
       setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
     } catch (error) {
@@ -137,8 +189,9 @@ export default function ChatInterface() {
 
   useEffect(() => {
     if (!storageReady) return;
+    if (messages.some((m) => m.isStreaming)) return;
     try {
-      localStorage.setItem('chatMessages', JSON.stringify(messages));
+      localStorage.setItem('chatMessages', JSON.stringify(pruneForStorage(messages)));
     } catch (error) {
       console.error('Could not save chat:', error);
     }
@@ -153,25 +206,36 @@ export default function ChatInterface() {
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString() };
     const conversation = [...messages, userMessage];
     setMessages(conversation);
+    atBottomRef.current = true;
+    nextScrollBehaviorRef.current = 'smooth';
     setCurrentMessage('');
     setIsLoading(true);
+
+    const startedAt = performance.now();
+    const requestBody = {
+      messages: conversation.filter((m) => !m.error),
+      temperature: snapshot.temperature,
+      top_p: snapshot.topP,
+      presence_penalty: snapshot.presencePenalty,
+      ...(snapshot.boring ? { seed: BORING_SEED } : {}),
+    };
+
+    if (snapshot.stream) {
+      await sendMessageStreaming(requestBody, snapshot, startedAt);
+      return;
+    }
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: conversation.filter((m) => !m.error),
-          temperature: snapshot.temperature,
-          top_p: snapshot.topP,
-          presence_penalty: snapshot.presencePenalty,
-          ...(snapshot.boring ? { seed: BORING_SEED } : {}),
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) throw new Error('Response was not ok');
       const data = await response.json();
       const first = data.completions?.[0];
+      const totalMs = Math.round(performance.now() - startedAt);
 
       setMessages(prev => [
         ...prev.map((item) => (
@@ -189,6 +253,7 @@ export default function ChatInterface() {
           sampling: data.usage?.sampling ?? null,
           sampledTemperature: data.usage?.sampling?.temperature ?? snapshot.temperature,
           echoedMessages: Array.isArray(data.echoedMessages) ? data.echoedMessages : null,
+          timing: { ttftMs: totalMs, totalMs, streamed: false },
         },
       ]);
     } catch (error) {
@@ -200,6 +265,186 @@ export default function ChatInterface() {
         timestamp: new Date().toISOString()
       }]);
     } finally {
+      inFlightRef.current = false;
+      setIsLoading(false);
+    }
+  };
+
+  const sendMessageStreaming = async (requestBody, snapshot, startedAt) => {
+    const provisionalTimestamp = new Date().toISOString();
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: '',
+        completions: emptyCompletions(),
+        activeIndex: 0,
+        timestamp: provisionalTimestamp,
+        usage: null,
+        isStreaming: true,
+      },
+    ]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let ttftMs = null;
+    let metaEchoedMessages = null;
+    let metaSampling = null;
+    let doneUsage = null;
+    let receivedDone = false;
+    let streamErrorMessage = null;
+
+    const cancelPendingFrame = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    };
+
+    // Applies the pending batch in ONE functional update that rebuilds only the
+    // last (streaming) message, so every other message keeps its identity and
+    // React.memo skips them — this is what keeps hundreds of deltas cheap.
+    const flushDeltas = () => {
+      rafRef.current = 0;
+      const batch = pendingRef.current;
+      pendingRef.current = null;
+      if (!batch) return;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last?.isStreaming) return prev;
+        const completions = last.completions.map((c, i) => {
+          const p = batch.byIndex[i];
+          if (!p || (!p.text && p.tokens.length === 0)) return c;
+          return { text: c.text + p.text, tokenProbabilities: [...c.tokenProbabilities, ...p.tokens] };
+        });
+        return [...prev.slice(0, -1), { ...last, content: completions[0].text, completions }];
+      });
+    };
+
+    const queueDelta = (index, text, tokens) => {
+      if (!pendingRef.current) pendingRef.current = { byIndex: emptyCompletions().map(() => ({ text: '', tokens: [] })) };
+      const slot = pendingRef.current.byIndex[index];
+      if (!slot) return;
+      slot.text += text;
+      if (tokens.length) slot.tokens.push(...tokens);
+      if (!rafRef.current) rafRef.current = requestAnimationFrame(flushDeltas);
+    };
+
+    const finalizeSuccess = () => {
+      if (unmountedRef.current) return;
+      cancelPendingFrame();
+      flushDeltas();
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last) return prev;
+        const completions = (last.completions || []).map((c) => ({ ...c, text: c.text.trim() }));
+        const finalMessage = {
+          role: 'assistant',
+          content: completions[0]?.text ?? '',
+          completions,
+          activeIndex: 0,
+          timestamp: provisionalTimestamp,
+          usage: doneUsage,
+          sampling: doneUsage?.sampling ?? metaSampling ?? null,
+          sampledTemperature: doneUsage?.sampling?.temperature ?? snapshot.temperature,
+          echoedMessages: metaEchoedMessages ?? null,
+          timing: { ttftMs, totalMs: Math.round(performance.now() - startedAt), streamed: true },
+        };
+        return [
+          ...prev.slice(0, -1).map((item) => (
+            item.role === 'assistant' && item.echoedMessages
+              ? { ...item, echoedMessages: undefined }
+              : item
+          )),
+          finalMessage,
+        ];
+      });
+    };
+
+    const finalizeAborted = () => {
+      if (unmountedRef.current) return;
+      cancelPendingFrame();
+      flushDeltas();
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last) return prev;
+        const { isStreaming, ...partialFlushed } = last;
+        const completions = (partialFlushed.completions || []).map((c) => ({ ...c, text: c.text.trim() }));
+        return [
+          ...prev.slice(0, -1).map((item) => (
+            item.role === 'assistant' && item.echoedMessages
+              ? { ...item, echoedMessages: undefined }
+              : item
+          )),
+          {
+            ...partialFlushed,
+            completions,
+            content: completions[0]?.text ?? '',
+            error: true,
+            aborted: true,
+            usage: null,
+            timing: null,
+            ...(streamErrorMessage ? { abortReason: streamErrorMessage } : {}),
+          },
+        ];
+      });
+    };
+
+    const handleEvent = (event) => {
+      if (event.type === 'meta') {
+        metaEchoedMessages = Array.isArray(event.echoedMessages) ? event.echoedMessages : null;
+        metaSampling = event.sampling ?? null;
+      } else if (event.type === 'delta') {
+        if (ttftMs == null) ttftMs = Math.round(performance.now() - startedAt);
+        queueDelta(event.index, event.text || '', event.tokens || []);
+      } else if (event.type === 'done') {
+        doneUsage = event.usage ?? null;
+        receivedDone = true;
+      } else if (event.type === 'error') {
+        // receivedDone stays false so the post-loop check finalizes as aborted,
+        // but the server's reason must survive — a rate-limited key is not
+        // "the connection dropped".
+        if (typeof event.message === 'string' && event.message) {
+          streamErrorMessage = event.message;
+        }
+      }
+    };
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...requestBody, stream: true }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) throw new Error('Response was not ok');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });   // stream:true is MANDATORY (multibyte chars straddle chunks)
+        const lines = buffer.split('\n');
+        buffer = lines.pop();                                 // keep trailing partial line
+        for (const line of lines) {
+          if (line.trim()) handleEvent(JSON.parse(line));
+        }
+      }
+
+      const tail = buffer.trim();
+      if (tail) { try { handleEvent(JSON.parse(tail)); } catch { /* incomplete tail — ignored */ } }
+
+      if (receivedDone) finalizeSuccess();
+      else finalizeAborted();
+    } catch (error) {
+      if (error.name !== 'AbortError') console.error('Error:', error);
+      finalizeAborted();
+    } finally {
+      abortRef.current = null;
       inFlightRef.current = false;
       setIsLoading(false);
     }
@@ -234,11 +479,20 @@ export default function ChatInterface() {
   }, []);
 
   const clearChat = () => {
+    // A stream may be in flight — abort it or the emptied chat keeps the
+    // typing dots and disabled composer until the full completion is billed.
+    abortRef.current?.abort();
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    pendingRef.current = null;
     setMessages([]);
     localStorage.removeItem('chatMessages');
   };
 
   const firstHintableIndex = messages.findIndex((item) => (
+    !item.isStreaming &&
     item.role === 'assistant' &&
     item.completions?.some((completion) => completion.tokenProbabilities?.length)
   ));
@@ -388,7 +642,7 @@ export default function ChatInterface() {
             </div>
           </div>
         )}
-        <div className="messages-container">
+        <div className="messages-container" ref={messagesContainerRef}>
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
@@ -450,7 +704,7 @@ export default function ChatInterface() {
             />
             );
           })}
-          {isLoading && (
+          {isLoading && !messages.some((m) => m.isStreaming && m.completions?.[0]?.tokenProbabilities?.length) && (
             <div style={{
               display: 'flex',
               justifyContent: 'flex-start',

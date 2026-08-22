@@ -40,6 +40,7 @@ const getBackgroundColor = (tokenData) => {
 
 function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer }) {
   const { role, completions, activeIndex = 0, content } = message;
+  const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
   const [pinned, setPinned] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -61,13 +62,18 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     return tokenizeForDisplay(tokenizer, content).chunks;
   }, [role, tokenizer, content]);
 
-  const forkIndex = useMemo(
-    () => (role === 'assistant' ? findForkIndex(completions) : -1),
-    [role, completions]
+  // Both memos short-circuit while streaming: completions gets a fresh identity
+  // every rAF flush, and neither result is consumed until the reply settles.
+  const forkIndexMemo = useMemo(
+    () => (role === 'assistant' && !isStreaming ? findForkIndex(completions) : -1),
+    [role, isStreaming, completions]
   );
+  // Force no-fork while streaming: every span keys as a stable p{idx} so no
+  // is-after-fork crossfade fires mid-stream.
+  const forkIndex = isStreaming ? -1 : forkIndexMemo;
   const tabStats = useMemo(
-    () => (Array.isArray(completions) ? completions.map(completionStats) : []),
-    [completions]
+    () => (Array.isArray(completions) && !isStreaming ? completions.map(completionStats) : []),
+    [isStreaming, completions]
   );
   const comparedCount = useMemo(
     () => (Array.isArray(completions)
@@ -221,6 +227,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     const { text, tokenProbabilities } = activeCompletion;
     
     if (!tokenProbabilities || tokenProbabilities.length === 0) {
+      if (isStreaming) return <div className="message-text" />;
       return <div className="message-text">{text || content || 'No response available'}</div>;
     }
     
@@ -232,24 +239,27 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
           const backgroundColor = getBackgroundColor(tp);
           const percentage = sampledPercentage(tp);
           const band = confidenceBand(percentage);
+          const interactiveProps = isStreaming ? {} : {
+            role: 'button',
+            tabIndex: 0,
+            'aria-expanded': hoveredToken?.index === idx,
+            onMouseEnter: (e) => handleTokenMouseEnter(tp.token, idx, e),
+            onClick: (e) => handleTokenClick(tp.token, idx, e),
+            onMouseLeave: handleTokenMouseLeave,
+            onKeyDown: (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+              e.preventDefault(); // before the repeat check: held Space must never scroll the page
+              if (e.repeat) return;
+              handleTokenClick(tp.token, idx, e);
+            },
+          };
           return (
             <span
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
               className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={{ backgroundColor }}
-              role="button"
-              tabIndex={0}
-              aria-expanded={hoveredToken?.index === idx}
-              onMouseEnter={(e) => handleTokenMouseEnter(tp.token, idx, e)}
-              onClick={(e) => handleTokenClick(tp.token, idx, e)}
-              onMouseLeave={handleTokenMouseLeave}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-                e.preventDefault(); // before the repeat check: held Space must never scroll the page
-                if (e.repeat) return;
-                handleTokenClick(tp.token, idx, e);
-              }}
+              {...interactiveProps}
             >
               {tp.token}
             </span>
@@ -260,7 +270,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   };
   
   return (
-    <div className={`message ${role}-message`} ref={rootRef}>
+    <div className={`message ${role}-message`} ref={rootRef} aria-busy={isStreaming ? 'true' : undefined}>
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">
@@ -285,16 +295,16 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                         type="button"
                         role="tab"
                         aria-selected={index === safeIndex}
-                        disabled={tabsLocked}
+                        disabled={tabsLocked || isStreaming}
                         className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
-                        title={tabsLocked ? 'This reply is locked into the conversation' : parts.join(' · ')}
+                        title={tabsLocked ? 'This reply is locked into the conversation' : isStreaming ? undefined : parts.join(' · ')}
                         onClick={(e) => {
                           e.currentTarget.focus();
                           handleSelect(index);
                         }}
                       >
                         <span className="completion-tab-number">{index + 1}</span>
-                        {stats?.confidence != null && (
+                        {!isStreaming && stats?.confidence != null && (
                           <span
                             className="completion-tab-dot"
                             aria-hidden="true"
@@ -332,11 +342,29 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             )}
           </div>
           {renderContent()}
-          {(message.timestamp || message.usage) && (
+          {message.aborted && (
+            <div className="message-aborted-note">
+              {(message.abortReason ? message.abortReason.replace(/\.*$/, '.') : 'The connection dropped partway.')}
+              {' '}
+              {content ? 'This partial reply is not part of the conversation.' : 'No reply arrived.'}
+            </div>
+          )}
+          {(message.timing || message.usage || (role === 'user' && userChunks)) && (
             <div className="message-meta">
-              {message.timestamp && (
-                <span className="message-timestamp">
-                  {new Date(message.timestamp).toLocaleTimeString()}
+              {message.timing && (
+                <span
+                  className="token-usage message-timing"
+                  title={message.timing.streamed ? undefined : 'Nothing renders until the whole reply arrives, so the first token and the last arrive together.'}
+                >
+                  {(() => {
+                    const b = (message.timing.totalMs / 1000).toFixed(1);
+                    if (!message.timing.streamed) return `reply ${b}s`;
+                    // A stream can reach done with zero deltas (e.g. a content
+                    // filter) — no first token existed, so don't invent "0.0s".
+                    if (message.timing.ttftMs == null) return `reply ${b}s · streamed`;
+                    const a = (message.timing.ttftMs / 1000).toFixed(1);
+                    return a === b ? `reply ${b}s · streamed` : `first token ${a}s · all replies ${b}s`;
+                  })()}
                 </span>
               )}
               {role === 'user' && userChunks && (
@@ -405,6 +433,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
             selectedLogprob={tokenData?.logprob}
             sampledTemperature={typeof message.sampledTemperature === 'number' ? message.sampledTemperature : null}
             forkNote={forkIndex >= 0 && hoveredToken.index === forkIndex ? forkNoteCopy : null}
+            alternativesUnavailable={Boolean(completions?.[safeIndex]?.alternativesPruned)}
             onDismiss={closeCard}
             onMouseEnter={() => clearTimeout(hoverTimeoutRef.current)}
             onMouseLeave={handleTokenMouseLeave}
