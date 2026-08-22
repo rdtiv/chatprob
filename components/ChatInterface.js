@@ -293,6 +293,7 @@ export default function ChatInterface() {
     let metaSampling = null;
     let doneUsage = null;
     let receivedDone = false;
+    let streamErrorMessage = null;
 
     const cancelPendingFrame = () => {
       if (rafRef.current) {
@@ -384,6 +385,7 @@ export default function ChatInterface() {
             aborted: true,
             usage: null,
             timing: null,
+            ...(streamErrorMessage ? { abortReason: streamErrorMessage } : {}),
           },
         ];
       });
@@ -399,9 +401,14 @@ export default function ChatInterface() {
       } else if (event.type === 'done') {
         doneUsage = event.usage ?? null;
         receivedDone = true;
+      } else if (event.type === 'error') {
+        // receivedDone stays false so the post-loop check finalizes as aborted,
+        // but the server's reason must survive — a rate-limited key is not
+        // "the connection dropped".
+        if (typeof event.message === 'string' && event.message) {
+          streamErrorMessage = event.message;
+        }
       }
-      // 'error' needs no extra bookkeeping: receivedDone stays false and the
-      // stream ends right after, so the post-loop check finalizes as aborted.
     };
 
     try {
@@ -472,6 +479,14 @@ export default function ChatInterface() {
   }, []);
 
   const clearChat = () => {
+    // A stream may be in flight — abort it or the emptied chat keeps the
+    // typing dots and disabled composer until the full completion is billed.
+    abortRef.current?.abort();
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    pendingRef.current = null;
     setMessages([]);
     localStorage.removeItem('chatMessages');
   };

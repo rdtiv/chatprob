@@ -62,16 +62,18 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     return tokenizeForDisplay(tokenizer, content).chunks;
   }, [role, tokenizer, content]);
 
+  // Both memos short-circuit while streaming: completions gets a fresh identity
+  // every rAF flush, and neither result is consumed until the reply settles.
   const forkIndexMemo = useMemo(
-    () => (role === 'assistant' ? findForkIndex(completions) : -1),
-    [role, completions]
+    () => (role === 'assistant' && !isStreaming ? findForkIndex(completions) : -1),
+    [role, isStreaming, completions]
   );
   // Force no-fork while streaming: every span keys as a stable p{idx} so no
   // is-after-fork crossfade fires mid-stream.
   const forkIndex = isStreaming ? -1 : forkIndexMemo;
   const tabStats = useMemo(
-    () => (Array.isArray(completions) ? completions.map(completionStats) : []),
-    [completions]
+    () => (Array.isArray(completions) && !isStreaming ? completions.map(completionStats) : []),
+    [isStreaming, completions]
   );
   const comparedCount = useMemo(
     () => (Array.isArray(completions)
@@ -341,7 +343,11 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
           </div>
           {renderContent()}
           {message.aborted && (
-            <div className="message-aborted-note">The connection dropped partway. This partial reply is not part of the conversation.</div>
+            <div className="message-aborted-note">
+              {(message.abortReason ? message.abortReason.replace(/\.*$/, '.') : 'The connection dropped partway.')}
+              {' '}
+              {content ? 'This partial reply is not part of the conversation.' : 'No reply arrived.'}
+            </div>
           )}
           {(message.timing || message.usage || (role === 'user' && userChunks)) && (
             <div className="message-meta">
@@ -351,9 +357,12 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                   title={message.timing.streamed ? undefined : 'Nothing renders until the whole reply arrives, so the first token and the last arrive together.'}
                 >
                   {(() => {
-                    const a = (message.timing.ttftMs / 1000).toFixed(1);
                     const b = (message.timing.totalMs / 1000).toFixed(1);
                     if (!message.timing.streamed) return `reply ${b}s`;
+                    // A stream can reach done with zero deltas (e.g. a content
+                    // filter) — no first token existed, so don't invent "0.0s".
+                    if (message.timing.ttftMs == null) return `reply ${b}s · streamed`;
+                    const a = (message.timing.ttftMs / 1000).toFixed(1);
                     return a === b ? `reply ${b}s · streamed` : `first token ${a}s · all replies ${b}s`;
                   })()}
                 </span>

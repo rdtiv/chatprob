@@ -132,8 +132,10 @@ export default async function handler(req, res) {
         }
 
         let usage = null;
+        let servedModel = null;
         for await (const chunk of stream) {
           if (aborted) break;
+          if (chunk.model) servedModel = chunk.model;
           if (chunk.usage) usage = chunk.usage;
           for (const choice of chunk.choices || []) {
             const tokens = (choice.logprobs?.content || []).map(toTokenProbability);
@@ -150,7 +152,8 @@ export default async function handler(req, res) {
               prompt_tokens: usage?.prompt_tokens ?? null,
               completion_tokens: usage?.completion_tokens ?? null,
               cached_tokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
-              model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+              // Prefer the served model id, like the non-streaming path does.
+              model: servedModel || process.env.OPENAI_MODEL || 'gpt-4o-mini',
               sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
             },
           });
