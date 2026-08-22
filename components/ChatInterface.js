@@ -25,19 +25,18 @@ const STARTER_PROMPTS = [
   "What's the weather in Denver right now?",
 ];
 
-// A chip only teaches if BOTH hold: the model is confidently wrong, AND the
-// reader can see it is wrong without looking anything up. Fabricated treaties
-// and studies score highest on the first and fail the second — nobody knows
-// whether the document was real, so the green means nothing to them.
-// scripts/foolit-pressure-test.mjs scores candidates on both. This one is the
-// only survivor of ten: wrong in 3 of 3 samples at 84% mean token probability
-// (85% of tokens green), and checkable in your head — the brothers' two
-// sisters are Sally plus one, so the answer is 1, not 2. gpt-4o-mini now
-// solves every other classic (bat-and-ball, 9.11 vs 9.9, the sheep, spelling
-// backwards) at 95-100% confidence.
-const FOOL_IT_PROMPTS = [
-  'Sally has 3 brothers. Each brother has 2 sisters. How many sisters does Sally have?',
-];
+// Confident judgement, not a wrong fact: ranking the three financial
+// statements has no single right answer, and the model ranks them anyway in
+// bright green. The pair below is the lesson — same three items, same
+// question, only the sentence shape moves. Measured over 18 samples with
+// scripts/phrasing-flip-check.mjs: listed first, the cash flow statement is
+// ranked #1 in 9 of 9 samples; asked at the end, the income statement is #1 in
+// 7 of 9. Both wordings answer at ~81% mean token probability with no hedging,
+// so what the visitor sees is two confident, incompatible answers.
+const JUDGMENT_PROMPT = 'Rank in order of importance: income statement, balance sheet, cash flow statement.';
+const JUDGMENT_REPHRASED = 'Income statement, balance sheet, cash flow statement. Rank them in order of importance.';
+
+const JUDGMENT_PROMPTS = [JUDGMENT_PROMPT];
 
 const MEMORY_PROMPTS = [
   'My name is Ada. Remember it.',
@@ -649,6 +648,8 @@ export default function ChatInterface() {
   let followup = null;
   if (replyLanded && !followupsUsed.memory && lastUser?.source === 'chip-memory') {
     followup = { kind: 'memory', label: 'Now make it forget' };
+  } else if (replyLanded && !followupsUsed.judgment && lastUser?.source === 'chip-judgment') {
+    followup = { kind: 'judgment', label: 'Now ask it the other way round' };
   } else if (replyLanded && !followupsUsed.tools && !sampling.tools && !replyUsedTool &&
              mentionsWeather(lastUser?.content)) {
     followup = { kind: 'tools', label: 'Now give it the tool' };
@@ -854,7 +855,7 @@ export default function ChatInterface() {
               <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
                 { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter', hint: null },
-                { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool', hint: 'then look at how green the wrong answer is' },
+                { ariaLabel: 'A prompt with no single right answer', label: 'Ask it for a judgment call:', prompts: JUDGMENT_PROMPTS, source: 'chip-judgment', hint: 'no right answer — watch how certain it sounds anyway' },
                 { ariaLabel: 'Prompts that seed a fact to forget', label: 'Give it a fact to remember:', prompts: MEMORY_PROMPTS, source: 'chip-memory', hint: 'then open Controls → Forget older turns, and ask "What is my name?"' },
               ].map(({ ariaLabel, label, prompts, source, hint }) => (
                 <div key={ariaLabel} className="prompt-chips" aria-label={ariaLabel}>
@@ -936,6 +937,10 @@ export default function ChatInterface() {
                 if (followup.kind === 'memory') {
                   setSampling((s) => ({ ...s, keepTurns: 0 }));
                   sendMessage('What is my name?', 'chip-memory', { keepTurns: 0 });
+                } else if (followup.kind === 'judgment') {
+                  // Nothing changes but the word order of the question, which
+                  // is the point: the ranking moves anyway.
+                  sendMessage(JUDGMENT_REPHRASED, 'chip-judgment-flip');
                 } else {
                   // Same question, tool in hand: the two replies sit next to
                   // each other in the transcript, which is the whole lesson.
