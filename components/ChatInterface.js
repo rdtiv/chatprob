@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
 import Message from './Message';
-import ConversationExplainer from './ConversationExplainer';
+import ConversationExplainer, { CostFooter } from './ConversationExplainer';
 import PromptStaircase from './PromptStaircase';
 import RequestEcho from './RequestEcho';
 import SamplingPanel from './SamplingPanel';
@@ -11,6 +11,7 @@ import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../li
 import { pruneForStorage } from '../lib/persistence';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
+import { formatTokenSummary } from '../lib/usage';
 import { needsCutoffNote } from '../lib/cutoffRelevance';
 
 const STARTER_PROMPTS = [
@@ -578,6 +579,7 @@ export default function ChatInterface() {
   const lastIn = roundPrompt(lastAssistant, 'first');
   const prevIn = roundPrompt(prevAssistant, 'first');
   const toolRoundIn = lastAssistant?.usage?.rounds?.length > 1 ? roundPrompt(lastAssistant, 'last') : null;
+  const sentThisTurn = formatTokenSummary(lastAssistant?.usage) ?? '—';
 
   const forgetting = useMemo(
     () => buildOutboundMessages(messages, sampling.keepTurns),
@@ -692,7 +694,7 @@ export default function ChatInterface() {
           <span className="legend-honesty">Green means expected, not true.</span>
         </div>
         {sessionBilled > 0 && (
-          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`}>
+          <div className={`conversation-lesson${lessonOpen ? ' is-open' : ''}`} data-lesson="cost">
             <button
               type="button"
               className="conversation-lesson-summary"
@@ -702,12 +704,12 @@ export default function ChatInterface() {
             >
               <div className="conversation-lesson-metrics">
                 <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Prompt this turn</span>
-                  <span className="conversation-lesson-values">{inSeries.join(' → ')} in</span>
+                  <span className="conversation-lesson-label">Sent this turn</span>
+                  <span className="conversation-lesson-values">{sentThisTurn}</span>
                 </div>
                 <div className="conversation-lesson-row">
-                  <span className="conversation-lesson-label">Paid so far</span>
-                  <span className="conversation-lesson-values">{sessionSeries.join(' → ')} billed</span>
+                  <span className="conversation-lesson-label">Conversation so far</span>
+                  <span className="conversation-lesson-values">{sessionBilled.toLocaleString()} tokens</span>
                 </div>
               </div>
               <span className="conversation-lesson-toggle">
@@ -717,9 +719,13 @@ export default function ChatInterface() {
             </button>
             <div id="conversation-lesson-body" className="conversation-lesson-body">
               <PromptStaircase messages={messages} />
+              <CostFooter
+                messages={messages}
+                lastAssistant={lastAssistant}
+                sessionBilled={sessionBilled}
+              />
               <ConversationExplainer
                 inSeries={inSeries}
-                sessionSeries={sessionSeries}
                 lastAssistant={lastAssistant}
                 messages={messages}
                 droppedMessages={forgetting.cutoffIndex}
@@ -740,7 +746,7 @@ export default function ChatInterface() {
         <div className="messages-container" ref={messagesContainerRef}>
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
-              <ConversationExplainer inSeries={[]} sessionSeries={[]} lastAssistant={null} />
+              <ConversationExplainer inSeries={[]} lastAssistant={null} />
               {[
                 { ariaLabel: 'Starter prompts', label: null, prompts: STARTER_PROMPTS, source: 'chip-starter' },
                 { ariaLabel: 'Prompts that invite confident mistakes', label: 'Try to fool it:', prompts: FOOL_IT_PROMPTS, source: 'chip-fool' },
