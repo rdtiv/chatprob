@@ -650,7 +650,7 @@ export default function ChatInterface() {
                 sessionSeries={sessionSeries}
                 lastAssistant={lastAssistant}
                 messages={messages}
-                droppedMessages={forgetting.droppedCount}
+                droppedMessages={forgetting.cutoffIndex}
                 keepTurns={sampling.keepTurns}
               />
               <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
@@ -735,7 +735,7 @@ export default function ChatInterface() {
             );
             if (!forgetting.truncated || index !== forgetting.cutoffIndex) return [node];
             return [
-              <ForgottenDivider key="forgotten-divider" droppedCount={forgetting.droppedCount} />,
+              <ForgottenDivider key="forgotten-divider" droppedCount={forgetting.cutoffIndex} />,
               node,
             ];
           })}

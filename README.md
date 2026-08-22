@@ -37,10 +37,10 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 | Top-p | `0.05`–`1`, step `0.05` | `1` | `top_p` (server floor `0.01`) |
 | Presence penalty | `-2`–`2`, step `0.05` | `0.45` | `presence_penalty` |
 | Make it boring | on / off | off | `temperature: 0` plus `seed: 7` |
-| Forget older turns | on / off | off | trims the client's `messages` array |
-| Turns replayed | `0`–`6`, step `1` | `2` | last N exchanges plus the newest message |
+| Forget older turns | on / off | off | `messages` (trimmed before sending) |
+| Turns replayed | `0`–`6`, step `1` | `2` | `messages` (last N exchanges + the newest message) |
 
-Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same call places the forgotten line in the transcript, so the divider, the exact-request disclosure, and the prompt staircase cannot disagree.
+Bounds live in `lib/sampling.js` and the API route clamps to the same bounds (top-p's server floor is the documented `0.01`), so a hand-rolled request cannot get past them. **Make it boring** disables the temperature slider while it is on and restores your previous value when you switch it off. Its copy promises replies that come back *nearly* identical — OpenAI’s seed is best-effort, not a guarantee, and the UI does not pretend otherwise. Truncation is purely client-side — `lib/contextWindow.js` decides what leaves the browser, and the same call places the forgotten line in the transcript, so what the line claims about the *next* request always matches what will actually be sent. The exact-request disclosure and the prompt staircase are records of past requests: move the slider after a reply lands and the line updates immediately while those records keep showing what each earlier request really contained — which is exactly the honesty the lesson depends on.
 
 ## Stack
 
