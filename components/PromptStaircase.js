@@ -2,8 +2,11 @@ import { useMemo, memo } from 'react';
 
 function PromptStaircase({ messages }) {
   const rows = useMemo(() => {
-    let prevPrompt = null;
-    let turn = 0;
+    // Baseline for each turn's FIRST row: the previous TURN's first-round
+    // prompt — what actually gets replayed (the tool exchange itself never
+    // is; later turns resend only the model's final text).
+    let prevTurnFirstPrompt = null;
+    let turnNumber = 0;
     const built = [];
 
     // A tool turn is two requests, not one — expand its usage.rounds into two
@@ -17,18 +20,27 @@ function PromptStaircase({ messages }) {
         ? rounds.map((round) => ({ prompt: round.prompt_tokens, cached: round.cached_tokens }))
         : [{ prompt: item.usage.prompt_tokens, cached: item.usage.cached_tokens }];
 
+      turnNumber += 1;
+      let turnFirstPrompt = null;
+
       entries.forEach((entry, roundIndex) => {
-        turn += 1;
         const prompt = entry.prompt;
-        const replayed = prevPrompt ?? 0;
+        // A tool turn's SECOND row compares against its own first row — the
+        // tool call and its result are the new tokens for that request, not
+        // anything carried over from an earlier turn.
+        const replayed = roundIndex === 0 ? (prevTurnFirstPrompt ?? 0) : (turnFirstPrompt ?? 0);
         const rawCached = Number.isFinite(entry.cached) ? entry.cached : 0;
         const cached = Math.min(Math.max(rawCached, 0), prompt);
-        const replayedUncached = Math.max(0, replayed - cached);
+        // Clamped to [0, prompt - cached] so a bar never overflows when the
+        // prompt shrinks between requests (tools toggled off, truncation).
+        const replayedUncached = Math.max(0, Math.min(replayed - cached, prompt - cached));
         const added = Math.max(0, prompt - cached - replayedUncached);
 
         built.push({
-          key: `${item.timestamp ?? turn - 1}:${roundIndex}`,
-          turn,
+          key: `${item.timestamp ?? turnNumber}:${roundIndex}`,
+          turn: turnNumber,
+          roundIndex,
+          roundsCount: entries.length,
           prompt,
           replayed,
           replayedUncached,
@@ -36,8 +48,10 @@ function PromptStaircase({ messages }) {
           added,
         });
 
-        prevPrompt = prompt;
+        if (roundIndex === 0) turnFirstPrompt = prompt;
       });
+
+      prevTurnFirstPrompt = turnFirstPrompt;
     });
 
     return built;
@@ -57,7 +71,15 @@ function PromptStaircase({ messages }) {
     if (row.cached > 0) ariaParts.push(`${row.cached} from cache`);
     if (row.replayedUncached > 0) ariaParts.push(`${row.replayedUncached} resent`);
     if (row.added > 0) ariaParts.push(`${row.added} new`);
-    const ariaLabel = `Turn ${row.turn}: ${row.prompt} tokens in${ariaParts.length ? ` — ${ariaParts.join(', ')}` : ''}`;
+    const detail = ariaParts.length ? ` — ${ariaParts.join(', ')}` : '';
+    // A multi-round turn (tool loop) numbers its rows with a letter suffix
+    // (2a, 2b) and its aria label calls out which request of how many this
+    // is; a single-round turn keeps the plain number and existing aria.
+    const isMultiRound = row.roundsCount > 1;
+    const turnLabel = isMultiRound ? `${row.turn}${String.fromCharCode(97 + row.roundIndex)}` : `${row.turn}`;
+    const ariaLabel = isMultiRound
+      ? `Turn ${row.turn}, request ${row.roundIndex + 1} of ${row.roundsCount}: ${row.prompt} tokens in${detail}`
+      : `Turn ${row.turn}: ${row.prompt} tokens in${detail}`;
 
     return {
       ...row,
@@ -66,6 +88,7 @@ function PromptStaircase({ messages }) {
       replayedPct,
       newPct,
       ariaLabel,
+      turnLabel,
       label: `${row.prompt} in`,
     };
   });
@@ -85,7 +108,7 @@ function PromptStaircase({ messages }) {
       <ol className="prompt-staircase-rows">
         {finalRows.map((row) => (
           <li key={row.key} className="prompt-staircase-row" aria-label={row.ariaLabel}>
-            <span className="prompt-staircase-turn">{row.turn}</span>
+            <span className="prompt-staircase-turn">{row.turnLabel}</span>
             <span className="prompt-staircase-bar" style={{ width: `${row.widthPct}%` }} aria-hidden="true">
               {row.cached > 0 && <span className="prompt-staircase-seg is-cached" style={{ width: `${row.cachedPct}%` }} />}
               {row.replayedUncached > 0 && <span className="prompt-staircase-seg is-replayed" style={{ width: `${row.replayedPct}%` }} />}

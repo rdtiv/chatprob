@@ -40,11 +40,20 @@ const emptyCompletions = () => [
   { text: '', tokenProbabilities: [] },
 ];
 
-// A tool turn is two requests. For cost we sum them; for "what was replayed
-// and what is new" the honest comparison is round to round: this turn's FIRST
-// request against the previous turn's LAST one.
-const firstRoundPrompt = (item) => item.usage?.rounds?.[0]?.prompt_tokens ?? item.usage?.prompt_tokens;
-const lastRoundPrompt = (item) => item.usage?.rounds?.[(item.usage?.rounds?.length ?? 1) - 1]?.prompt_tokens ?? item.usage?.prompt_tokens;
+// A tool turn is two requests, but the tool exchange itself is never
+// replayed — later turns resend only the model's final text, the same way
+// any other assistant turn is echoed back. So "what was replayed" always
+// compares FIRST request to FIRST request, turn to turn. `which` picks the
+// first or last round of a multi-round turn; an ordinary turn has only one
+// round, which serves as both.
+const roundPrompt = (item, which) => {
+  const rounds = item?.usage?.rounds;
+  if (Array.isArray(rounds) && rounds.length > 1) {
+    const r = which === 'first' ? rounds[0] : rounds[rounds.length - 1];
+    return Number.isFinite(r?.prompt_tokens) ? r.prompt_tokens : null;
+  }
+  return item?.usage?.prompt_tokens ?? null;
+};
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -245,11 +254,15 @@ export default function ChatInterface() {
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
 
       if (!response.ok) throw new Error('Response was not ok');
@@ -281,6 +294,10 @@ export default function ChatInterface() {
         },
       ]);
     } catch (error) {
+      // Clear-chat aborts an in-flight tools turn; the fetch rejects with
+      // AbortError and there is no message to append — the chat was emptied
+      // on purpose, so no error bubble and nothing to persist.
+      if (error.name === 'AbortError') return;
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -289,6 +306,7 @@ export default function ChatInterface() {
         timestamp: new Date().toISOString()
       }]);
     } finally {
+      abortRef.current = null;
       inFlightRef.current = false;
       setIsLoading(false);
     }
@@ -540,24 +558,34 @@ export default function ChatInterface() {
       turnCount += 1;
       const rounds = Array.isArray(item.usage.rounds) && item.usage.rounds.length > 1 ? item.usage.rounds : null;
       if (rounds) {
-        rounds.forEach((round) => inSeries.push(round.prompt_tokens));
+        rounds.forEach((round) => inSeries.push(Number.isFinite(round?.prompt_tokens) ? round.prompt_tokens : null));
       } else {
-        inSeries.push(item.usage.prompt_tokens);
+        inSeries.push(Number.isFinite(item.usage.prompt_tokens) ? item.usage.prompt_tokens : null);
       }
     }
     return next;
   }, 0);
   const sessionBilled = sessionSeries[sessionSeries.length - 1] || 0;
-  const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant' && item.usage);
+  const assistantTurnsWithUsage = messages.filter((item) => item.role === 'assistant' && item.usage);
+  const lastAssistant = assistantTurnsWithUsage[assistantTurnsWithUsage.length - 1] || null;
+  const prevAssistant = assistantTurnsWithUsage.length > 1
+    ? assistantTurnsWithUsage[assistantTurnsWithUsage.length - 2]
+    : null;
+  const lastIn = roundPrompt(lastAssistant, 'first');
+  const prevIn = roundPrompt(prevAssistant, 'first');
+  const toolRoundIn = lastAssistant?.usage?.rounds?.length > 1 ? roundPrompt(lastAssistant, 'last') : null;
 
   const forgetting = useMemo(
     () => buildOutboundMessages(messages, sampling.keepTurns),
     [messages, sampling.keepTurns]
   );
 
-  // The last message with role 'assistant' — streaming and error states are
-  // handled by Message.js itself (it hides the note while streaming or when
-  // the newest turn errored), not by filtering the index here.
+  // The last message with role 'assistant', regardless of usage — streaming
+  // and error states are handled by Message.js itself (it hides the note
+  // while streaming or when the newest turn errored), not by filtering the
+  // index here. This differs from lastAssistant (which requires a usage
+  // object to drive the cost/staircase math) because the note belongs to the
+  // newest reply even before usage has landed.
   const latestAssistantIndex = messages.reduce(
     (found, item, index) => (item.role === 'assistant' ? index : found),
     -1
@@ -688,6 +716,9 @@ export default function ChatInterface() {
                 droppedMessages={forgetting.cutoffIndex}
                 keepTurns={sampling.keepTurns}
                 turns={turnCount}
+                lastIn={lastIn}
+                prevIn={prevIn}
+                toolRoundIn={toolRoundIn}
               />
               <RequestEcho echoedMessages={lastAssistant?.echoedMessages} />
             </div>
@@ -726,8 +757,8 @@ export default function ChatInterface() {
             const previousMessage = [...messages.slice(0, index)]
               .reverse()
               .find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null);
-            const previousIn = previousMessage ? lastRoundPrompt(previousMessage) : undefined;
-            const thisIn = firstRoundPrompt(message);
+            const previousIn = roundPrompt(previousMessage, 'first');
+            const thisIn = roundPrompt(message, 'first');
             const replayedIn = Number.isFinite(previousIn) ? previousIn : null;
             const addedIn = Number.isFinite(thisIn) && Number.isFinite(previousIn)
               ? Math.max(0, thisIn - previousIn)

@@ -27,6 +27,15 @@ export default function ConversationExplainer({
   // real count. Falls back to inSeries.length for callers with no tool turns
   // (e.g. the empty-conversation screen), where the two always agree.
   turns = inSeries.length,
+  // Turn-to-turn, first-request-to-first-request baseline computed by the
+  // caller (roundPrompt in ChatInterface.js). When lastIn is finite it wins
+  // over indexing inSeries — inSeries is per-REQUEST, not per-turn, so its
+  // last two entries are the wrong pair on a tool turn. Absent (the empty
+  // conversation screen), the original inSeries-based indexing still applies.
+  lastIn: lastInProp,
+  prevIn: prevInProp,
+  // Second-round prompt tokens for a tool turn, or null/undefined otherwise.
+  toolRoundIn,
 }) {
   const rates = rateFor(lastAssistant?.usage?.model);
   const lastSpend = lastAssistant?.usage ? turnCost(lastAssistant.usage, rates) : null;
@@ -47,13 +56,18 @@ export default function ConversationExplainer({
     );
   }
 
-  // lastIn/prevIn read the last two REQUESTS, not the last two turns: on a
-  // tool turn that's round 1 -> round 2 of the same turn, which is exactly
-  // what "replayed" should describe. lastPaid/prevPaid stay per-turn — cost
+  // lastIn/prevIn: when the caller supplies a finite lastIn (the normal
+  // path), use it and prevIn as given — that pair is turn-to-turn,
+  // first-request-to-first-request. Otherwise fall back to indexing the
+  // last two entries of inSeries, exactly as before (the empty-conversation
+  // screen never passes these props). lastPaid/prevPaid stay per-turn — cost
   // is billed once per turn regardless of how many requests it took.
-  const lastIn = inSeries[inSeries.length - 1];
+  const usePropIn = Number.isFinite(lastInProp);
+  const lastIn = usePropIn ? lastInProp : inSeries[inSeries.length - 1];
   const lastPaid = sessionSeries[turns - 1];
-  const prevIn = inSeries.length > 1 ? inSeries[inSeries.length - 2] : null;
+  const prevIn = usePropIn
+    ? (Number.isFinite(prevInProp) ? prevInProp : null)
+    : (inSeries.length > 1 ? inSeries[inSeries.length - 2] : null);
   const prevPaid = turns > 1 ? sessionSeries[turns - 2] : null;
   const tabOut = lastTabOut(lastAssistant);
   const totalOut = lastAssistant.usage.completion_tokens;
@@ -70,6 +84,10 @@ export default function ConversationExplainer({
     text = `See the prompt jump ${prevIn} → ${lastIn}? About ${replayed} of that is last turn's prompt, sent again — the API has no memory. The other ${added} tokens are new: the reply you locked in, plus what you just typed. You already paid for those ${replayed} once. This request billed ${thisTurnBill} tokens, about ${formatUsd(lastSpend.total)} (${breakdown(lastSpend)}). Conversation total ${prevPaid} → ${lastPaid} tokens, about ${formatUsd(paidSoFar.total)}.`;
   } else {
     text = `Prompt so far: ${inSeries.join(' → ')}. That staircase is the conversation tax — each request resends everything. This tab only wrote ${tabOut ?? 'a short'} tokens, but ${lastIn} went in. This turn cost about ${formatUsd(lastSpend.total)} (${breakdown(lastSpend)}); paid so far ${sessionSeries.join(' → ')} tokens, about ${formatUsd(paidSoFar.total)}. Long chats get expensive even when answers stay short, because you are paying to re-read the past. Only the selected tab continues; the other samples were paid for at the higher output rate and then dropped.`;
+  }
+
+  if (Number.isFinite(toolRoundIn)) {
+    text += ` This turn took two requests: the second carried the tool call and its result — ${toolRoundIn} tokens in, ${Math.max(0, toolRoundIn - lastIn)} of them new.`;
   }
 
   if (millionTurns != null && millionTurns >= 1) {

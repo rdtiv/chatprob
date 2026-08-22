@@ -192,46 +192,52 @@ export default async function handler(req, res) {
       });
     }
 
-    const chosenCallPairs = JSON.stringify(
-      (chosen.message.tool_calls || []).map((tc) => [tc.function?.name ?? null, tc.function?.arguments ?? ''])
+    // Order-insensitive: two samples that ask for the same calls in a
+    // different order (Denver-then-Boston vs Boston-then-Denver) still agree.
+    const sortedCallPairsKey = (toolCalls) => JSON.stringify(
+      (toolCalls || [])
+        .map((tc) => [tc.function?.name ?? null, tc.function?.arguments ?? ''])
+        .sort((a, b) => (a[0] ?? '').localeCompare(b[0] ?? '') || a[1].localeCompare(b[1]))
     );
+    const chosenCallPairs = sortedCallPairsKey(chosen.message.tool_calls);
     const samples = {
       total: (response.choices || []).length,
-      agreed: (response.choices || []).filter((c) => {
-        const pairs = JSON.stringify(
-          (c.message?.tool_calls || []).map((tc) => [tc.function?.name ?? null, tc.function?.arguments ?? ''])
-        );
-        return pairs === chosenCallPairs;
-      }).length,
+      agreed: (response.choices || []).filter((c) => sortedCallPairsKey(c.message?.tool_calls) === chosenCallPairs).length,
     };
 
-    const calls = chosen.message.tool_calls.slice(0, MAX_TOOL_CALLS).map((call) => ({
+    const calls = chosen.message.tool_calls.map((call) => ({
       id: call.id,
       name: call.function?.name ?? null,
       arguments: call.function?.arguments ?? '',
     }));
     calls[0].samples = samples;
 
-    const results = [];
-    for (const call of calls) {
+    // Every call the model asked for gets a tool message back (the model must
+    // see its own full request), but only the first MAX_TOOL_CALLS are
+    // actually executed — the rest are answered with a skipped-error result
+    // and no fetch. Run in parallel; each call's own try/catch stays inside
+    // its mapper so one failure never rejects the batch.
+    const results = await Promise.all(calls.map(async (call, index) => {
       const startedAt = Date.now();
+      const fail = (message) => ({ ok: false, content: JSON.stringify({ error: message }), durationMs: Date.now() - startedAt });
+      if (index >= MAX_TOOL_CALLS) {
+        return fail('Skipped — this app runs at most 3 tool calls per turn');
+      }
       if (call.name !== WEATHER_TOOL_NAME) {
-        results.push({ ok: false, content: JSON.stringify({ error: `Unknown tool "${call.name ?? '(unnamed)'}"` }), durationMs: Date.now() - startedAt });
-        continue;
+        return fail(`Unknown tool "${call.name ?? '(unnamed)'}"`);
       }
       const parsed = parseWeatherArguments(call.arguments);
       if (!parsed.ok) {
-        results.push({ ok: false, content: JSON.stringify({ error: parsed.error }), durationMs: Date.now() - startedAt });
-        continue;
+        return fail(parsed.error);
       }
       try {
         const weather = await getWeather(parsed.location);
-        results.push({ ok: true, content: JSON.stringify(weather), durationMs: Date.now() - startedAt, status: 200 });
+        return { ok: true, content: JSON.stringify(weather), durationMs: Date.now() - startedAt, status: 200 };
       } catch (error) {
         console.error('Weather tool failed:', error.message);
-        results.push({ ok: false, content: JSON.stringify({ error: error.message }), durationMs: Date.now() - startedAt });
+        return fail(error.message);
       }
-    }
+    }));
 
     const round2Messages = [
       ...sentMessages,
@@ -242,10 +248,15 @@ export default async function handler(req, res) {
       },
       ...calls.map((c, i) => ({ role: 'tool', tool_call_id: c.id, content: results[i].content })),
     ];
-    // No `tools` here: offering the tool again would let the model ask a second
-    // time and answer with nothing. Without it the one-round cap is structural,
-    // not a convention.
-    const round2 = await openai.chat.completions.create({ ...createOptions, messages: round2Messages });
+    // The schema stays in the prompt so the two requests differ by exactly
+    // the tool call and its result (the staircase story), while tool_choice
+    // 'none' forbids a second call — the one-round cap is structural.
+    const round2 = await openai.chat.completions.create({
+      ...createOptions,
+      messages: round2Messages,
+      tools: WEATHER_TOOLS,
+      tool_choice: 'none',
+    });
 
     const completions = (round2.choices || []).map(toUiCompletion);
     if (completions.length === 0) {
