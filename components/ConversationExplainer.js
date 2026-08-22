@@ -105,6 +105,7 @@ export default function ConversationExplainer({
     return (
       <p className="conversation-explainer">
         Green means the word was expected — not that it&rsquo;s true.
+        {' '}Send a message and this panel shows what the model did with your tokens and what it cost.
         {' '}Try sending <strong>strawberry</strong>: your message will show it as three pieces, not ten letters. That is why counting letters is hard for a model.
       </p>
     );

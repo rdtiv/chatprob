@@ -249,11 +249,14 @@ export default function ChatInterface() {
     }
   }, [messages, storageReady]);
 
-  const sendMessage = async (text, source = 'typed') => {
+  // `override` lets a caller change a sampling value for THIS send in the same
+  // handler that schedules the state update — React state is async, so reading
+  // `sampling` here would still see the old value.
+  const sendMessage = async (text, source = 'typed', override = null) => {
     const content = (text ?? currentMessage).trim();
     if (!content || inFlightRef.current) return;
 
-    const snapshot = sampling;
+    const snapshot = override ? { ...sampling, ...override } : sampling;
     inFlightRef.current = true;
     const userMessage = { role: 'user', content, timestamp: new Date().toISOString(), source };
     const conversation = [...messages, userMessage];
@@ -953,7 +956,7 @@ export default function ChatInterface() {
               onClick={() => {
                 setFollowupUsed(true);
                 setSampling((s) => ({ ...s, keepTurns: 0 }));
-                sendMessage('What is my name?', 'chip-memory');
+                sendMessage('What is my name?', 'chip-memory', { keepTurns: 0 });
               }}
             >
               Now make it forget

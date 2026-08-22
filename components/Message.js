@@ -102,8 +102,10 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
     [completions]
   );
 
+  // Each coach step advances only on the gesture it teaches: hovering a word
+  // for step 1, picking a tab for step 2. Any other gesture leaves it showing.
   const markHoverUsed = () => {
-    if (coach) onCoachAdvance?.();
+    if (coach?.step === 1) onCoachAdvance?.();
   };
 
   const clearHoverTimer = () => {
@@ -200,7 +202,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
     setPinned(false);
     setHoveredToken(null);
     onSelect?.(messageIndex, index);
-    if (coach) onCoachAdvance?.();
+    if (coach?.step === 2) onCoachAdvance?.();
   };
 
   const activeStats = tabStats[safeIndex];
