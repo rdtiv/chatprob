@@ -38,7 +38,7 @@ const getBackgroundColor = (tokenData) => {
   return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
 };
 
-function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer }) {
+function Message({ message, onSelect, messageIndex, showHoverHint = false, onHoverUsed, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -270,7 +270,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
   };
   
   return (
-    <div className={`message ${role}-message`} ref={rootRef} aria-busy={isStreaming ? 'true' : undefined}>
+    <div className={`message ${role}-message${forgotten ? ' is-forgotten' : ''}`} ref={rootRef} aria-busy={isStreaming ? 'true' : undefined}>
       <div className="message-inner">
         <div className="message-front">
           <div className="message-header">

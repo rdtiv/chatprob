@@ -723,6 +723,36 @@ main {
   transition: all 0.3s ease;
 }
 
+.message.is-forgotten {
+  opacity: 0.55;
+}
+
+.forgotten-divider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 4px 0 16px;
+}
+
+.forgotten-divider-rule {
+  display: block;
+  width: 100%;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.forgotten-divider-text {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.forgotten-divider-text strong {
+  color: #64748b;
+  font-weight: 600;
+}
+
 .assistant-message .message-header {
   display: flex;
   justify-content: flex-end;
