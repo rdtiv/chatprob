@@ -44,7 +44,7 @@ export default function TokenProbabilities({
   };
 
   const noteCopy = alternativesUnavailable
-    ? `This reply is old enough that only the chosen token was kept, to stay inside the browser's storage limit. Its alternatives are gone; newer replies still have theirs.`
+    ? `This reply is old enough that only the chosen token was kept, to stay inside the browser's storage limit. Its alternatives are gone; newer replies still have theirs. Switch to Raw odds for the model's actual confidence.`
     : mode !== 'among'
       ? `Raw model odds across the whole vocabulary. These are a different quantity, and they do not add up to 100%.`
       : rows.length === 1

@@ -63,6 +63,7 @@ export default function ChatInterface() {
   const abortRef = useRef(null);
   const pendingRef = useRef(null);
   const rafRef = useRef(0);
+  const unmountedRef = useRef(false);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
   const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
@@ -95,6 +96,7 @@ export default function ChatInterface() {
 
   // Abort any in-flight stream on unmount so a late chunk never lands on a gone component.
   useEffect(() => () => {
+    unmountedRef.current = true;
     abortRef.current?.abort();
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
@@ -146,7 +148,14 @@ export default function ChatInterface() {
       const savedMessages = localStorage.getItem('chatMessages');
       if (savedMessages) {
         const parsed = JSON.parse(savedMessages);
-        if (Array.isArray(parsed)) setMessages(parsed);
+        if (Array.isArray(parsed)) {
+          const healed = parsed.map((m) => {
+            if (!m?.isStreaming) return m;
+            const { isStreaming, ...rest } = m;
+            return { ...rest, error: true, aborted: true, usage: null, timing: null };
+          });
+          setMessages(healed);
+        }
       }
       setHoverHintVisible(localStorage.getItem(HOVER_HINT_KEY) !== '1');
     } catch (error) {
@@ -175,6 +184,7 @@ export default function ChatInterface() {
 
   useEffect(() => {
     if (!storageReady) return;
+    if (messages.some((m) => m.isStreaming)) return;
     try {
       localStorage.setItem('chatMessages', JSON.stringify(pruneForStorage(messages)));
     } catch (error) {
@@ -316,6 +326,7 @@ export default function ChatInterface() {
     };
 
     const finalizeSuccess = () => {
+      if (unmountedRef.current) return;
       cancelPendingFrame();
       flushDeltas();
       setMessages((prev) => {
@@ -346,6 +357,7 @@ export default function ChatInterface() {
     };
 
     const finalizeAborted = () => {
+      if (unmountedRef.current) return;
       cancelPendingFrame();
       flushDeltas();
       setMessages((prev) => {
@@ -354,7 +366,11 @@ export default function ChatInterface() {
         const { isStreaming, ...partialFlushed } = last;
         const completions = (partialFlushed.completions || []).map((c) => ({ ...c, text: c.text.trim() }));
         return [
-          ...prev.slice(0, -1),
+          ...prev.slice(0, -1).map((item) => (
+            item.role === 'assistant' && item.echoedMessages
+              ? { ...item, echoedMessages: undefined }
+              : item
+          )),
           {
             ...partialFlushed,
             completions,
@@ -407,6 +423,9 @@ export default function ChatInterface() {
         }
       }
 
+      const tail = buffer.trim();
+      if (tail) { try { handleEvent(JSON.parse(tail)); } catch { /* incomplete tail — ignored */ } }
+
       if (receivedDone) finalizeSuccess();
       else finalizeAborted();
     } catch (error) {
@@ -453,6 +472,7 @@ export default function ChatInterface() {
   };
 
   const firstHintableIndex = messages.findIndex((item) => (
+    !item.isStreaming &&
     item.role === 'assistant' &&
     item.completions?.some((completion) => completion.tokenProbabilities?.length)
   ));
@@ -664,7 +684,7 @@ export default function ChatInterface() {
             />
             );
           })}
-          {isLoading && !messages.some((m) => m.isStreaming) && (
+          {isLoading && !messages.some((m) => m.isStreaming && m.completions?.[0]?.tokenProbabilities?.length) && (
             <div style={{
               display: 'flex',
               justifyContent: 'flex-start',

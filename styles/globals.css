@@ -1282,6 +1282,8 @@ main {
 .sampling-panel.is-popover {
   width: calc(100% - 32px);
   max-width: 320px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
 }
 
 .sampling-panel.is-sheet {

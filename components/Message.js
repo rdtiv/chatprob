@@ -225,6 +225,7 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
     const { text, tokenProbabilities } = activeCompletion;
     
     if (!tokenProbabilities || tokenProbabilities.length === 0) {
+      if (isStreaming) return <div className="message-text" />;
       return <div className="message-text">{text || content || 'No response available'}</div>;
     }
     
@@ -349,9 +350,12 @@ function Message({ message, onSelect, messageIndex, showHoverHint = false, onHov
                   className="token-usage message-timing"
                   title={message.timing.streamed ? undefined : 'Nothing renders until the whole reply arrives, so the first token and the last arrive together.'}
                 >
-                  {message.timing.streamed
-                    ? `first token ${(message.timing.ttftMs / 1000).toFixed(1)}s · all replies ${(message.timing.totalMs / 1000).toFixed(1)}s`
-                    : `reply ${(message.timing.totalMs / 1000).toFixed(1)}s`}
+                  {(() => {
+                    const a = (message.timing.ttftMs / 1000).toFixed(1);
+                    const b = (message.timing.totalMs / 1000).toFixed(1);
+                    if (!message.timing.streamed) return `reply ${b}s`;
+                    return a === b ? `reply ${b}s · streamed` : `first token ${a}s · all replies ${b}s`;
+                  })()}
                 </span>
               )}
               {role === 'user' && userChunks && (

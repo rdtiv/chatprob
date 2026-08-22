@@ -101,16 +101,10 @@ export default async function handler(req, res) {
         'X-Accel-Buffering': 'no',
       });
       res.flushHeaders?.();
+      res.on('error', () => {});
       const send = (event) => {
-        if (!res.writableEnded) res.write(`${JSON.stringify(event)}\n`);
+        if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(event)}\n`);
       };
-
-      send({
-        type: 'meta',
-        echoedMessages: sentMessages,
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
-      });
 
       let aborted = false;
       let stream;
@@ -120,11 +114,22 @@ export default async function handler(req, res) {
       });
 
       try {
+        send({
+          type: 'meta',
+          echoedMessages: sentMessages,
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
+        });
+
         stream = await openai.chat.completions.create({
           ...createOptions,
           stream: true,
           stream_options: { include_usage: true },
         });
+
+        if (aborted) {
+          stream.controller?.abort?.();
+        }
 
         let usage = null;
         for await (const chunk of stream) {
@@ -138,16 +143,18 @@ export default async function handler(req, res) {
           }
         }
 
-        send({
-          type: 'done',
-          usage: {
-            prompt_tokens: usage?.prompt_tokens ?? null,
-            completion_tokens: usage?.completion_tokens ?? null,
-            cached_tokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
-            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-            sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
-          },
-        });
+        if (!aborted) {
+          send({
+            type: 'done',
+            usage: {
+              prompt_tokens: usage?.prompt_tokens ?? null,
+              completion_tokens: usage?.completion_tokens ?? null,
+              cached_tokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
+              model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+              sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
+            },
+          });
+        }
         return res.end();
       } catch (error) {
         console.error('Error calling OpenAI API:', error);
