@@ -30,25 +30,21 @@ function toApiMessages(messages) {
 const VARIETY_SYSTEM_PROMPT =
   'You help people see that language models sample from a next-token distribution. Vary your wording and sentence openings. Keep answers concise (one or two sentences unless asked otherwise).';
 
+function toTokenProbability(token) {
+  const topLogprobs = Object.fromEntries(
+    (token.top_logprobs || []).map((alt) => [alt.token, alt.logprob])
+  );
+  if (typeof token.logprob === 'number' && token.token != null) {
+    topLogprobs[token.token] = token.logprob;
+  }
+  return { token: token.token, logprob: token.logprob, top_logprobs: topLogprobs };
+}
+
 function toUiCompletion(choice) {
   const text = (choice.message?.content || '').trim();
-  const tokens = choice.logprobs?.content || [];
-
   return {
     text,
-    tokenProbabilities: tokens.map((token) => {
-      const topLogprobs = Object.fromEntries(
-        (token.top_logprobs || []).map((alt) => [alt.token, alt.logprob])
-      );
-      if (typeof token.logprob === 'number' && token.token != null) {
-        topLogprobs[token.token] = token.logprob;
-      }
-      return {
-        token: token.token,
-        logprob: token.logprob,
-        top_logprobs: topLogprobs,
-      };
-    }),
+    tokenProbabilities: (choice.logprobs?.content || []).map(toTokenProbability),
   };
 }
 
@@ -82,7 +78,9 @@ export default async function handler(req, res) {
       ? apiMessages
       : [{ role: 'system', content: VARIETY_SYSTEM_PROMPT }, ...apiMessages];
 
-    const response = await openai.chat.completions.create({
+    const wantsStream = req.body?.stream === true;
+
+    const createOptions = {
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: sentMessages,
       temperature,
@@ -93,7 +91,72 @@ export default async function handler(req, res) {
       n: 3,
       logprobs: true,
       top_logprobs: 5,
-    });
+    };
+
+    if (wantsStream) {
+      res.writeHead(200, {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      res.flushHeaders?.();
+      const send = (event) => {
+        if (!res.writableEnded) res.write(`${JSON.stringify(event)}\n`);
+      };
+
+      send({
+        type: 'meta',
+        echoedMessages: sentMessages,
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
+      });
+
+      let aborted = false;
+      let stream;
+      req.on('close', () => {
+        aborted = true;
+        stream?.controller?.abort?.();
+      });
+
+      try {
+        stream = await openai.chat.completions.create({
+          ...createOptions,
+          stream: true,
+          stream_options: { include_usage: true },
+        });
+
+        let usage = null;
+        for await (const chunk of stream) {
+          if (aborted) break;
+          if (chunk.usage) usage = chunk.usage;
+          for (const choice of chunk.choices || []) {
+            const tokens = (choice.logprobs?.content || []).map(toTokenProbability);
+            const text = choice.delta?.content || '';
+            if (!text && tokens.length === 0) continue;
+            send({ type: 'delta', index: choice.index, text, tokens });
+          }
+        }
+
+        send({
+          type: 'done',
+          usage: {
+            prompt_tokens: usage?.prompt_tokens ?? null,
+            completion_tokens: usage?.completion_tokens ?? null,
+            cached_tokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            sampling: { temperature, top_p: topP, presence_penalty: presencePenalty, seed },
+          },
+        });
+        return res.end();
+      } catch (error) {
+        console.error('Error calling OpenAI API:', error);
+        send({ type: 'error', message: 'Error communicating with OpenAI' });
+        return res.end();
+      }
+    }
+
+    const response = await openai.chat.completions.create(createOptions);
 
     const completions = (response.choices || []).map(toUiCompletion);
     if (completions.length === 0) {
@@ -114,6 +177,9 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Error calling OpenAI API:', error);
+    if (res.headersSent) {
+      return res.end();
+    }
     return res.status(500).json({ error: 'Error communicating with OpenAI' });
   }
 }
