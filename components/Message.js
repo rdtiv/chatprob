@@ -57,7 +57,7 @@ const tokenHeatStyle = (tokenData) => {
   if (percentage == null) return undefined;
   const parts = confidenceParts(percentage, 0.15 + (percentage / 100) * 0.35);
   if (!parts) return undefined;
-  return { '--conf-rgb': parts.rgb, '--conf-rgb-dark': parts.rgbDark, '--conf-a': parts.alpha };
+  return { '--conf-rgb': parts.rgb, '--conf-rgb-dark': parts.rgbDark, '--conf-a': parts.alpha, '--conf-on': 1 };
 };
 
 function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
