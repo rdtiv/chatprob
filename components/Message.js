@@ -49,8 +49,9 @@ function pickHintTokenIndex(tokenProbabilities) {
 }
 
 // The fill is handed to CSS as channels + alpha, not as a finished colour, so the
-// dark scheme can re-gain it: .token { background-color: rgba(var(--conf-rgb),
-// calc(var(--conf-a) * var(--heat-gain))) }. --conf-rgb-dark carries the same
+// dark scheme can re-gain it — --conf-on: 1 must travel with --conf-a so the dark
+// lift never fills an unmeasured token: .token { background-color: rgba(var(--conf-rgb),
+// calc(var(--conf-a) * var(--heat-gain) + var(--heat-lift) * var(--conf-on))) }. --conf-rgb-dark carries the same
 // token's colour on a dark ground; CSS picks it under prefers-color-scheme: dark.
 const tokenHeatStyle = (tokenData) => {
   const percentage = sampledPercentage(tokenData);

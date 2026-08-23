@@ -97,7 +97,8 @@
   --shadow-2: rgba(15, 23, 42, 0.12);
   --shadow-3: rgba(0, 0, 0, 0.15);
 
-  /* Per-token fill alpha = --conf-a × --heat-gain + --heat-lift. 1 and 0 keep
+  /* Per-token fill alpha = --conf-a × --heat-gain + --heat-lift × --conf-on
+     (--conf-on is 1 only on tokens with a measured probability). 1 and 0 keep
      light mode numerically identical to confidenceColor(). */
   --heat-gain: 1;
   --heat-lift: 0;
