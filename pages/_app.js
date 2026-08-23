@@ -12,6 +12,24 @@ function MyApp({ Component, pageProps }) {
     document.body.className = `${GeistSans.variable} ${GeistMono.variable}`
   }, [])
 
+  // Real refraction (backdrop-filter: url(#lg-refract)) renders only in
+  // Chromium. CSS.supports cannot tell us that — it is a syntax test that
+  // Safari and Firefox also pass — and nothing exposes a composited backdrop
+  // to script, so the gate is an engine signature checked three ways:
+  //   · parses url() inside a backdrop-filter chain,
+  //   · does NOT support -webkit-backdrop-filter (WebKit's own prefix: Safari
+  //     has always had it, Blink never shipped it),
+  //   · exposes navigator.userAgentData (UA-CH is Chromium-only, and secure
+  //     context only — plain-http LAN testing falls back, by design).
+  // Every miss lands on the frosted fallback, which is the baseline anyway.
+  useEffect(() => {
+    const on = typeof CSS !== 'undefined'
+      && CSS.supports('backdrop-filter', 'url(#lg-refract)')
+      && !CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
+      && !!navigator.userAgentData;
+    document.documentElement.dataset.refract = on ? 'on' : 'off';
+  }, []);
+
   return (
     <>
       <Head>

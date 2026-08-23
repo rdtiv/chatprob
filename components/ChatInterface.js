@@ -846,7 +846,7 @@ export default function ChatInterface() {
             <button
               ref={samplingButtonRef}
               type="button"
-              className="sampling-button"
+              className="sampling-button glass-chip"
               aria-expanded={panelOpen}
               aria-controls={panelOpen ? panelId : undefined}
               onClick={(e) => {
@@ -868,7 +868,7 @@ export default function ChatInterface() {
             </button>
           <button
             onClick={handleClearClick}
-            className="refresh-button is-text"
+            className="refresh-button is-text glass-chip"
             aria-label={clearArmed ? 'Confirm clear chat history' : 'Clear chat history'}
           >
             {clearArmed ? 'Clear?' : 'Clear'}
@@ -890,7 +890,7 @@ export default function ChatInterface() {
                     <button
                       key={prompt}
                       type="button"
-                      className="prompt-chip"
+                      className="prompt-chip glass-chip"
                       disabled={isLoading}
                       onClick={() => sendMessage(prompt, source)}
                     >
@@ -956,7 +956,7 @@ export default function ChatInterface() {
           <div className="prompt-chips glass" aria-label="Follow-up prompt">
             <button
               type="button"
-              className="prompt-chip"
+              className="prompt-chip glass-chip"
               disabled={isLoading}
               onClick={() => {
                 setFollowupsUsed((used) => ({ ...used, [followup.kind]: true }));

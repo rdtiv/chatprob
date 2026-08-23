@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
 import { useSampling } from './SamplingContext';
 import {
@@ -19,6 +19,10 @@ export default function SamplingPanel({ id, anchor, onClose }) {
   const panelRef = useRef(null);
   const isSheet = useSheetMode();
   useAnchoredSurface({ ref: panelRef, isSheet, anchor, remeasureKey: isSheet });
+
+  const [entered, setEntered] = useState(false);
+  useEffect(() => { setEntered(true); }, []);
+
   const { temperature, topP, presencePenalty, boring, stream, tools, keepTurns, restoreKeepTurns, setSampling } = useSampling();
 
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function SamplingPanel({ id, anchor, onClose }) {
       ref={panelRef}
       id={id}
       tabIndex={-1}
-      className={`sampling-panel ${isSheet ? 'is-sheet' : 'is-popover'}`}
+      className={`sampling-panel glass glass--refract ${isSheet ? 'is-sheet' : 'is-popover'}${entered ? ' is-in' : ''}`}
       role="dialog"
       aria-label="Controls"
     >

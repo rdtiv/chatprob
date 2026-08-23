@@ -58,7 +58,7 @@
   --underline-strong: rgba(15, 23, 42, 0.7);
 
   /* Legacy greys kept as distinct tokens so the move stays pixel-identical. */
-  --muted-2: #94a3b8;
+  --muted-2: #5f6878;
   --muted-3: #6b7280;
 
   --line-2: #eaeaea;
@@ -68,8 +68,8 @@
   --user-bubble: #e9f5ff;
   --slate-rgb: 100, 116, 139;
 
-  --tab-track: #eef0f4;
-  --tab-active-bg: #fff;
+  --tab-track: rgba(15, 23, 42, 0.05);
+  --tab-active-bg: var(--surface);
   --tab-hover-bg: rgba(255, 255, 255, 0.55);
   --token-hover-bg: rgba(255, 255, 255, 0.2);
   --hover-wash: rgba(0, 0, 0, 0.05);
@@ -162,7 +162,7 @@
     --shadow-2: rgba(0, 0, 0, 0.55);
     --shadow-3: rgba(0, 0, 0, 0.6);
 
-    --heat-gain: 1.1;
+    --heat-gain: 1;
   }
 }
 
@@ -216,5 +216,60 @@
 
     --well-bg: rgba(21, 26, 38, 0.70);
     --well-inset: rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* --- WP3: floating surfaces, controls, dark heatmap --------------------- */
+:root {
+  /* Focus ring for the controls WP3 adds. rgb(var(--accent-rgb)) lightens on
+     dark for free (tokens.css:47 / :134); every existing
+     `outline: 2px solid var(--blue)` stays exactly as it is. */
+  --focus-ring: rgb(var(--accent-rgb));
+
+  /* A header strip INSIDE a glass panel is a lighter tint, never a second
+     blur: a nested backdrop-filter samples the parent's already-blurred output
+     and costs a second full-surface pass for nothing. */
+  --glass-tint: rgba(255, 255, 255, 0.45);
+  --sheet-grabber: rgba(15, 23, 42, 0.20);
+
+  /* Chips: translucent + rim + specular, and deliberately NO backdrop-filter
+     (§5 argues it). */
+  --chip-bg: rgba(255, 255, 255, 0.58);
+  --chip-bg-hover: rgba(255, 255, 255, 0.85);
+  --chip-rim: rgba(15, 23, 42, 0.10);
+  --chip-rim-hover: rgba(var(--accent-rgb), 0.45);
+  --chip-specular: rgba(255, 255, 255, 0.85);
+
+  /* Switch pill. The rim carries WCAG 1.4.11: at ink 50% it measures 3.36:1
+     against the panel glass; the track itself is only 1.4:1 and cannot. */
+  --switch-track: rgba(15, 23, 42, 0.18);
+  --switch-rim: rgba(15, 23, 42, 0.50);
+  --switch-thumb: #fff;
+
+  /* Legend swatches, moved to tokens so dark can re-point the low stop at
+     confidenceRgbDark()'s low stop. Light values are byte-identical to
+     shell.css:178-188 today — invariant 1. */
+  --legend-high: rgba(34, 197, 94, 0.55);
+  --legend-mid: rgba(234, 179, 8, 0.55);
+  --legend-low: rgba(139, 0, 0, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-tint: rgba(255, 255, 255, 0.05);
+    --sheet-grabber: rgba(255, 255, 255, 0.22);
+
+    --chip-bg: rgba(255, 255, 255, 0.06);
+    --chip-bg-hover: rgba(255, 255, 255, 0.12);
+    --chip-rim: rgba(255, 255, 255, 0.14);
+    --chip-specular: rgba(255, 255, 255, 0.10);
+
+    --switch-track: rgba(255, 255, 255, 0.18);
+    --switch-rim: rgba(255, 255, 255, 0.35);
+    --switch-thumb: #e6e9f0;
+
+    /* Only the low stop moves: {139,0,0} at .45 measures 1.10:1 against the
+       dark panel — an invisible swatch for the one band that matters most. */
+    --legend-low: rgba(248, 113, 113, 0.45);
   }
 }

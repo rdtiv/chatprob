@@ -8,8 +8,6 @@
 }
 
 .prompt-chip {
-  border: 1px solid var(--line);
-  background-color: var(--ground);
   border-radius: var(--r-pill);
   padding: 6px 12px;
   font-size: var(--fs-2);
@@ -74,6 +72,43 @@
   display: flex;
   flex-direction: column;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Scroll edge effect: content dissolves as it slides under the glass header
+   and composer, instead of ending on a hard cut at the container edge. The
+   mask is on the SCROLL CONTAINER, so it is fixed in the scrollport and the
+   content moves under it (mask-origin resolves against the border box, and
+   .messages-container has no border, so border box == padding box == the
+   scrollport including its padding).
+
+   The ramps end exactly at the two bar edges — see §9.2. Nothing legible is
+   ever dimmed; every faded pixel is behind frosted glass.
+
+   Hover-capable pointers only. On iOS Safari a mask on an
+   `-webkit-overflow-scrolling: touch` scroller drops the momentum-scroll fast
+   path and re-composites the masked layer every frame; on desktop the mask is
+   a static gradient applied as a layer property and scrolling stays cheap.
+   Sheets (the mobile popover mode) are coarse-pointer only, so this also keeps
+   the fade and the sheet from ever meeting. */
+@media (hover: hover) and (pointer: fine) {
+  .messages-container {
+    --fade-top: var(--header-h);
+    --fade-bottom: var(--composer-h);
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-top),
+      #000 calc(100% - var(--fade-bottom)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-top),
+      #000 calc(100% - var(--fade-bottom)),
+      transparent 100%
+    );
+  }
 }
 
 .message {
@@ -170,6 +205,7 @@
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .completion-tab-number {
@@ -192,7 +228,7 @@
 .completion-tab.is-active {
   background: var(--tab-active-bg);
   color: var(--ink);
-  box-shadow: 0 1px 2px var(--shadow-1);
+  box-shadow: 0 1px 2px var(--shadow-1), inset 0 1px 0 var(--glass-specular);
 }
 
 .completion-tabs.is-locked {
@@ -205,6 +241,12 @@
 
 .completion-tab:disabled {
   cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-tab {
+    transition: none;
+  }
 }
 
 .completion-lock {
@@ -543,4 +585,16 @@
    for a token with no measured probability (the old 'transparent' case). */
 .token {
   background-color: rgba(var(--conf-rgb, 0, 0, 0), calc(var(--conf-a, 0) * var(--heat-gain, 1)));
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Same alpha, different stops: Message.js publishes both ramps per token and
+     the scheme picks one. The nested fallback keeps a token with no measured
+     probability transparent, exactly like the light rule. */
+  .token {
+    background-color: rgba(
+      var(--conf-rgb-dark, var(--conf-rgb, 0, 0, 0)),
+      calc(var(--conf-a, 0) * var(--heat-gain, 1))
+    );
+  }
 }

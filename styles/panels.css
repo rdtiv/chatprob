@@ -32,15 +32,12 @@
 
 .sampling-panel {
   position: fixed;
-  background-color: var(--surface-3);
-  border-radius: var(--r-2);
-  box-shadow: 0 4px 24px var(--shadow-3);
+  border-radius: var(--r-3);
   z-index: 1000;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   opacity: 0;
-  animation: fadeIn 150ms ease-in forwards;
   padding-bottom: 6px;
 }
 
@@ -56,14 +53,37 @@
   right: 8px;
   width: auto;
   max-width: none;
-  animation: tokenSheetRise 180ms ease-out forwards;
+  border-radius: var(--r-3) var(--r-3) 0 0;
   overflow-y: auto;
+}
+
+/* Grabber — same flex-item trick as the token sheet (surfaces.css). This panel
+   scrolls as a whole, so the grabber scrolls with the header, exactly as the
+   header does today. */
+.sampling-panel.is-sheet::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 36px;
+  height: 4px;
+  margin: 6px auto 2px;
+  border-radius: var(--r-pill);
+  background: var(--sheet-grabber);
+}
+
+.sampling-panel.is-in.is-popover {
+  transform-origin: 50% 0;
+  animation: surfacePop 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.sampling-panel.is-in.is-sheet {
+  transform-origin: 50% 100%;
+  animation: tokenSheetRise 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .sampling-panel-header {
   padding: 8px 16px;
   border-bottom: 1px solid var(--line-2);
-  background-color: var(--surface-2);
+  background-color: var(--glass-tint);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -133,16 +153,73 @@
   opacity: 0.6;
 }
 
+/* Native checkbox, CSS pill. accent-color is gone the moment appearance is
+   none — the checked state is the track colour instead. Sliders keep
+   accent-color (panels.css:120-128): native, cheap, and correct. */
 .sampling-switch {
-  width: 20px;
+  position: relative;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 34px;
   height: 20px;
-  accent-color: var(--blue);
+  margin: 0;
+  border: 1px solid var(--switch-rim);
+  border-radius: var(--r-pill);
+  background: var(--switch-track);
+  box-shadow: inset 0 1px 2px var(--well-inset);
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 
+/* Thumb. box-sizing is border-box globally (base.css:3-8), so the padding box
+   is 32x18 and a 16px thumb at top/left 1px is centred with 1px to spare;
+   translateX(14px) parks it 1px from the right edge. */
+.sampling-switch::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--switch-thumb);
+  box-shadow: 0 1px 2px var(--shadow-2), inset 0 1px 0 var(--glass-specular);
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sampling-switch:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.sampling-switch:checked::before {
+  transform: translateX(14px);
+}
+
+.sampling-switch:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sampling-switch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 44px hit area without touching the 34x20 visual: a transparent ::after
+   centred on the pill. Generated content is hit-tested as part of its host
+   (verified), and the pill sits at the far right of a space-between row, so
+   the overlay can only ever cover the row's own note text. */
 @media (pointer: coarse) {
-  .sampling-switch {
-    width: 28px;
-    height: 28px;
+  .sampling-switch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -169,13 +246,22 @@
   letter-spacing: 0.04em;
 }
 
-/* Must stay after the .sampling-panel base rules: equal specificity, source order decides. */
+/* Must stay after the .sampling-panel base rules: equal specificity, source
+   order decides. The .is-in compounds are (0,3,0), so they are listed
+   explicitly — a bare .sampling-panel would no longer beat them. */
 @media (prefers-reduced-motion: reduce) {
   .sampling-panel,
-  .sampling-panel.is-sheet {
+  .sampling-panel.is-sheet,
+  .sampling-panel.is-in.is-popover,
+  .sampling-panel.is-in.is-sheet {
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  .sampling-switch,
+  .sampling-switch::before {
+    transition: none;
   }
 }
 

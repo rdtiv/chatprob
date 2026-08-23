@@ -6,7 +6,6 @@
   align-items: center;
   flex-wrap: wrap;
   position: relative;
-  background: var(--ink);
   color: var(--on-ink);
   border-radius: var(--r-2);
   padding: 10px 14px;
@@ -14,6 +13,10 @@
   max-width: 420px;
 }
 
+/* The arrow is a child that sticks out of the parent's box, so it cannot
+   inherit the parent's backdrop-filter — it takes the same TINT instead. At
+   0.90 alpha over the same backdrop the two are indistinguishable, and it
+   needs no rim: .glass--ink's border stops at the panel edge. */
 .coach-mark::before {
   content: '';
   position: absolute;
@@ -21,7 +24,7 @@
   left: 20px;
   width: 12px;
   height: 12px;
-  background: var(--ink);
+  background: var(--glass-bg-ink);
   border-radius: 2px;
   transform: rotate(45deg);
 }
@@ -81,18 +84,30 @@
   color: var(--muted-2);
 }
 
+/* The chip surface is restated here, at (0,2,0), because composer.css is
+   imported after glass.css and `.refresh-button { background: none;
+   border: none }` (composer.css:21-32) would beat .glass-chip at (0,1,0). */
 .refresh-button.is-text {
-  border-radius: var(--r-2);
+  border-radius: var(--r-pill);
   width: auto;
   height: auto;
-  padding: 6px 10px;
+  padding: 6px 12px;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-rim);
+  box-shadow: inset 0 1px 0 var(--chip-specular);
   font: inherit;
   font-size: var(--fs-2);
   color: var(--muted);
   white-space: nowrap;
 }
 
-.refresh-button.is-text:hover,
+/* Keeps cancelling .refresh-button:hover's rotate(45deg) (composer.css:34-42) —
+   that is what these two rules were always for — but lets the chip lift. */
+.refresh-button.is-text:hover {
+  transform: translateY(-1px);
+  border-color: var(--chip-rim-hover);
+}
+
 .refresh-button.is-text:active {
   transform: none;
 }
@@ -149,15 +164,12 @@
 
 .token-probabilities-card {
   position: fixed;
-  background-color: var(--surface-3);
-  border-radius: var(--r-2);
-  box-shadow: 0 4px 24px var(--shadow-3);
+  border-radius: var(--r-3);
   z-index: 1000;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   opacity: 0;
-  animation: fadeIn 150ms ease-in forwards;
 }
 
 .token-probabilities-card.is-popover {
@@ -168,7 +180,7 @@
 .token-probabilities-header {
   padding: 8px 16px;
   border-bottom: 1px solid var(--line-2);
-  background-color: var(--surface-2);
+  background-color: var(--glass-tint);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -188,7 +200,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   overflow: hidden;
-  background: var(--surface);
+  background: var(--tab-track);
 }
 
 .token-probabilities-toggle-button {
@@ -231,7 +243,9 @@
 }
 
 .token-probabilities-row.is-sampled {
-  background-color: var(--accent-2);
+  background-color: var(--accent);
+  background-image: linear-gradient(180deg, var(--send-top), var(--send-bottom));
+  box-shadow: inset 0 1px 0 var(--glass-specular);
   color: var(--on-accent);
 }
 
@@ -246,7 +260,11 @@
   display: block;
   height: 100%;
   min-width: 2px;
-  background-color: rgba(var(--accent-rgb), 0.14);
+  background-image: linear-gradient(
+    90deg,
+    rgba(var(--accent-rgb), 0.08),
+    rgba(var(--accent-rgb), 0.22)
+  );
   transition: width 90ms ease-out;
 }
 
@@ -312,13 +330,49 @@
   right: 8px;
   width: auto;
   max-width: none;
-  border-radius: var(--r-2) var(--r-2) 0 0;
-  animation: tokenSheetRise 180ms ease-out forwards;
+  border-radius: var(--r-3) var(--r-3) 0 0;
+}
+
+/* Grabber. A ::before on a flex container is a flex ITEM, so this is a real
+   36x4 bar above the header, not an absolute overlay fighting the title for
+   the same 16px of padding. (Verified in Chromium: the header shifts down by
+   exactly 12px = 6 + 4 + 2.) */
+.token-probabilities-card.is-sheet::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 36px;
+  height: 4px;
+  margin: 6px auto 2px;
+  border-radius: var(--r-pill);
+  background: var(--sheet-grabber);
+}
+
+/* 180ms cubic-bezier(.2,.8,.2,1) for both panels. transform-origin is static:
+   the popover's preferred placement is below the token (useAnchoredSurface.js:58,
+   `top = anchor.y + 20`), the sheet always rises off the dock edge. The
+   flipped-above case scales from the top edge instead of the bottom — an 8px
+   difference over 180ms. Making it dynamic would mean teaching
+   useAnchoredSurface to publish its placement, and its effect lands one frame
+   after the animation starts, so the origin would visibly jump mid-flight.
+   Not worth it. */
+@keyframes surfacePop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes tokenSheetRise {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.token-probabilities-card.is-in.is-popover {
+  transform-origin: 50% 0;
+  animation: surfacePop 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.token-probabilities-card.is-in.is-sheet {
+  transform-origin: 50% 100%;
+  animation: tokenSheetRise 180ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .token-probabilities-card.is-sheet .token-probabilities-list {
@@ -374,19 +428,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .token-probabilities-card {
+  .token-probabilities-card,
+  .token-probabilities-card.is-in.is-popover,
+  .token-probabilities-card.is-in.is-sheet {
     animation: none;
     opacity: 1;
+    transform: none;
   }
 
   .token-probabilities-bar-fill {
     transition: none;
-  }
-
-  .token-probabilities-card.is-sheet {
-    animation: none;
-    opacity: 1;
-    transform: none;
   }
 
   .token.is-after-fork {
