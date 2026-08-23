@@ -1,0 +1,167 @@
+/* Split out of globals.css. Cross-file source order is load-bearing: keep the @import order in globals.css. */
+
+:root {
+  --fs-1: 11px;
+  --fs-2: 12.5px;
+  --fs-3: 14px;
+  --fs-4: 16px;
+  --fs-5: 20px;
+  --r-1: 4px;
+  --r-2: 12px;
+  --r-pill: 999px;
+  --ink: #1b2030;
+  --muted: #5c6478;
+  --line: #e3e6ec;
+  --surface: #fff;
+  --ground: #f4f5f8;
+  --blue: #2563eb;
+  --violet: #6d28d9;
+  --violet-2: #ddd6fe;
+  --violet-3: #a78bfa;
+}
+
+:root {
+  --vh: 1vh;
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+}
+
+/* Semantic tokens added in the Liquid Glass pass — everything below this line is new. */
+:root {
+  /* Let the UA theme scrollbars and native form controls with the scheme. */
+  color-scheme: light dark;
+
+  --r-3: 20px;
+  --r-4: 28px;
+
+  /* Accent family. --blue stays the fill (white text on it must keep passing);
+     --accent-text is the link-ish text colour, split out because dark needs it
+     lighter than the fill. */
+  --accent: var(--blue);
+  --accent-text: #2563eb;
+  --accent-ink: #1d4ed8;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-line: #93c5fd;
+  --accent-2: #3b82f6;
+  --accent-rgb: 37, 99, 235;
+  --on-accent: #fff;
+  --on-accent-fill: rgba(255, 255, 255, 0.28);
+
+  /* Ink family. --ink-body is what body text inherits; it is #333 today and is
+     kept byte-exact so light mode does not shift. */
+  --ink-body: #333;
+  --ink-strong: #0f172a;
+  --ink-2: #4b5563;
+  --ink-wash: rgba(15, 23, 42, 0.04);
+  --underline-soft: rgba(15, 23, 42, 0.45);
+  --underline-strong: rgba(15, 23, 42, 0.7);
+
+  /* Legacy greys kept as distinct tokens so the move stays pixel-identical. */
+  --muted-2: #94a3b8;
+  --muted-3: #6b7280;
+
+  --line-2: #eaeaea;
+  --line-3: #cbd5e1;
+  --surface-2: #f8f9fa;
+  --surface-3: #fafafa;
+  --user-bubble: #e9f5ff;
+  --slate-rgb: 100, 116, 139;
+
+  --tab-track: #eef0f4;
+  --tab-active-bg: #fff;
+  --tab-hover-bg: rgba(255, 255, 255, 0.55);
+  --token-hover-bg: rgba(255, 255, 255, 0.2);
+  --hover-wash: rgba(0, 0, 0, 0.05);
+
+  --warn-ink: #92400e;
+  --warn-ink-2: #a16207;
+  --warn-bg: #fffbeb;
+  --warn-line: #eab308;
+  --warn-rgb: 234, 179, 8;
+
+  --danger-ink: #b91c1c;
+  --danger-bg: #fef2f2;
+  --danger-line: #fecaca;
+
+  --violet-soft: #f5f3ff;
+  --violet-soft-2: #ede9fe;
+  --violet-rgb: 109, 40, 217;
+
+  /* Text on an --ink-filled surface (coach marks). */
+  --on-ink: #fff;
+  --on-ink-muted: #9aa2b5;
+  --on-ink-accent: #a99bf0;
+
+  --shadow-1: rgba(27, 32, 48, 0.12);
+  --shadow-2: rgba(15, 23, 42, 0.12);
+  --shadow-3: rgba(0, 0, 0, 0.15);
+
+  /* Multiplier on the per-token confidence alpha. 1 keeps light mode
+     numerically identical to confidenceColor(). */
+  --heat-gain: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e9f0;
+    --ink-body: #e6e9f0;
+    --ink-strong: #f4f6fa;
+    --ink-2: #c2c9d6;
+    --ink-wash: rgba(255, 255, 255, 0.06);
+    --underline-soft: rgba(230, 233, 240, 0.45);
+    --underline-strong: rgba(230, 233, 240, 0.75);
+
+    --muted: #9aa3b8;
+    --muted-2: #8b93a7;
+    --muted-3: #aab2c4;
+
+    --line: rgba(255, 255, 255, 0.10);
+    --line-2: rgba(255, 255, 255, 0.08);
+    --line-3: rgba(255, 255, 255, 0.18);
+
+    --surface: #151a26;
+    --surface-2: #1e2432;
+    --surface-3: #171d29;
+    --ground: #0c0f17;
+    --user-bubble: #16283d;
+    --slate-rgb: 148, 163, 184;
+
+    --accent-text: #7cb0ff;
+    --accent-ink: #93c5fd;
+    --accent-soft: #17233a;
+    --accent-line: #4b7fd6;
+    --accent-rgb: 96, 165, 250;
+
+    --tab-track: #232937;
+    --tab-active-bg: #39415a;
+    --tab-hover-bg: rgba(255, 255, 255, 0.08);
+    --token-hover-bg: rgba(255, 255, 255, 0.14);
+    --hover-wash: rgba(255, 255, 255, 0.08);
+
+    --warn-ink: #fbbf24;
+    --warn-ink-2: #d9a441;
+    --warn-bg: #2a2410;
+
+    --danger-ink: #fca5a5;
+    --danger-bg: #2b1416;
+    --danger-line: #7f1d1d;
+
+    --violet: #a78bfa;
+    --violet-2: #3a2f63;
+    --violet-3: #6d4fd0;
+    --violet-soft: #241d3d;
+    --violet-soft-2: #2e2554;
+    --violet-rgb: 167, 139, 250;
+
+    --on-ink: #0c0f17;
+    --on-ink-muted: #4b5563;
+    --on-ink-accent: #5b21b6;
+
+    --shadow-1: rgba(0, 0, 0, 0.5);
+    --shadow-2: rgba(0, 0, 0, 0.55);
+    --shadow-3: rgba(0, 0, 0, 0.6);
+
+    --heat-gain: 1.1;
+  }
+}

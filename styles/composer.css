@@ -1,0 +1,133 @@
+/* Split out of globals.css. Cross-file source order is load-bearing: keep the @import order in globals.css. */
+
+.sampling-button {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  padding: 0 12px;
+  font-size: var(--fs-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sampling-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.refresh-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-button:hover {
+  background-color: var(--hover-wash);
+  color: var(--blue);
+  transform: rotate(45deg);
+}
+
+.refresh-button:active {
+  transform: rotate(90deg);
+}
+
+.refresh-button:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.message-form {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  padding: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  background-color: var(--surface);
+  border-top: 1px solid var(--line-2);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composer-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .message-form {
+    padding: 12px 16px 28px;
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.message-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  font-size: var(--fs-4);
+  background-color: var(--surface-2);
+  transition: all 0.2s ease;
+  margin: 0;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  max-height: 132px; /* keep in sync with COMPOSER_MAX_HEIGHT in ChatInterface.js */
+  line-height: 1.4;
+  font-family: inherit;
+  display: block;
+}
+
+.message-input:focus {
+  border-color: var(--blue);
+  background-color: var(--surface);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+}
+
+.send-button {
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r-2);
+  border: none;
+  background-color: var(--blue);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.send-button:disabled {
+  background-color: var(--line);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.send-button:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.send-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
