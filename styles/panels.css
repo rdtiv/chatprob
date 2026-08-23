@@ -32,6 +32,7 @@
 
 .sampling-panel {
   position: fixed;
+  background: var(--glass-bg-panel);
   border-radius: var(--r-3);
   z-index: 1000;
   overflow: hidden;

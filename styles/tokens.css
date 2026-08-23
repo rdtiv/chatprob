@@ -181,6 +181,10 @@
   /* Glass. Alphas are contrast-derived — read §9 before changing any of them. */
   --glass-blur: 20px;
   --glass-bg: rgba(255, 255, 255, 0.62);   /* --surface at 62% */
+  /* Floating panels carry text over arbitrary transcript content (coach marks,
+     dark tool cards), so they get a more opaque tint than the chrome; the
+     refraction still shows at the edges. */
+  --glass-bg-panel: rgba(255, 255, 255, 0.80);
   --glass-rim: rgba(255, 255, 255, 0.60);
   --glass-specular: rgba(255, 255, 255, 0.75);
   --glass-specular-soft: rgba(255, 255, 255, 0.35);
@@ -205,6 +209,7 @@
     /* Dark glass is a DARK tint, not a white one at low alpha: white-on-dark
        glass measures 3.93:1 for --muted and fails invariant 5 (§9). */
     --glass-bg: rgba(14, 18, 28, 0.55);
+    --glass-bg-panel: rgba(14, 18, 28, 0.74);
     --glass-rim: rgba(255, 255, 255, 0.12);
     --glass-specular: rgba(255, 255, 255, 0.10);
     --glass-specular-soft: rgba(255, 255, 255, 0.05);
