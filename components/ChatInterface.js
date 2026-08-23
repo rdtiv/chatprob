@@ -817,7 +817,6 @@ export default function ChatInterface() {
     <div className="app-shell">
       <div className="chat-container" ref={chatContainerRef}>
         <div className="chat-header glass">
-          <span className="chat-promise">How a language model picks each word</span>
           <div className="header-actions">
             <div className="legend-inline">
               <span className="legend-item">
@@ -991,14 +990,31 @@ export default function ChatInterface() {
               disabled={isLoading}
               className="message-input"
             />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="send-button"
-              aria-label="Send message"
-            >
-              Send
-            </button>
+            {isLoading ? (
+              <button
+                type="button"
+                className="send-button is-stop"
+                aria-label="Stop reply"
+                title="Stop"
+                onClick={() => abortRef.current?.abort()}
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <rect x="5.5" y="5.5" width="9" height="9" rx="2" fill="currentColor" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!currentMessage.trim()}
+                className={`send-button${currentMessage.trim() ? ' is-ready' : ''}`}
+                aria-label="Send message"
+                title="Send"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                  <path d="M10 16V4.5M10 4.5 4.75 9.75M10 4.5l5.25 5.25" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
           </div>
         </form>
         {panelOpen && (

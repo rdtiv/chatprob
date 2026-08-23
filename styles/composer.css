@@ -53,12 +53,11 @@
   width: 100%;
   padding: 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  /* No rule and no 1px specular: a floating bar's edge is the blur itself.
+     The soft inner glow stays; the drop shadow points UP, onto the transcript
+     (the default downward one is clipped by the container's overflow). */
   border: 0;
-  border-top: 1px solid var(--line);
-  /* Same recipe as .glass but the drop shadow points UP, onto the transcript;
-     the default downward one is clipped by the container's overflow. */
   box-shadow:
-    inset 1px 1px 0 var(--glass-specular),
     inset 0 0 12px var(--glass-specular-soft),
     0 -6px 24px var(--shadow-2);
   display: flex;
@@ -107,35 +106,46 @@
   box-shadow: inset 0 1px 2px var(--well-inset), 0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 
+/* Send: a 44px circle with three states. Empty composer → hollow glass ring
+   with a muted arrow (disabled). Text present → accent-filled (.is-ready).
+   Reply in flight → the same circle becomes Stop (.is-stop, type=button). */
 .send-button {
   flex-shrink: 0;
+  width: 44px;
   height: 44px;
-  padding: 0 20px;
-  border-radius: var(--r-pill);
-  border: none;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--chip-rim);
+  background-color: var(--chip-bg);
+  background-image: none;
+  box-shadow: inset 0 1px 0 var(--chip-specular);
+  color: var(--muted);
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+}
+
+.send-button svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.send-button.is-ready,
+.send-button.is-stop {
+  border-color: transparent;
   /* background-color is the color-mix fallback: if the gradient's tokens fail to
      compute, background-image drops out and the flat accent stays. */
   background-color: var(--accent);
   background-image: linear-gradient(180deg, var(--send-top), var(--send-bottom));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 1px 2px var(--shadow-2);
+    0 1px 2px var(--shadow-2),
+    0 4px 14px rgba(var(--accent-rgb), 0.35);
   color: var(--on-accent);
-  font: inherit;
-  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: filter 0.15s ease, transform 0.1s ease;
-}
-
-.send-button:disabled {
-  background-color: var(--line);
-  background-image: none;
-  box-shadow: none;
-  color: var(--muted);
-  cursor: not-allowed;
 }
 
 .send-button:hover:not(:disabled) {
@@ -143,7 +153,7 @@
 }
 
 .send-button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.94);
 }
 
 .send-button:focus-visible {

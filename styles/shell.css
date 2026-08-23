@@ -95,8 +95,7 @@
   z-index: 3;
   height: 56px;
   padding: 0 16px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
+  border: 0; /* no rule: the blur is the edge (see .message-form) */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -137,17 +136,9 @@
   box-shadow: none;
 }
 
-.chat-promise {
-  font-size: var(--fs-3);
-  color: var(--ink);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .header-actions {
+  /* The header's only child now: legend pinned left, buttons right. */
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -155,6 +146,7 @@
 }
 
 .legend-inline {
+  margin-right: auto;
   display: flex;
   align-items: center;
   gap: 10px;

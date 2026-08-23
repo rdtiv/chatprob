@@ -488,10 +488,6 @@
     padding-top: max(10px, var(--safe-area-inset-top));
   }
 
-  .chat-promise {
-    display: none;
-  }
-
   .header-actions {
     width: 100%;
     flex-wrap: wrap;
@@ -536,10 +532,6 @@
   .completion-tab {
     min-width: 28px;
     height: 28px;
-  }
-
-  .send-button {
-    padding: 0 14px;
   }
 
 }
