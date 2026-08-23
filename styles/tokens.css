@@ -165,3 +165,56 @@
     --heat-gain: 1.1;
   }
 }
+
+/* --- WP2: ambient ground, glass, composer ------------------------------- */
+:root {
+  /* Ambient blobs. The whole gradient lives in the token so the fade stop can be
+     the same hue at alpha 0 — `transparent` interpolates through
+     transparent-black in sRGB and greys the blob out. */
+  --ambient-1: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.38) 0%, rgba(37, 99, 235, 0) 70%);
+  --ambient-2: radial-gradient(circle at 50% 50%, rgba(109, 40, 217, 0.30) 0%, rgba(109, 40, 217, 0) 70%);
+
+  /* The chat panel: translucent, never blurred (see §5). --surface at 72%. */
+  --panel-bg: rgba(255, 255, 255, 0.72);
+  --panel-shadow: 0 24px 60px var(--shadow-2), 0 2px 8px var(--shadow-1);
+
+  /* Glass. Alphas are contrast-derived — read §9 before changing any of them. */
+  --glass-blur: 20px;
+  --glass-bg: rgba(255, 255, 255, 0.62);   /* --surface at 62% */
+  --glass-rim: rgba(255, 255, 255, 0.60);
+  --glass-specular: rgba(255, 255, 255, 0.75);
+  --glass-specular-soft: rgba(255, 255, 255, 0.35);
+  --glass-shadow: 0 8px 32px var(--shadow-2);
+  --glass-bg-ink: rgba(27, 32, 48, 0.90);  /* --ink at 90% */
+  --glass-rim-ink: rgba(255, 255, 255, 0.14);
+
+  /* Composer */
+  --well-bg: rgba(255, 255, 255, 0.70);    /* --surface at 70% */
+  --well-inset: rgba(15, 23, 42, 0.06);
+  --send-top: color-mix(in srgb, var(--accent) 92%, #fff);
+  --send-bottom: color-mix(in srgb, var(--accent) 94%, #000);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ambient-1: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.30) 0%, rgba(37, 99, 235, 0) 70%);
+    --ambient-2: radial-gradient(circle at 50% 50%, rgba(109, 40, 217, 0.26) 0%, rgba(109, 40, 217, 0) 70%);
+
+    --panel-bg: rgba(21, 26, 38, 0.78);    /* --surface #151a26 at 78% */
+
+    /* Dark glass is a DARK tint, not a white one at low alpha: white-on-dark
+       glass measures 3.93:1 for --muted and fails invariant 5 (§9). */
+    --glass-bg: rgba(14, 18, 28, 0.55);
+    --glass-rim: rgba(255, 255, 255, 0.12);
+    --glass-specular: rgba(255, 255, 255, 0.10);
+    --glass-specular-soft: rgba(255, 255, 255, 0.05);
+    /* --ink inverts in dark (#e6e9f0), and WP1's .coach-mark already flips with
+       it (surfaces.css:9-10, background: var(--ink); color: var(--on-ink)), so
+       ink-glass inverts too. */
+    --glass-bg-ink: rgba(230, 233, 240, 0.90);
+    --glass-rim-ink: rgba(12, 15, 23, 0.12);
+
+    --well-bg: rgba(21, 26, 38, 0.70);
+    --well-inset: rgba(0, 0, 0, 0.35);
+  }
+}

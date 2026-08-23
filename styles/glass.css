@@ -1,0 +1,60 @@
+/* Split out of globals.css. Cross-file source order is load-bearing: keep the @import order in globals.css. */
+
+/* Liquid Glass primitive. Chrome only — message bubbles, the token heatmap,
+   tool cards and the cost card stay opaque (mission decision table).
+   Imported BEFORE shell.css and composer.css on purpose: .glass and
+   .chat-header/.message-form are all specificity (0,1,0), so the chrome's
+   border/box-shadow overrides win on source order alone. */
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-rim);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  box-shadow:
+    inset 1px 1px 0 var(--glass-specular),
+    inset 0 0 12px var(--glass-specular-soft),
+    var(--glass-shadow);
+}
+
+/* Both prefixes are tested: Safari 16–17 ship only -webkit-backdrop-filter, so
+   `@supports not (backdrop-filter: blur(1px))` alone would drop every Safari
+   below 18 onto the opaque fallback. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass {
+    background: var(--surface);
+  }
+}
+
+/* Ink-tinted glass — WP3 coach marks. Defined here so the token set is complete;
+   nothing in WP2 applies this class. It inherits its text colour from
+   .coach-mark (var(--on-ink)), and the no-backdrop-filter fallback is exactly
+   today's coach mark: an opaque var(--ink) chip. */
+.glass--ink {
+  background: var(--glass-bg-ink);
+  border: 1px solid var(--glass-rim-ink);
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-ink),
+    var(--glass-shadow);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass--ink {
+    background: var(--ink);
+  }
+}
+
+/* WP3 hook. The SVG filter it names is defined in pages/_document.js. Left
+   deliberately empty: WP2 ships the plumbing, WP3 ships the refraction on the
+   token popover/sheet and the sampling panel only. */
+.glass--refract { }
+
+@supports (backdrop-filter: url(#lg-refract)) {
+  /* WP3: append url(#lg-refract) to the backdrop-filter chain here.
+     WARNING for WP3: this is a SYNTAX test. Safari and Firefox parse `url()` as
+     a valid <filter-value-list> and report support while rendering nothing (or
+     dropping the whole chain), so this @supports block does NOT by itself
+     isolate Chrome/Edge. WP3 must verify per browser and add a second gate if
+     the fallback leaks. Keeping the block empty is what makes WP2 safe to
+     ship. */
+}

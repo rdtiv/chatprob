@@ -404,6 +404,7 @@
 }
 
 .token-hint {
+  border-radius: 3px;
   animation: tokenHintPulse 1.2s ease-in-out infinite;
 }
 

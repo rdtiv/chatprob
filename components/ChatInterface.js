@@ -1,4 +1,8 @@
-import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useId } from 'react';
+
+// useLayoutEffect warns during SSR on React 18; the pages router renders this
+// component on the server, so fall back to useEffect there (it never runs anyway).
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import Message from './Message';
 import CoachMark from './CoachMark';
 import ConversationExplainer, { CostFooter } from './ConversationExplainer';
@@ -95,6 +99,7 @@ export default function ChatInterface() {
   const panelId = useId();
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const chatContainerRef = useRef(null);
   const inFlightRef = useRef(false);
   const composerRef = useRef(null);
   const tokenizerStartedRef = useRef(false);
@@ -647,6 +652,41 @@ export default function ChatInterface() {
     followup = { kind: 'tools', label: 'Now give it the tool' };
   }
 
+  const followupKind = followup?.kind ?? null;
+
+  // The glass header and composer float over the transcript, so the scroller has
+  // to reserve their heights as padding. Measured, never hard-coded: the header
+  // wraps on narrow screens, the composer grows with the textarea up to
+  // COMPOSER_MAX_HEIGHT, and the two conditional strips (the legend's why-note,
+  // the follow-up chip row) come and go. Same ResizeObserver pattern as
+  // useAnchoredSurface, writing onto .chat-container. A layout effect, not a
+  // passive one: the measured values must land before the first paint, or the
+  // transcript is drawn once with the shell.css fallbacks and then jumps.
+  useIsomorphicLayoutEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return undefined;
+    const targets = [
+      ['--header-h', document.querySelector('.chat-header')],
+      ['--why-h', document.querySelector('.chat-container > .why-note')],
+      ['--composer-h', document.querySelector('.message-form')],
+      ['--followup-h', document.querySelector('.chat-container > .prompt-chips')],
+    ];
+    const apply = () => {
+      targets.forEach(([name, el]) => {
+        if (el) container.style.setProperty(name, `${Math.ceil(el.getBoundingClientRect().height)}px`);
+        else container.style.removeProperty(name);
+      });
+    };
+    apply();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
+    targets.forEach(([, el]) => { if (el) observer?.observe(el); });
+    window.addEventListener('resize', apply);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', apply);
+    };
+  }, [legendWhyOpen, followupKind]);
+
   let coachTargetIndex = -1;
   let coach = null;
   if (coachStep === 0 && step1TargetIndex >= 0) {
@@ -775,13 +815,8 @@ export default function ChatInterface() {
   return (
     <SamplingProvider value={samplingValue}>
     <div className="app-shell">
-      <div className="chat-container" style={{
-        maxWidth: '800px',
-        width: '100%',
-        height: '100%',
-        margin: '0 auto'
-      }}>
-        <div className="chat-header">
+      <div className="chat-container" ref={chatContainerRef}>
+        <div className="chat-header glass">
           <span className="chat-promise">How a language model picks each word</span>
           <div className="header-actions">
             <div className="legend-inline">
@@ -840,7 +875,7 @@ export default function ChatInterface() {
           </button>
           </div>
         </div>
-        {legendWhyOpen && <p className="why-note">{COACH_TEXT_COLOR}</p>}
+        {legendWhyOpen && <p className="why-note glass">{COACH_TEXT_COLOR}</p>}
         <div className="messages-container" ref={messagesContainerRef}>
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
@@ -918,7 +953,7 @@ export default function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
         {followup && (
-          <div className="prompt-chips" aria-label="Follow-up prompt">
+          <div className="prompt-chips glass" aria-label="Follow-up prompt">
             <button
               type="button"
               className="prompt-chip"
@@ -940,7 +975,7 @@ export default function ChatInterface() {
             </button>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="message-form">
+        <form onSubmit={handleSubmit} className="message-form glass">
           <div className="composer-row">
             <textarea
               ref={composerRef}

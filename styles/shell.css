@@ -10,27 +10,131 @@
   overflow: hidden;
 }
 
+/* The ambient ground is what the chrome glass refracts; without it, blur has
+   nothing to blur. Two low-alpha blobs in the accent family, 80px-blurred,
+   drifting slowly. */
+.app-shell::before,
+.app-shell::after {
+  content: '';
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  /* translateZ(0) promotes the blob to its own compositor layer so the 80px
+     blur is rasterised once and the drift stays a pure transform — this is what
+     keeps iOS scrolling smooth over the glass. will-change is released again
+     under reduced motion, where nothing animates. */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.app-shell::before {
+  top: -22vmax;
+  left: -18vmax;
+  background: var(--ambient-1);
+  animation: ambientDrift 40s ease-in-out infinite;
+}
+
+.app-shell::after {
+  right: -20vmax;
+  bottom: -24vmax;
+  background: var(--ambient-2);
+  animation: ambientDrift 52s ease-in-out infinite reverse;
+  animation-delay: -8s;
+}
+
+@keyframes ambientDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(6vw, 4vh, 0) scale(1.08); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell::before,
+  .app-shell::after {
+    animation: none;
+    will-change: auto;
+  }
+}
+
 .chat-container {
-  background-color: var(--surface);
+  --header-h: 56px;
+  --why-h: 0px;
+  --composer-h: 72px;
+  --followup-h: 0px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: var(--panel-bg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* height is split out at (0,2,0) on purpose. It replaces an INLINE height:100%
+   (ChatInterface.js:781), and two later rules also set .chat-container's height:
+   styles/transcript.css:409-411 (100dvh, ≤768px) and styles/transcript.css:545-549
+   (@supports -webkit-touch-callout → -webkit-fill-available, iOS). The inline
+   style shadowed both; this selector reproduces that precedence exactly, so
+   iOS layout does not shift under us. The var defaults and every other
+   declaration stay at (0,1,0) so the ≤768px block can still override them. */
+.app-shell > .chat-container {
   height: 100%;
-  margin-top: auto;
-  margin-bottom: auto;
-  position: relative;
 }
 
 .chat-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   height: 56px;
-  flex-shrink: 0;
   padding: 0 16px;
-  background: var(--surface);
+  border: 0;
   border-bottom: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+/* The header's "what does this mean?" note is chrome, not transcript: it hangs
+   off the bottom of the glass header instead of pushing the transcript down.
+   Child combinator — .why-note is also used inside the transcript
+   (Message.js:396, ConversationExplainer.js:58, base rule surfaces.css:71). */
+.chat-container > .why-note {
+  position: absolute;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+}
+
+/* Follow-up chip strip: a bar flush above the composer, not a floating row over
+   the transcript. Child combinator — .prompt-chips is also the empty-start chip
+   rows (ChatInterface.js:852, base rule transcript.css:3). The horizontal
+   padding is new; the base rule has none, so today's follow-up chips sit flush
+   against the container's left edge. */
+.chat-container > .prompt-chips {
+  position: absolute;
+  bottom: var(--composer-h);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 8px 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  box-shadow: none;
 }
 
 .chat-promise {
@@ -105,4 +209,38 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--ink);
+}
+
+/* Floating panel on a real desktop. The min-height guard keeps a landscape phone
+   (width > 768, height ~390) from losing 48px of an already short viewport. */
+@media (min-width: 769px) and (min-height: 640px) {
+  .chat-container {
+    margin: 24px auto;
+    border-radius: var(--r-4);
+    border: 1px solid var(--glass-rim);
+    box-shadow: var(--panel-shadow);
+  }
+
+  /* (0,2,0) again, and for the same reason as §4.3: styles/transcript.css:545-549
+     sets .chat-container { height: -webkit-fill-available } inside
+     @supports (-webkit-touch-callout: none), it is imported after shell.css, and
+     it matches on iPadOS — where this media query also matches. At equal
+     specificity it would win and cut 48px off the bottom of the panel. */
+  .app-shell > .chat-container {
+    height: calc(100% - 48px);
+  }
+
+  /* Safari does not always honour a rounded overflow clip on a
+     backdrop-filtered child; matching the corners on the strips themselves is
+     cheap insurance. .message-form's base rule lives in composer.css (imported
+     later) but sets no border-radius, so these survive. */
+  .chat-header {
+    border-top-left-radius: var(--r-4);
+    border-top-right-radius: var(--r-4);
+  }
+
+  .message-form {
+    border-bottom-left-radius: var(--r-4);
+    border-bottom-right-radius: var(--r-4);
+  }
 }
