@@ -14,6 +14,7 @@ import { SamplingProvider } from './SamplingContext';
 import { loadTokenizer } from '../lib/tokenizer';
 import { TEMP_DEFAULT, TOP_P_DEFAULT, PENALTY_DEFAULT, BORING_SEED } from '../lib/sampling';
 import { pruneForStorage } from '../lib/persistence';
+import { abortedFields, abortedTurn } from '../lib/abortedTurn';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary } from '../lib/usage';
@@ -107,6 +108,13 @@ export default function ChatInterface() {
   const atBottomRef = useRef(true);
   const nextScrollBehaviorRef = useRef('auto');
   const abortRef = useRef(null);
+  // Set true by the Stop button just before it aborts, so the catch blocks
+  // can tell a user-initiated stop (append an aborted-turn message) apart
+  // from clearChat's abort (transcript already emptied, stay silent).
+  const stopRequestedRef = useRef(false);
+  // Copy for the aborted-turn note when the user pressed Stop, as opposed to a
+  // dropped connection (the note's default).
+  const STOP_REASON = 'You stopped this reply';
   const pendingRef = useRef(null);
   const rafRef = useRef(0);
   const unmountedRef = useRef(false);
@@ -344,10 +352,18 @@ export default function ChatInterface() {
         },
       ]);
     } catch (error) {
-      // Clear-chat aborts an in-flight tools turn; the fetch rejects with
-      // AbortError and there is no message to append — the chat was emptied
-      // on purpose, so no error bubble and nothing to persist.
-      if (error.name === 'AbortError') return;
+      if (error.name === 'AbortError') {
+        // Clear-chat also aborts an in-flight tools turn; the fetch rejects
+        // with AbortError and there is no message to append — the chat was
+        // emptied on purpose, so no error bubble and nothing to persist.
+        // A Stop click is different: the user message is still on screen and
+        // needs a reply, so append the same aborted-turn shape the streaming
+        // path uses (minus any partial text — the JSON path never has any).
+        if (stopRequestedRef.current && !unmountedRef.current) {
+          setMessages((prev) => [...prev, abortedTurn({ reason: STOP_REASON })]);
+        }
+        return;
+      }
       console.error('Error:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -357,6 +373,7 @@ export default function ChatInterface() {
       }]);
     } finally {
       abortRef.current = null;
+      stopRequestedRef.current = false;
       inFlightRef.current = false;
       setIsLoading(false);
     }
@@ -472,11 +489,7 @@ export default function ChatInterface() {
             ...partialFlushed,
             completions,
             content: completions[0]?.text ?? '',
-            error: true,
-            aborted: true,
-            usage: null,
-            timing: null,
-            ...(streamErrorMessage ? { abortReason: streamErrorMessage } : {}),
+            ...abortedFields(streamErrorMessage ?? (stopRequestedRef.current ? STOP_REASON : null)),
           },
         ];
       });
@@ -536,6 +549,7 @@ export default function ChatInterface() {
       finalizeAborted();
     } finally {
       abortRef.current = null;
+      stopRequestedRef.current = false;
       inFlightRef.current = false;
       setIsLoading(false);
     }
@@ -572,6 +586,8 @@ export default function ChatInterface() {
   const clearChat = () => {
     // A stream may be in flight — abort it or the emptied chat keeps the
     // typing dots and disabled composer until the full completion is billed.
+    // This is not a user Stop, so make sure the JSON-path catch stays silent.
+    stopRequestedRef.current = false;
     abortRef.current?.abort();
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
@@ -996,7 +1012,10 @@ export default function ChatInterface() {
                 className="send-button is-stop"
                 aria-label="Stop reply"
                 title="Stop"
-                onClick={() => abortRef.current?.abort()}
+                onClick={() => {
+                  stopRequestedRef.current = true;
+                  abortRef.current?.abort();
+                }}
               >
                 <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <rect x="5.5" y="5.5" width="9" height="9" rx="2" fill="currentColor" />
