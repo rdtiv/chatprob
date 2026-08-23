@@ -50,15 +50,14 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
       const viewportWidth = window.innerWidth;
       const padding = 12;
       const header = document.querySelector('.chat-header');
-      const legend = document.querySelector('.confidence-legend');
       const form = document.querySelector('.message-form');
-      const chromeBottom = (legend || header)?.getBoundingClientRect().bottom ?? 0;
+      const chromeBottom = header?.getBoundingClientRect().bottom ?? 0;
       const topSafe = Math.max(padding, chromeBottom + 8);
       const bottomSafe = form
         ? form.getBoundingClientRect().top - 8
         : window.innerHeight - 80;
 
-      // Prefer below the token so the card does not cover the header/legend.
+      // Prefer below the token so the card does not cover the header.
       let top = anchor.y + 20;
       let left = anchor.x - (rect.width / 2);
 
