@@ -388,6 +388,13 @@
   touch-action: manipulation;
 }
 
+.token.is-newline {
+  /* A newline-only token: show a small return glyph instead of an empty box. */
+  opacity: 0.45;
+  padding: 2px 3px;
+  font-size: 12px;
+}
+
 .token:hover {
   border-radius: 3px;
   box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.5) !important;

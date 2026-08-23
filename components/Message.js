@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId, memo, Fragment } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import CoachMark from './CoachMark';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
@@ -297,16 +297,29 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
               handleTokenClick(tp.token, idx, e);
             },
           };
+          // A token can carry its own line breaks (":\n\n", ".\n"). Inside an
+          // inline-block with pre-wrap they would make the span several lines
+          // tall and leave the punctuation stranded on its own line, so the
+          // breaks are rendered as <br> outside the span; a newline-only token
+          // keeps a small ↵ glyph so it stays hoverable.
+          const raw = tp.token || '';
+          const visible = raw.replace(/\n/g, '');
+          const leadingBreaks = raw.match(/^\n*/)[0].length;
+          const trailingBreaks = raw.length - visible.length - leadingBreaks;
+          const key = forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`;
           return (
+            <Fragment key={key}>
+            {Array.from({ length: leadingBreaks }, (_, i) => <br key={`lb${i}`} />)}
             <span
-              key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
-              className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
+              className={`token${visible ? '' : ' is-newline'}${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
               style={heatStyle}
               {...interactiveProps}
             >
-              {tp.token}
+              {visible || '↵'}
             </span>
+            {Array.from({ length: trailingBreaks }, (_, i) => <br key={`tb${i}`} />)}
+            </Fragment>
           );
         })}
       </div>
