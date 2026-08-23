@@ -580,10 +580,11 @@
 }
 
 /* Heatmap fill comes from JS-set custom properties so dark mode can re-gain it.
-   Message.js sets --conf-rgb / --conf-a per token; the fallbacks render no fill
+   Message.js sets --conf-rgb / --conf-a / --conf-on per token; the fallbacks render no fill
+   (--conf-on gates the dark lift so an unmeasured token never gets a 0.15 fill)
    for a token with no measured probability (the old 'transparent' case). */
 .token {
-  background-color: rgba(var(--conf-rgb, 0, 0, 0), calc(var(--conf-a, 0) * var(--heat-gain, 1)));
+  background-color: rgba(var(--conf-rgb, 0, 0, 0), calc(var(--conf-a, 0) * var(--heat-gain, 1) + var(--heat-lift, 0) * var(--conf-on, 0)));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -593,7 +594,7 @@
   .token {
     background-color: rgba(
       var(--conf-rgb-dark, var(--conf-rgb, 0, 0, 0)),
-      calc(var(--conf-a, 0) * var(--heat-gain, 1))
+      calc(var(--conf-a, 0) * var(--heat-gain, 1) + var(--heat-lift, 0) * var(--conf-on, 0))
     );
   }
 }
