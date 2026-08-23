@@ -4,8 +4,6 @@
   display: inline-flex;
   align-items: center;
   height: 32px;
-  border: 1px solid var(--line);
-  background: var(--surface);
   border-radius: var(--r-pill);
   padding: 0 12px;
   font-size: var(--fs-2);
@@ -55,17 +53,34 @@
   width: 100%;
   padding: 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  /* The bar itself is transparent: only the capsule below floats, and the
+     transcript fades out underneath it (the scroll-edge mask ramps across
+     this whole zone). pointer-events: none so the dead zones around the
+     capsule still scroll and hover the transcript. */
+  background: transparent;
   border: 0;
-  border-top: 1px solid var(--line);
-  /* Same recipe as .glass but the drop shadow points UP, onto the transcript;
-     the default downward one is clipped by the container's overflow. */
-  box-shadow:
-    inset 1px 1px 0 var(--glass-specular),
-    inset 0 0 12px var(--glass-specular-soft),
-    0 -6px 24px var(--shadow-2);
+  box-shadow: none;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Progressive blur (Apple's variable blur): a backdrop-filter layer over the
+   whole bar zone, masked so the blur strength ramps from nothing at the top of
+   the zone to full at the panel's edge. Content softens as it dips under the
+   capsule instead of switching from sharp to hidden. Composes with the
+   scroll-edge fade on the scroller. */
+.message-form::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 70%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 70%);
 }
 
 .composer-row {
@@ -73,7 +88,23 @@
   width: 100%;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
+  /* The floating capsule. .glass supplies blur, rim and speculars; the panel
+     tint keeps typed text legible over whatever scrolls beneath. */
+  padding: 6px;
+  border-radius: var(--r-4);
+  background: var(--glass-bg-panel);
+  box-shadow:
+    inset 0 1px 0 var(--glass-specular),
+    0 8px 28px var(--shadow-2);
+  pointer-events: auto;
+}
+
+.composer-row:focus-within {
+  box-shadow:
+    inset 0 1px 0 var(--glass-specular),
+    0 8px 28px var(--shadow-2),
+    0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 
 @media (max-width: 768px) {
@@ -87,9 +118,9 @@
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--r-3);
-  border: 1px solid var(--line);
-  background-color: var(--well-bg);
-  box-shadow: inset 0 1px 2px var(--well-inset);
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
   color: var(--ink);
   font-size: var(--fs-4);
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -104,40 +135,51 @@
 }
 
 .message-input:focus {
-  border-color: var(--accent);
-  background-color: var(--surface);
-  box-shadow: inset 0 1px 2px var(--well-inset), 0 0 0 3px rgba(var(--accent-rgb), 0.35);
+  /* The ring lives on the capsule (.composer-row:focus-within). */
+  background-color: transparent;
+  box-shadow: none;
 }
 
+/* Send: a 44px circle with three states. Empty composer → hollow glass ring
+   with a muted arrow (disabled). Text present → accent-filled (.is-ready).
+   Reply in flight → the same circle becomes Stop (.is-stop, type=button). */
 .send-button {
   flex-shrink: 0;
+  width: 44px;
   height: 44px;
-  padding: 0 20px;
-  border-radius: var(--r-pill);
-  border: none;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--chip-rim);
+  background-color: var(--chip-bg);
+  background-image: none;
+  box-shadow: inset 0 1px 0 var(--chip-specular);
+  color: var(--muted);
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+}
+
+.send-button svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.send-button.is-ready,
+.send-button.is-stop {
+  border-color: transparent;
   /* background-color is the color-mix fallback: if the gradient's tokens fail to
      compute, background-image drops out and the flat accent stays. */
   background-color: var(--accent);
   background-image: linear-gradient(180deg, var(--send-top), var(--send-bottom));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 1px 2px var(--shadow-2);
+    0 1px 2px var(--shadow-2),
+    0 4px 14px rgba(var(--accent-rgb), 0.35);
   color: var(--on-accent);
-  font: inherit;
-  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: filter 0.15s ease, transform 0.1s ease;
-}
-
-.send-button:disabled {
-  background-color: var(--line);
-  background-image: none;
-  box-shadow: none;
-  color: var(--muted);
-  cursor: not-allowed;
 }
 
 .send-button:hover:not(:disabled) {
@@ -145,7 +187,7 @@
 }
 
 .send-button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.94);
 }
 
 .send-button:focus-visible {

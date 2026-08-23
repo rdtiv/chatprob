@@ -44,17 +44,68 @@
   }
 }
 
-/* WP3 hook. The SVG filter it names is defined in pages/_document.js. Left
-   deliberately empty: WP2 ships the plumbing, WP3 ships the refraction on the
-   token popover/sheet and the sampling panel only. */
-.glass--refract { }
+/* Refraction. TWO gates, both required.
 
+   1. :root[data-refract='on'] — set by the runtime probe in pages/_app.js.
+      This is the gate that does the work; see that comment for why a feature
+      test cannot.
+   2. @supports — kept as documentation and as a second belt. It names the
+      dependency and drops the rule in an engine that cannot parse the chain.
+      On its own it isolates nothing: Safari and Firefox parse url() in a
+      backdrop-filter list and report support while rendering nothing.
+
+   blur() and saturate() stay in the chain, so the panel is frosted in every
+   engine and in every failure mode; url() goes LAST so the displacement warps
+   the already-blurred backdrop, which is what reads as liquid.
+
+   Text cannot smear at any scale: backdrop-filter only ever filters the
+   Backdrop Image (everything painted behind the element). The element's own
+   background and its content are composited on top, unfiltered. The filter
+   region in pages/_document.js is clamped to x/y 0, width/height 100%, so the
+   displaced backdrop also cannot bleed outside the panel's box. */
 @supports (backdrop-filter: url(#lg-refract)) {
-  /* WP3: append url(#lg-refract) to the backdrop-filter chain here.
-     WARNING for WP3: this is a SYNTAX test. Safari and Firefox parse `url()` as
-     a valid <filter-value-list> and report support while rendering nothing (or
-     dropping the whole chain), so this @supports block does NOT by itself
-     isolate Chrome/Edge. WP3 must verify per browser and add a second gate if
-     the fallback leaks. Keeping the block empty is what makes WP2 safe to
-     ship. */
+  :root[data-refract='on'] .glass.glass--refract {
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%) url(#lg-refract);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%) url(#lg-refract);
+  }
+}
+
+/* Chip-scale glass: no backdrop-filter, on purpose. Every consumer is either
+   inside a .glass parent (which is already a backdrop root, so a nested blur
+   samples blurred output and costs a second pass) or inside the scroller
+   (where a backdrop-filter re-snapshots every frame). The rim and the
+   specular are what read as glass at 32px.
+
+   NOTE: glass.css is imported before transcript/composer/surfaces, so each
+   consumer's own rule has to give up its background/border for this to apply —
+   see the three edits in §6. */
+.glass-chip {
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-rim);
+  box-shadow: inset 0 1px 0 var(--chip-specular);
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+/* Hover-capable pointers only: a lift that sticks after a tap is worse than no
+   lift. */
+@media (hover: hover) {
+  .glass-chip:hover:not(:disabled) {
+    background: var(--chip-bg-hover);
+    border-color: var(--chip-rim-hover);
+    transform: translateY(-1px);
+  }
+}
+
+.glass-chip:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-chip {
+    transition: none;
+  }
+
+  .glass-chip:hover:not(:disabled) {
+    transform: none;
+  }
 }

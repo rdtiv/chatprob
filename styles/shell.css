@@ -95,12 +95,27 @@
   z-index: 3;
   height: 56px;
   padding: 0 16px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
+  border: 0; /* no rule: the blur is the edge (see .message-form) */
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+/* Mirror of .message-form::before: the blur ramps up toward the header. The
+   header keeps its own glass; this layer only softens the approach. */
+.chat-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 28px;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 100%);
+  mask-image: linear-gradient(to top, transparent 0, #000 100%);
 }
 
 /* The header's "what does this mean?" note is chrome, not transcript: it hangs
@@ -137,17 +152,9 @@
   box-shadow: none;
 }
 
-.chat-promise {
-  font-size: var(--fs-3);
-  color: var(--ink);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .header-actions {
+  /* The header's only child now: legend pinned left, buttons right. */
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -155,6 +162,7 @@
 }
 
 .legend-inline {
+  margin-right: auto;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -176,15 +184,15 @@
 }
 
 .legend-swatch-high {
-  background: rgba(34, 197, 94, 0.55);
+  background: var(--legend-high);
 }
 
 .legend-swatch-mid {
-  background: rgba(234, 179, 8, 0.55);
+  background: var(--legend-mid);
 }
 
 .legend-swatch-low {
-  background: rgba(139, 0, 0, 0.45);
+  background: var(--legend-low);
 }
 
 .legend-honesty {

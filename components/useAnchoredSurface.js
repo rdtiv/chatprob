@@ -42,7 +42,11 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
     }
     const apply = () => {
       if (!ref.current) return;
-      const rect = card.getBoundingClientRect();
+      // Layout size, not getBoundingClientRect(): the entrance animation scales
+      // the card, and a remeasure that lands mid-animation (mode toggle, a
+      // sheet/popover flip) would otherwise read the shrunken box and misplace
+      // the card by a few px. offsetWidth/Height ignore transforms.
+      const rect = { width: card.offsetWidth, height: card.offsetHeight };
       const viewportWidth = window.innerWidth;
       const padding = 12;
       const header = document.querySelector('.chat-header');
@@ -68,7 +72,14 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
         top = Math.max(topSafe, bottomSafe - rect.height);
       }
 
-      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
+      // Clamp horizontally to the chat panel, not the viewport: the card is
+      // rendered inside the masked transcript scroller, and a mask clips even
+      // position: fixed descendants at the panel's edges. The header spans the
+      // panel's full width, so its rect is the panel's horizontal extent.
+      const panel = header?.getBoundingClientRect();
+      const leftSafe = (panel?.left ?? 0) + padding;
+      const rightSafe = (panel?.right ?? viewportWidth) - padding;
+      left = Math.max(leftSafe, Math.min(left, rightSafe - rect.width));
 
       card.style.top = `${top}px`;
       card.style.left = `${left}px`;

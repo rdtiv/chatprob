@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
 import { TEMP_MIN, TEMP_MAX, TEMP_STEP } from '../lib/sampling';
 import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
@@ -22,6 +22,18 @@ export default function TokenProbabilities({
   const { temperature, setTemperature, boring } = useSampling();
 
   useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
+
+  // The entrance animation scales the card. useAnchoredSurface measures
+  // getBoundingClientRect() in a PASSIVE effect (after paint), and a scale()
+  // in flight would hand it a 4%-small box — the card would land ~4px off
+  // vertically and ~4px off horizontally. Gating the animation on a class set
+  // one commit later means the measurement happens on the untransformed box,
+  // and it also kills the pre-existing one-frame flash of an unpositioned card.
+  const [entered, setEntered] = useState(false);
+  // One instance stays mounted while the pointer moves between tokens (no key
+  // in Message.js), so the entrance plays once per hover session and later
+  // tokens reposition instantly — deliberate: re-animating per token flickers.
+  useEffect(() => { setEntered(true); }, []);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
   // never appear or disappear while the slider moves.
@@ -59,7 +71,7 @@ export default function TokenProbabilities({
   return (
     <div
       ref={cardRef}
-      className={`token-probabilities-card ${isSheet ? 'is-sheet' : 'is-popover'}`}
+      className={`token-probabilities-card glass glass--refract ${isSheet ? 'is-sheet' : 'is-popover'}${entered ? ' is-in' : ''}`}
       role="dialog"
       aria-label="What else the model considered"
       onMouseEnter={onMouseEnter}
