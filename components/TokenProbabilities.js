@@ -30,6 +30,9 @@ export default function TokenProbabilities({
   // one commit later means the measurement happens on the untransformed box,
   // and it also kills the pre-existing one-frame flash of an unpositioned card.
   const [entered, setEntered] = useState(false);
+  // One instance stays mounted while the pointer moves between tokens (no key
+  // in Message.js), so the entrance plays once per hover session and later
+  // tokens reposition instantly — deliberate: re-animating per token flickers.
   useEffect(() => { setEntered(true); }, []);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows

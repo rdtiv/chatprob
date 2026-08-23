@@ -42,7 +42,11 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
     }
     const apply = () => {
       if (!ref.current) return;
-      const rect = card.getBoundingClientRect();
+      // Layout size, not getBoundingClientRect(): the entrance animation scales
+      // the card, and a remeasure that lands mid-animation (mode toggle, a
+      // sheet/popover flip) would otherwise read the shrunken box and misplace
+      // the card by a few px. offsetWidth/Height ignore transforms.
+      const rect = { width: card.offsetWidth, height: card.offsetHeight };
       const viewportWidth = window.innerWidth;
       const padding = 12;
       const header = document.querySelector('.chat-header');
