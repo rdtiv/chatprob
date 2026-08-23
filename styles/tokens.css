@@ -171,11 +171,11 @@
   /* Ambient blobs. The whole gradient lives in the token so the fade stop can be
      the same hue at alpha 0 — `transparent` interpolates through
      transparent-black in sRGB and greys the blob out. */
-  --ambient-1: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.16) 0%, rgba(37, 99, 235, 0) 70%);
-  --ambient-2: radial-gradient(circle at 50% 50%, rgba(109, 40, 217, 0.12) 0%, rgba(109, 40, 217, 0) 70%);
+  --ambient-1: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.38) 0%, rgba(37, 99, 235, 0) 70%);
+  --ambient-2: radial-gradient(circle at 50% 50%, rgba(109, 40, 217, 0.30) 0%, rgba(109, 40, 217, 0) 70%);
 
-  /* The chat panel: translucent, never blurred (see §5). --surface at 82%. */
-  --panel-bg: rgba(255, 255, 255, 0.82);
+  /* The chat panel: translucent, never blurred (see §5). --surface at 72%. */
+  --panel-bg: rgba(255, 255, 255, 0.72);
   --panel-shadow: 0 24px 60px var(--shadow-2), 0 2px 8px var(--shadow-1);
 
   /* Glass. Alphas are contrast-derived — read §9 before changing any of them. */
