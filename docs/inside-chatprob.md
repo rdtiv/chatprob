@@ -40,7 +40,7 @@ The nine steps, in brief — each chapter repeats its own:
 8. Click **Now give it the tool**.
 9. Reload the page.
 
-The sitting is written for a desktop browser; on a touch screen the card and Controls become bottom sheets, and *click* means tap.
+The sitting is written for a desktop browser; on a touch screen the card and Controls become bottom sheets, and *click* means tap. *Send* means the circle at the right of the composer — it is a hollow ring until you type, then fills with colour — or the Enter key; while a reply is arriving, that same circle becomes a **Stop** square.
 
 ## 1. Your words become pieces
 
@@ -84,7 +84,7 @@ One more fact about these colors, stated here so it is never in doubt later: **t
 
 The reply did not appear all at once. It arrived in pieces, the heatmap filling in as each token landed, and a timing line under the reply recorded how long that took. This is **[streaming](glossary.md#streaming)**, and it is on by default.
 
-The panel copy says exactly what streaming changes: *the reply is built one token at a time either way — streaming just lets you watch.* The only difference is whether our server forwards each token as it is produced or holds the whole reply and sends it once. What streaming buys you is **[time to first token](glossary.md#time-to-first-token)**: the gap between pressing Send and seeing anything at all, which is the part of waiting that people actually feel.
+The panel copy says exactly what streaming changes: *the reply is built one token at a time either way — streaming just lets you watch.* The only difference is whether our server forwards each token as it is produced or holds the whole reply and sends it once. What streaming buys you is **[time to first token](glossary.md#time-to-first-token)**: the gap between sending and seeing anything at all, which is the part of waiting that people actually feel.
 
 The timing line has three shapes, and which one you get depends on the reply:
 
@@ -109,7 +109,7 @@ The first coach mark is on this reply; hovering a word advances it. Do not click
 
 ### In this repo
 
-`confidenceColor` and `confidenceBand` in `lib/completionStats.js` turn a sampled token's logprob into the gradient and the three bands (`sure` / `unsure` / `very-unsure` internally; `likely` / `toss-up` / `long shot` in the legend in `components/ChatInterface.js`). The API route in `pages/api/chat.js` asks for these numbers with `logprobs: true` and `top_logprobs: 5` on every Chat Completions call. Streaming is the same route answering `application/x-ndjson`: a `meta` event with the request as sent, a `delta` event per streamed chunk per reply, carrying that chunk's tokens, a `done` event carrying `usage`, and an `error` event when something goes wrong mid-stream. `scripts/stream-spike.mjs` is the live check that streaming, three replies and logprobs all work together — run by hand, never in CI.
+`confidenceColor` and `confidenceBand` in `lib/completionStats.js` turn a sampled token's logprob into the gradient and the three bands (`sure` / `unsure` / `very-unsure` internally; `likely` / `toss-up` / `long shot` in the legend in `components/ChatInterface.js`). `components/Message.js` draws each token as its own square-cornered span, so neighbours read as one band; a token that carries newlines of its own — `":\n\n"` is a common one — emits those breaks as `<br>` outside the span, and a newline-only token shows a dimmed `↵` instead of an empty box so you can still hover it for its candidates. The API route in `pages/api/chat.js` asks for these numbers with `logprobs: true` and `top_logprobs: 5` on every Chat Completions call. Streaming is the same route answering `application/x-ndjson`: a `meta` event with the request as sent, a `delta` event per streamed chunk per reply, carrying that chunk's tokens, a `done` event carrying `usage`, and an `error` event when something goes wrong mid-stream. `scripts/stream-spike.mjs` is the live check that streaming, three replies and logprobs all work together — run by hand, never in CI.
 
 ## 3. Reshaping the odds
 
@@ -278,7 +278,7 @@ What unfolds is the literal array our server sent to OpenAI for the reply you ar
 
 These are **[messages](glossary.md#messages)**, and the three **[roles](glossary.md#roles)** — `system`, `user`, `assistant` — are the entire vocabulary of a chat request. Every turn, the app sends the whole conversation as this array, and that array is the **[context window](glossary.md#context-window)**: the only thing the model can see when it writes. It has no other memory. It did not remember *strawberry* from a minute ago; it was shown *strawberry* again, just now, as part of this request. The pale blocks are the parts that were already sent in an earlier request; the dark blocks are this turn's new exchange. This is **[replay](glossary.md#replay)**, and the note under the array makes the sharpest version of the point: the reply you are reading is missing from its own request, because it did not exist yet — it gets replayed in the *next* request.
 
-Nothing in the conversation is stored on the server between turns. What you see as a conversation is a transcript in your browser that the app re-sends, in full, every time you press Send.
+Nothing in the conversation is stored on the server between turns. What you see as a conversation is a transcript in your browser that the app re-sends, in full, every time you send.
 
 ### Beat two: making it forget
 
