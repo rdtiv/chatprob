@@ -102,6 +102,22 @@
   gap: 12px;
 }
 
+/* Mirror of .message-form::before: the blur ramps up toward the header. The
+   header keeps its own glass; this layer only softens the approach. */
+.chat-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 28px;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 100%);
+  mask-image: linear-gradient(to top, transparent 0, #000 100%);
+}
+
 /* The header's "what does this mean?" note is chrome, not transcript: it hangs
    off the bottom of the glass header instead of pushing the transcript down.
    Child combinator — .why-note is also used inside the transcript

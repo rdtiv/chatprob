@@ -66,6 +66,23 @@
   gap: 6px;
 }
 
+/* Progressive blur (Apple's variable blur): a backdrop-filter layer over the
+   whole bar zone, masked so the blur strength ramps from nothing at the top of
+   the zone to full at the panel's edge. Content softens as it dips under the
+   capsule instead of switching from sharp to hidden. Composes with the
+   scroll-edge fade on the scroller. */
+.message-form::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 70%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 70%);
+}
+
 .composer-row {
   position: relative;
   width: 100%;
