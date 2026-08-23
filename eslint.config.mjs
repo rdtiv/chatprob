@@ -4,17 +4,24 @@ import nextVitals from 'eslint-config-next/core-web-vitals'
 const eslintConfig = defineConfig([
   ...nextVitals,
   {
-    // eslint-config-next 16 ships react-hooks/set-state-in-effect. This
-    // landing does not rewrite existing effects; turn the new rule off.
+    // Existing effects in these files trip the Next 16 react-hooks rule.
+    // New files stay covered.
+    files: [
+      'components/ChatInterface.js',
+      'components/SamplingPanel.js',
+      'components/TokenProbabilities.js',
+    ],
     rules: {
       'react-hooks/set-state-in-effect': 'off',
     },
   },
   globalIgnores([
-    '.next/**',
-    'out/**',
-    'build/**',
-    'next-env.d.ts',
+    '**/.next/**',
+    '**/out/**',
+    '**/build/**',
+    '**/next-env.d.ts',
+    '.claude/**',
+    '.grok/**',
   ]),
 ])
 

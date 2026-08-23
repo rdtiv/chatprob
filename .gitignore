@@ -14,8 +14,12 @@
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
+
+# mission worktrees — sibling checkouts, not app source
+.claude/
+.grok/
 
 # production
 /build
