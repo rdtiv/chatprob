@@ -336,13 +336,17 @@
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 15px;
   line-height: 1.75;
-  border-radius: 3px;
+  /* No radius on the fill: adjacent tokens must read as one continuous
+     highlighter band, not a row of scalloped pills. The outlined states
+     (hover ring, fork, coach pulse) round their own corners in surfaces.css. */
+  border-radius: 0;
   transition: all 150ms ease;
   position: relative;
   touch-action: manipulation;
 }
 
 .token:hover {
+  border-radius: 3px;
   box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.5) !important;
   background-color: var(--token-hover-bg) !important;
 }
