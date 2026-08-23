@@ -68,7 +68,14 @@ export function useAnchoredSurface({ ref, isSheet, anchor, remeasureKey }) {
         top = Math.max(topSafe, bottomSafe - rect.height);
       }
 
-      left = Math.max(padding, Math.min(left, viewportWidth - rect.width - padding));
+      // Clamp horizontally to the chat panel, not the viewport: the card is
+      // rendered inside the masked transcript scroller, and a mask clips even
+      // position: fixed descendants at the panel's edges. The header spans the
+      // panel's full width, so its rect is the panel's horizontal extent.
+      const panel = header?.getBoundingClientRect();
+      const leftSafe = (panel?.left ?? 0) + padding;
+      const rightSafe = (panel?.right ?? viewportWidth) - padding;
+      left = Math.max(leftSafe, Math.min(left, rightSafe - rect.width));
 
       card.style.top = `${top}px`;
       card.style.left = `${left}px`;
