@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useId, memo } from 'react';
 import TokenProbabilities from './TokenProbabilities';
 import CoachMark from './CoachMark';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
-import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceBand } from '../lib/completionStats';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceParts, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 import { formatTokenSummary } from '../lib/usage';
 import { knowledgeCutoff } from '../lib/modelFacts';
@@ -48,10 +48,15 @@ function pickHintTokenIndex(tokenProbabilities) {
   return tokenProbabilities.findIndex((tokenData) => (tokenData.token || '').trim());
 }
 
-const getBackgroundColor = (tokenData) => {
+// The fill is handed to CSS as channels + alpha, not as a finished colour, so the
+// dark scheme can re-gain it: .token { background-color: rgba(var(--conf-rgb),
+// calc(var(--conf-a) * var(--heat-gain))) }.
+const tokenHeatStyle = (tokenData) => {
   const percentage = sampledPercentage(tokenData);
-  if (percentage == null) return 'transparent';
-  return confidenceColor(percentage, 0.15 + (percentage / 100) * 0.35);
+  if (percentage == null) return undefined;
+  const parts = confidenceParts(percentage, 0.15 + (percentage / 100) * 0.35);
+  if (!parts) return undefined;
+  return { '--conf-rgb': parts.rgb, '--conf-a': parts.alpha };
 };
 
 function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
@@ -274,7 +279,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
     return (
       <div className="message-text">
         {tokenProbabilities.map((tp, idx) => {
-          const backgroundColor = getBackgroundColor(tp);
+          const heatStyle = tokenHeatStyle(tp);
           const percentage = sampledPercentage(tp);
           const band = confidenceBand(percentage);
           const interactiveProps = isStreaming ? {} : {
@@ -296,7 +301,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
               key={forkIndex < 0 || idx < forkIndex ? `p${idx}` : `t${safeIndex}:${idx}`}
               className={`token${idx === hintIndex ? ' token-hint' : ''}${forkIndex >= 0 && idx === forkIndex ? ' token-fork' : ''}${forkIndex >= 0 && idx >= forkIndex ? ' is-after-fork' : ''}${band === 'unsure' ? ' is-unsure' : band === 'very-unsure' ? ' is-very-unsure' : ''}`}
               aria-label={forkIndex >= 0 && idx === forkIndex ? `${tp.token} — the first word where the ${completionCount} replies differ` : undefined}
-              style={{ backgroundColor }}
+              style={heatStyle}
               {...interactiveProps}
             >
               {tp.token}

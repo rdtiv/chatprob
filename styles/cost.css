@@ -1,0 +1,167 @@
+/* Split out of globals.css. Cross-file source order is load-bearing: keep the @import order in globals.css. */
+
+.conversation-lesson {
+  flex-shrink: 0;
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  color: var(--muted);
+}
+
+.conversation-lesson-title {
+  margin: 0 0 8px;
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.conversation-lesson-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conversation-lesson-metrics {
+  min-width: 0;
+  flex: 1;
+}
+
+.conversation-lesson-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  color: var(--accent-text);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.conversation-lesson-chevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor;
+  transform: translateY(0.5px);
+}
+
+.conversation-lesson.is-open .conversation-lesson-chevron {
+  transform: rotate(180deg) translateY(-0.5px);
+}
+
+.conversation-lesson:not(.is-open) .conversation-lesson-body {
+  display: none;
+}
+
+.conversation-lesson.is-open .conversation-lesson-body {
+  max-height: 40vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.conversation-lesson-summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--r-2);
+}
+
+.conversation-lesson-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.conversation-lesson-label {
+  min-width: 7.5rem;
+  color: var(--muted);
+}
+
+.conversation-lesson-values {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.conversation-lesson-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.conversation-explainer {
+  margin: 6px 0 0;
+  font-size: var(--fs-2);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.empty-start .conversation-explainer {
+  margin: 0 0 12px;
+  max-width: 36rem;
+  color: var(--ink);
+}
+
+.rate-card {
+  margin: 6px 0 0;
+  font-size: var(--fs-1);
+  line-height: 1.4;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-footer {
+  margin: 6px 0 0;
+}
+
+.cost-footer-line {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: 1.45;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-footer-toggle {
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--fs-1);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.cost-footer-breakdown {
+  margin: 4px 0 0;
+  font-size: var(--fs-1);
+  line-height: 1.4;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+.hover-hint {
+  margin-top: 6px;
+  font-size: var(--fs-1);
+  color: var(--accent-text);
+  line-height: 1.3;
+}

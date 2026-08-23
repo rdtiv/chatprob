@@ -1,0 +1,108 @@
+/* Split out of globals.css. Cross-file source order is load-bearing: keep the @import order in globals.css. */
+
+.app-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.chat-container {
+  background-color: var(--surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-top: auto;
+  margin-bottom: auto;
+  position: relative;
+}
+
+.chat-header {
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-promise {
+  font-size: var(--fs-3);
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.legend-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-1);
+  flex-shrink: 0;
+}
+
+.legend-swatch-high {
+  background: rgba(34, 197, 94, 0.55);
+}
+
+.legend-swatch-mid {
+  background: rgba(234, 179, 8, 0.55);
+}
+
+.legend-swatch-low {
+  background: rgba(139, 0, 0, 0.45);
+}
+
+.legend-honesty {
+  color: var(--warn-ink);
+  font-weight: 500;
+}
+
+.legend-item.is-unsure {
+  text-decoration: underline solid var(--underline-soft);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.legend-item.is-very-unsure {
+  text-decoration: underline solid var(--underline-strong);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.session-usage {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
