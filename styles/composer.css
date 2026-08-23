@@ -47,16 +47,22 @@
 }
 
 .message-form {
-  position: sticky;
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 3;
   width: 100%;
   padding: 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-  background-color: var(--surface);
-  border-top: 1px solid var(--line-2);
-  z-index: 2;
+  border: 0;
+  border-top: 1px solid var(--line);
+  /* Same recipe as .glass but the drop shadow points UP, onto the transcript;
+     the default downward one is clipped by the container's overflow. */
+  box-shadow:
+    inset 1px 1px 0 var(--glass-specular),
+    inset 0 0 12px var(--glass-specular-soft),
+    0 -6px 24px var(--shadow-2);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -79,12 +85,14 @@
 
 .message-input {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: var(--r-2);
+  padding: 12px 16px;
+  border-radius: var(--r-3);
   border: 1px solid var(--line);
+  background-color: var(--well-bg);
+  box-shadow: inset 0 1px 2px var(--well-inset);
+  color: var(--ink);
   font-size: var(--fs-4);
-  background-color: var(--surface-2);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   margin: 0;
   outline: none;
   resize: none;
@@ -96,18 +104,24 @@
 }
 
 .message-input:focus {
-  border-color: var(--blue);
+  border-color: var(--accent);
   background-color: var(--surface);
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+  box-shadow: inset 0 1px 2px var(--well-inset), 0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 
 .send-button {
   flex-shrink: 0;
   height: 44px;
-  padding: 0 18px;
-  border-radius: var(--r-2);
+  padding: 0 20px;
+  border-radius: var(--r-pill);
   border: none;
-  background-color: var(--blue);
+  /* background-color is the color-mix fallback: if the gradient's tokens fail to
+     compute, background-image drops out and the flat accent stays. */
+  background-color: var(--accent);
+  background-image: linear-gradient(180deg, var(--send-top), var(--send-bottom));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px var(--shadow-2);
   color: var(--on-accent);
   font: inherit;
   font-weight: 600;
@@ -115,19 +129,32 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 
 .send-button:disabled {
   background-color: var(--line);
+  background-image: none;
+  box-shadow: none;
   color: var(--muted);
   cursor: not-allowed;
 }
 
 .send-button:hover:not(:disabled) {
-  background-color: var(--accent-hover);
+  filter: brightness(1.08);
 }
 
 .send-button:active:not(:disabled) {
   transform: scale(0.97);
+}
+
+.send-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-button {
+    transition: none;
+  }
 }
