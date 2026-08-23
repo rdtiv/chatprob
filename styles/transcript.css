@@ -38,7 +38,8 @@
 
 .user-token-chunk {
   background-color: rgba(var(--slate-rgb), 0.10);
-  border-radius: var(--r-1);
+  /* Square, like .token: adjacent chunks must read as one band, not scallops. */
+  border-radius: 0;
   padding: 2px 0;
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 15px;
