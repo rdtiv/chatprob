@@ -112,6 +112,9 @@ export default function ChatInterface() {
   // can tell a user-initiated stop (append an aborted-turn message) apart
   // from clearChat's abort (transcript already emptied, stay silent).
   const stopRequestedRef = useRef(false);
+  // Copy for the aborted-turn note when the user pressed Stop, as opposed to a
+  // dropped connection (the note's default).
+  const STOP_REASON = 'You stopped this reply';
   const pendingRef = useRef(null);
   const rafRef = useRef(0);
   const unmountedRef = useRef(false);
@@ -357,7 +360,7 @@ export default function ChatInterface() {
         // needs a reply, so append the same aborted-turn shape the streaming
         // path uses (minus any partial text — the JSON path never has any).
         if (stopRequestedRef.current && !unmountedRef.current) {
-          setMessages((prev) => [...prev, abortedTurn()]);
+          setMessages((prev) => [...prev, abortedTurn({ reason: STOP_REASON })]);
         }
         return;
       }
@@ -486,7 +489,7 @@ export default function ChatInterface() {
             ...partialFlushed,
             completions,
             content: completions[0]?.text ?? '',
-            ...abortedFields(streamErrorMessage),
+            ...abortedFields(streamErrorMessage ?? (stopRequestedRef.current ? STOP_REASON : null)),
           },
         ];
       });
