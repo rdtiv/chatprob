@@ -1,4 +1,8 @@
-import { useState, useRef, useEffect, useCallback, useMemo, useId } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, useId } from 'react';
+
+// useLayoutEffect warns during SSR on React 18; the pages router renders this
+// component on the server, so fall back to useEffect there (it never runs anyway).
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import Message from './Message';
 import CoachMark from './CoachMark';
 import ConversationExplainer, { CostFooter } from './ConversationExplainer';
@@ -655,9 +659,10 @@ export default function ChatInterface() {
   // wraps on narrow screens, the composer grows with the textarea up to
   // COMPOSER_MAX_HEIGHT, and the two conditional strips (the legend's why-note,
   // the follow-up chip row) come and go. Same ResizeObserver pattern as
-  // useAnchoredSurface, writing onto .chat-container so the CSS defaults in
-  // shell.css cover the first frame.
-  useEffect(() => {
+  // useAnchoredSurface, writing onto .chat-container. A layout effect, not a
+  // passive one: the measured values must land before the first paint, or the
+  // transcript is drawn once with the shell.css fallbacks and then jumps.
+  useIsomorphicLayoutEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return undefined;
     const targets = [
