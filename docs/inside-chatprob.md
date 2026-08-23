@@ -445,7 +445,7 @@ Three things about what survives are worth knowing; two are windows, easy to con
 
 **The controls are not saved.** After the reload, Controls is back at its defaults: temperature `1.0`, streaming on, memory off, tools off. The `tool on` chip is gone. If you send now, the request goes out with no tools array, and the conversation — including the tool turn, as a single assistant sentence — is replayed in full.
 
-Two smaller protections. A reload in the middle of a streaming reply does not leave a half-finished reply that looks finished: the interrupted turn is healed into an aborted note, kept on screen, never resent. And **Clear** takes two clicks — the button arms into `Clear?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading.
+Three smaller protections. A reload in the middle of a streaming reply does not leave a half-finished reply that looks finished: the interrupted turn is healed into an aborted note, kept on screen, never resent. Pressing **Stop** — the square the send circle becomes while a reply is arriving — is treated the same way, and says so: the turn stays on screen reading *You stopped this reply.*, followed by *This partial reply is not part of the conversation.* if any words had landed, or *No reply arrived.* on a tools turn, which arrives whole and so never has partial text to keep. Neither shape is ever sent back to the model. And **Clear** takes two clicks — the button arms into `Clear?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading.
 
 ### Try it — step 9
 
@@ -453,7 +453,7 @@ Reload. Confirm the transcript, the tool cards, and the absent coach marks. Pin 
 
 ### In this repo
 
-`pruneForStorage` and `KEEP_FULL_TURNS` in `lib/persistence.js` strip alternatives from turns beyond the window and mark them `alternativesPruned`; the card copy for those is in `components/TokenProbabilities.js`. The save and restore, the streaming heal, the echoed-request drop on the next send, and the two-click Clear are all in `components/ChatInterface.js`, under the storage keys `chatMessages` and `chatprobCoach`.
+`pruneForStorage` and `KEEP_FULL_TURNS` in `lib/persistence.js` strip alternatives from turns beyond the window and mark them `alternativesPruned`; the card copy for those is in `components/TokenProbabilities.js`. The save and restore, the streaming heal, the echoed-request drop on the next send, and the two-click Clear are all in `components/ChatInterface.js`, under the storage keys `chatMessages` and `chatprobCoach`. `abortedFields` and `abortedTurn` in `lib/abortedTurn.js` are the single definition of an aborted turn that the streaming path and the tools path both build on, so the two cannot drift on what the note says or on staying out of the request; `buildOutboundMessages` in `lib/contextWindow.js` is what keeps them out of it, by skipping every turn marked `error`.
 
 ---
 
