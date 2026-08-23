@@ -97,9 +97,10 @@
   --shadow-2: rgba(15, 23, 42, 0.12);
   --shadow-3: rgba(0, 0, 0, 0.15);
 
-  /* Multiplier on the per-token confidence alpha. 1 keeps light mode
-     numerically identical to confidenceColor(). */
+  /* Per-token fill alpha = --conf-a × --heat-gain + --heat-lift. 1 and 0 keep
+     light mode numerically identical to confidenceColor(). */
   --heat-gain: 1;
+  --heat-lift: 0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -162,7 +163,11 @@
     --shadow-2: rgba(0, 0, 0, 0.55);
     --shadow-3: rgba(0, 0, 0, 0.6);
 
-    --heat-gain: 1;
+    /* Dark fills read as paint at the light band (0.15–0.50). Narrow it to
+       0.225–0.40: lighter at the confident end so the text sits on a tint,
+       lifted at the long-shot end so the red stop stays visible. */
+    --heat-gain: 0.5;
+    --heat-lift: 0.15;
   }
 }
 

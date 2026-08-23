@@ -583,7 +583,7 @@
    Message.js sets --conf-rgb / --conf-a per token; the fallbacks render no fill
    for a token with no measured probability (the old 'transparent' case). */
 .token {
-  background-color: rgba(var(--conf-rgb, 0, 0, 0), calc(var(--conf-a, 0) * var(--heat-gain, 1)));
+  background-color: rgba(var(--conf-rgb, 0, 0, 0), calc(var(--conf-a, 0) * var(--heat-gain, 1) + var(--heat-lift, 0)));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -593,7 +593,7 @@
   .token {
     background-color: rgba(
       var(--conf-rgb-dark, var(--conf-rgb, 0, 0, 0)),
-      calc(var(--conf-a, 0) * var(--heat-gain, 1))
+      calc(var(--conf-a, 0) * var(--heat-gain, 1) + var(--heat-lift, 0))
     );
   }
 }
