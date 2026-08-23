@@ -974,8 +974,8 @@ export default function ChatInterface() {
             </button>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="message-form glass">
-          <div className="composer-row">
+        <form onSubmit={handleSubmit} className="message-form">
+          <div className="composer-row glass">
             <textarea
               ref={composerRef}
               rows={1}

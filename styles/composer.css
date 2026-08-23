@@ -53,13 +53,14 @@
   width: 100%;
   padding: 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-  /* No rule and no 1px specular: a floating bar's edge is the blur itself.
-     The soft inner glow stays; the drop shadow points UP, onto the transcript
-     (the default downward one is clipped by the container's overflow). */
+  /* The bar itself is transparent: only the capsule below floats, and the
+     transcript fades out underneath it (the scroll-edge mask ramps across
+     this whole zone). pointer-events: none so the dead zones around the
+     capsule still scroll and hover the transcript. */
+  background: transparent;
   border: 0;
-  box-shadow:
-    inset 0 0 12px var(--glass-specular-soft),
-    0 -6px 24px var(--shadow-2);
+  box-shadow: none;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -70,7 +71,23 @@
   width: 100%;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
+  /* The floating capsule. .glass supplies blur, rim and speculars; the panel
+     tint keeps typed text legible over whatever scrolls beneath. */
+  padding: 6px;
+  border-radius: var(--r-4);
+  background: var(--glass-bg-panel);
+  box-shadow:
+    inset 0 1px 0 var(--glass-specular),
+    0 8px 28px var(--shadow-2);
+  pointer-events: auto;
+}
+
+.composer-row:focus-within {
+  box-shadow:
+    inset 0 1px 0 var(--glass-specular),
+    0 8px 28px var(--shadow-2),
+    0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 
 @media (max-width: 768px) {
@@ -84,9 +101,9 @@
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--r-3);
-  border: 1px solid var(--line);
-  background-color: var(--well-bg);
-  box-shadow: inset 0 1px 2px var(--well-inset);
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
   color: var(--ink);
   font-size: var(--fs-4);
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -101,9 +118,9 @@
 }
 
 .message-input:focus {
-  border-color: var(--accent);
-  background-color: var(--surface);
-  box-shadow: inset 0 1px 2px var(--well-inset), 0 0 0 3px rgba(var(--accent-rgb), 0.35);
+  /* The ring lives on the capsule (.composer-row:focus-within). */
+  background-color: transparent;
+  box-shadow: none;
 }
 
 /* Send: a 44px circle with three states. Empty composer → hollow glass ring
