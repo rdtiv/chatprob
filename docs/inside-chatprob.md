@@ -14,7 +14,7 @@ Four everyday words carry the first chapters, and none of them is in the glossar
 
 ### Two curricula
 
-The app already teaches some of this by itself. Three coach marks appear in order for a first-time visitor: one on the colors (chapter 2), one on the reply tabs (chapter 5), one on the cost card (chapter 7). A follow-up chip, **Now give it the tool**, hands you chapter 9 at the one moment it is legible. Everything else — the dice, what the candidate card really shows, what the model forgets and why, what a training cutoff is — the app demonstrates but does not narrate. That is this document's job.
+The app already teaches some of this by itself. Three coach marks appear in order for a first-time visitor: one on the colors (chapter 2), one on the reply tabs (chapter 5), one on the cost card (chapter 7). A follow-up chip, **Now give it the tool**, hands you chapter 9 at the one moment it is legible. Everything else — how the draw works, what the candidate card really shows, what the model forgets and why, what a training cutoff is — the app demonstrates but does not narrate. That is this document's job.
 
 ### Why this model, and why this server
 
@@ -111,11 +111,15 @@ The first coach mark is on this reply; hovering a word advances it. Do not click
 
 `confidenceColor` and `confidenceBand` in `lib/completionStats.js` turn a sampled token's logprob into the gradient and the three bands (`sure` / `unsure` / `very-unsure` internally; `likely` / `toss-up` / `long shot` in the legend in `components/ChatInterface.js`). The API route in `pages/api/chat.js` asks for these numbers with `logprobs: true` and `top_logprobs: 5` on every Chat Completions call. Streaming is the same route answering `application/x-ndjson`: a `meta` event with the request as sent, a `delta` event per streamed chunk per reply, carrying that chunk's tokens, a `done` event carrying `usage`, and an `error` event when something goes wrong mid-stream. `scripts/stream-spike.mjs` is the live check that streaming, three replies and logprobs all work together — run by hand, never in CI.
 
-## 3. Tuning the dice
+## 3. Reshaping the odds
 
 The colors told you how likely each landed word was. This chapter is about the picking itself — the step between "the model has a probability for every token" and "one token lands" — because that step has knobs, and the app lets you turn them.
 
 Picture the model's output at one position as a **[distribution](glossary.md#distribution)**: the whole vocabulary laid out, each token with its probability, all of them summing to 100%. Next-token prediction produces that distribution. It does not produce a word. Something still has to choose one, and the choice is made by **[sampling](glossary.md#sampling)**: drawing a token at random, weighted by the distribution, so a 70% token lands about seven times in ten and a 2% token lands about once in fifty. This is why the same prompt gives different replies on different runs, why a red word is not an error, and why the next chapter's card has more than one row.
+
+### Where the distribution comes from
+
+The app cannot show this part, because it happens inside the model, but it is worth holding the shape of it. Every token in the context window enters the model as a **[vector](glossary.md#vector)** — a list of a few thousand numbers learned in training, so that tokens used in similar ways sit near each other. The model is a stack of layers, and each layer is mostly **[matrix multiplication](glossary.md#matrix-multiplication)**: the vectors are multiplied by the weights, mixed with each other so every position can draw on the positions before it, and passed up. What comes out at the last position is one more vector, the **[hidden state](glossary.md#hidden-state)** — the model's compressed account of everything so far, in a space no human labelled. One final multiplication measures that vector against an entry for every token in the vocabulary and produces roughly two hundred thousand scores, the **[logits](glossary.md#logits)**. A softmax turns the logits into the distribution, and the logprobs the API returns are the log of it. So the vocabulary is not just where your words are cut from; it is the space the model answers in, one score per entry, every single position.
 
 Open **Controls** in the header and look at the first group, **Sampling**. Its four one-line notes are accurate, so they are quoted.
 
@@ -135,7 +139,7 @@ Close the panel and look at the **Controls** button. It always carries a `temp 1
 
 Here is the second of three facts about temperature that this document keeps apart. Chapter 2 gave you the first: the color of a settled word never changes. This is the third, stated early because it is the one people assume wrongly: **moving the temperature slider changes the next request, not the reply on screen.** The reply to *strawberry* was sampled once, at the temperature that was set when you sent it. Nothing can resample it. A new temperature produces a new draw on the next send, with its own landed words and its own colors.
 
-So where is the live dice — the thing on screen that does move when the slider moves? It is in the next chapter, and it is the reason the next chapter's Try-it and this one are the same step.
+So where are the live odds — the thing on screen that does move when the slider moves? It is in the next chapter, and it is the reason the next chapter's Try-it and this one are the same step.
 
 ### Try it — step 3, shared with chapter 4
 
@@ -165,7 +169,7 @@ Two details. If the landed word was not among the top five — a real long shot 
 
 Click **What-if: only these**. The same rows are now rescaled as if these were the only tokens in the vocabulary, so they do add up to 100% — at the temperature currently on the slider. This is a different quantity from the first view, a what-if rather than a measurement, and the card's note says so: *What-if: rescaled as if only these 5 words existed, at temp 1.0.* (On a long-shot word the count includes its extra row.)
 
-This view is the **[live dice](glossary.md#live-dice)**. Open Controls, move the temperature slider, and watch the percentages move while the rows stay put. Slide toward `0` and the top row climbs to `100.0%` while every other row reads `<0.001%` — that is winner-take-all, drawn. Slide toward `1.8` and the rows flatten toward each other. A line at the bottom of the card keeps the record straight while you do this: *Sampled at 1.0 · showing what-if at 0.3.* The word on screen was drawn at the first number; you are looking at what the odds would have been at the second.
+This view is the **[live odds](glossary.md#live-odds)**. Open Controls, move the temperature slider, and watch the percentages move while the rows stay put. Slide toward `0` and the top row climbs to `100.0%` while every other row reads `<0.001%` — that is winner-take-all, drawn. Slide toward `1.8` and the rows flatten toward each other. A line at the bottom of the card keeps the record straight while you do this: *Sampled at 1.0 · showing what-if at 0.3.* The word on screen was drawn at the first number; you are looking at what the odds would have been at the second.
 
 The rescaling is a **[softmax](glossary.md#softmax)** — the same operation the model uses to turn its raw scores into a distribution — applied to just these rows, after dividing each logprob by the temperature. That is also why, mathematically, the what-if at `1.0` is nothing more than the first view's numbers divided by their sum: at the model's own temperature, renormalization is all that changes.
 
@@ -182,7 +186,7 @@ You have now seen all three things that the word *temperature* can be pointing a
 | What you are looking at | What it is | Does the slider move it? |
 | --- | --- | --- |
 | The color of a word in the reply | The probability the model gave the landed token, from the logprob the API returned when the reply was written | **No.** Settled words never recolor. |
-| The percentages under **What-if: only these** on a pinned card | The frozen candidate rows re-softmaxed at the slider's current temperature | **Yes.** This is the only live dice on screen. |
+| The percentages under **What-if: only these** on a pinned card | The frozen candidate rows re-softmaxed at the slider's current temperature | **Yes.** This is the only live odds on screen. |
 | The next reply you send | A fresh draw at the slider's temperature, with its own landed words and its own colors | Yes — on the next send, not on anything already written. |
 
 If a sentence in your head merges two of these rows, stop and pull them apart. "Turning up the temperature makes the colors hotter" merges rows one and three, and it is false.
@@ -210,7 +214,7 @@ Look above the *strawberry* reply. A strip says *3 replies were written. You are
 
 ### n
 
-Chat Completions accepts a parameter called **[n](glossary.md#n-samples)**: how many independent replies to draw for the same prompt in one request. Every request this app sends uses `n: 3`. The model builds the distribution once per position and the three replies sample from it separately, so they are three runs of the same dice, not three models and not three prompts. Click tab **2**, then **3**. Same question, same weights, same system prompt — different words.
+Chat Completions accepts a parameter called **[n](glossary.md#n-samples)**: how many independent replies to draw for the same prompt in one request. Every request this app sends uses `n: 3`. The model builds the distribution once per position and the three replies sample from it separately, so they are three draws from the same odds, not three models and not three prompts. Click tab **2**, then **3**. Same question, same weights, same system prompt — different words.
 
 This is the app's best demonstration of chapter 2's warning. All three replies are mostly green. Each is confident. They disagree. Green never meant true; it meant expected, and three different things can each be expected.
 
@@ -218,7 +222,7 @@ This is the app's best demonstration of chapter 2's warning. All three replies a
 
 Switch between the tabs and watch the start of the reply. Often the first few words are identical across all three, and then at some word they part ways. The app draws a ring around that word — the **[fork point](glossary.md#fork-point)**, the first token at which the three replies differ. Pin it and its card says so: *Identical until here. All 3 replies produced exactly the same tokens up to this point, then chose differently.* If they differ from the very first word, the note says that instead.
 
-The fork is the dice made visible. Before it, the draw landed the same way three times — usually because one token had most of the probability and kept winning. At the fork, a less dominant position let the draws land on different rows of the candidate card, and from then on each reply was conditioned on its own past, so they kept diverging.
+The fork is the draw made visible. Before it, the draw landed the same way three times — usually because one token had most of the probability and kept winning. At the fork, a less dominant position let the draws land on different rows of the candidate card, and from then on each reply was conditioned on its own past, so they kept diverging.
 
 ### Perplexity
 
@@ -238,7 +242,7 @@ The reason is the fact this whole document turns on. **The next request carries 
 
 ### Calibration, and the chip that is not here
 
-Green-but-wrong would be an easy demo if the model were bad at things. The app used to try: famous myths, classic riddles, judgment calls. `gpt-4o-mini` corrects the myths, solves the riddles at 95–100% confidence, and hedges judgment calls with "this can vary by context" in most replies. That is **[calibration](glossary.md#calibration)** — confidence that tracks correctness — and it has improved faster than any gotcha can keep up with. So there is deliberately no "watch it be confidently wrong" chip. The lessons that survive a better model are the mechanical ones you are walking through: three draws disagreeing, the dice, forgetting, and the tool round trip.
+Green-but-wrong would be an easy demo if the model were bad at things. The app used to try: famous myths, classic riddles, judgment calls. `gpt-4o-mini` corrects the myths, solves the riddles at 95–100% confidence, and hedges judgment calls with "this can vary by context" in most replies. That is **[calibration](glossary.md#calibration)** — confidence that tracks correctness — and it has improved faster than any gotcha can keep up with. So there is deliberately no "watch it be confidently wrong" chip. The lessons that survive a better model are the mechanical ones you are walking through: three draws disagreeing, the odds, forgetting, and the tool round trip.
 
 ### Try it — step 4
 

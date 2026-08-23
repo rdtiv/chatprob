@@ -12,15 +12,19 @@ Everything the model can see when it writes a reply: the array of messages sent 
 
 ## distribution
 
-The model's output at one position: a probability for every token in the vocabulary, all summing to 100%. Next-token prediction produces the distribution; sampling picks one token from it. See [chapter 3](inside-chatprob.md#3-tuning-the-dice).
+The model's output at one position: a probability for every token in the vocabulary, all summing to 100%. Next-token prediction produces the distribution; sampling picks one token from it. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## fork point
 
-The first token at which the three replies to one prompt differ. Everything before it was identical because the same prompt and the same weights produced the same draws until the dice landed differently. The app rings it. See [chapter 5](inside-chatprob.md#5-three-replies-from-one-prompt).
+The first token at which the three replies to one prompt differ. Everything before it was identical because the same prompt and the same weights produced the same draws until the draws landed differently. The app rings it. See [chapter 5](inside-chatprob.md#5-three-replies-from-one-prompt).
 
 ## frozen candidate set
 
 The rows of a word's card, fixed when the card opens from the logprobs the API returned: the top-5 candidates above half a percent plus the landed token. Moving the temperature slider never adds or removes a row, only rescales the what-if odds among them. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
+
+## hidden state
+
+The vector the model's last layer produces at the newest position: its compressed account of everything in the context window so far, in a space no human labelled (the "latent space"). The logits are read off it. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## input tokens
 
@@ -30,13 +34,21 @@ The tokens in a request: system prompt, every replayed message, the chat wrapper
 
 The published per-million-token rate for a model, in three figures: input, output, and cached input. The app's rate card quotes the current numbers from `lib/openaiRates.js`; an unknown model gets the mini-model rates, labelled as an estimate. See [chapter 7](inside-chatprob.md#7-what-a-conversation-costs).
 
-## live dice
+## live odds
 
 The one thing on screen that moves with the temperature slider: the **What-if: only these** percentages on a pinned word's card. Settled words never recolor; the next reply is drawn at the new temperature but does not exist yet. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
+
+## logits
+
+The raw scores the model produces at each position, one per vocabulary entry — roughly two hundred thousand of them — by measuring the hidden state against every token. Softmax turns them into the distribution; the API reports the log of that as logprobs. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## logprob
 
 The natural logarithm of a probability. The API reports one for every sampled token and for its top-5 alternatives. `0` is certain, about `-0.69` is 50%, about `-2.3` is 10%. The heatmap color comes straight from the sampled token's logprob. See [chapter 2](inside-chatprob.md#2-every-piece-was-a-choice-and-you-can-watch-it-being-made).
+
+## matrix multiplication
+
+The operation most of a model's layers are made of: vectors multiplied by the weights and mixed with each other, so every position can draw on the positions before it. It is what the weights *do*. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## messages
 
@@ -72,7 +84,7 @@ The app saving the transcript in the browser's `localStorage` and restoring it o
 
 ## presence penalty
 
-A flat amount subtracted from the logprob of any token that has already appeared in the reply, however many times. Sent as `presence_penalty`. This app's default is `0.45`, a slight lean against repetition. See [chapter 3](inside-chatprob.md#3-tuning-the-dice).
+A flat amount subtracted from the logprob of any token that has already appeared in the reply, however many times. Sent as `presence_penalty`. This app's default is `0.45`, a slight lean against repetition. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## probability
 
@@ -96,11 +108,11 @@ The token that was actually picked at a position and landed in the reply, as opp
 
 ## sampling
 
-Drawing one token at random from the distribution, weighted by probability, so a 70% token lands about seven times in ten. The reason the same prompt gives different replies, and the step the Sampling controls reshape. See [chapter 3](inside-chatprob.md#3-tuning-the-dice).
+Drawing one token at random from the distribution, weighted by probability, so a 70% token lands about seven times in ten. The reason the same prompt gives different replies, and the step the Sampling controls reshape. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## seed
 
-A number handed to the API's random draw so that two requests with the same seed make the same picks. **Make it repeatable** sends `seed: 7` with temperature `0`. OpenAI documents the seed as best-effort, so the promise is *nearly* identical. See [chapter 3](inside-chatprob.md#3-tuning-the-dice).
+A number handed to the API's random draw so that two requests with the same seed make the same picks. **Make it repeatable** sends `seed: 7` with temperature `0`. OpenAI documents the seed as best-effort, so the promise is *nearly* identical. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## softmax
 
@@ -116,7 +128,7 @@ A message with the role `system`, placed before the conversation, that instructs
 
 ## temperature
 
-A number the logprobs are divided by before sampling. Below `1` the favorite gets more likely; above `1` the draw wanders further; at `0` the top token is taken every time. Three different things on this screen involve it, and only the pinned card's what-if view moves with the slider. See [chapter 3](inside-chatprob.md#3-tuning-the-dice) and [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
+A number the logprobs are divided by before sampling. Below `1` the favorite gets more likely; above `1` the draw wanders further; at `0` the top token is taken every time. Three different things on this screen involve it, and only the pinned card's what-if view moves with the slider. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds) and [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
 
 ## time to first token
 
@@ -156,7 +168,7 @@ The five highest-probability alternatives the API reports beside every sampled t
 
 ## top-p (nucleus sampling)
 
-Keep only the smallest set of top candidates whose probabilities add up past `p`, then sample from that set. Sent as `top_p`; `1` cuts nothing, and the server floor is `0.01`. See [chapter 3](inside-chatprob.md#3-tuning-the-dice).
+Keep only the smallest set of top candidates whose probabilities add up past `p`, then sample from that set. Sent as `top_p`; `1` cuts nothing, and the server floor is `0.01`. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## training cutoff
 
@@ -169,6 +181,10 @@ Cutting the front of the message array before sending, which is what **Forget ol
 ## usage
 
 The token accounting the API returns with every response: input tokens, output tokens, and how many input tokens came from the prompt cache. A tool turn sums two requests and keeps the split under `rounds`. See [chapter 7](inside-chatprob.md#7-what-a-conversation-costs).
+
+## vector
+
+A list of numbers standing for a token inside the model, learned in training so that tokens used in similar ways sit near each other. Every token in the context window becomes one on the way in. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
 ## vocabulary
 
