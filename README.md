@@ -114,7 +114,7 @@ node --test "lib/*.test.js"
 
 The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals and their one-line summary, the fraction-of-a-cent and million-chat formatters, the cutoff-relevance test, and the model-facts table — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
 
-`next` and `eslint-config-next` are pinned to `16.3.2`. `react` / `react-dom` stay at `18.2.0` — Pages Router uses the React in `package.json`, and 16.3.2 still peers `react@^18.2`. Lint is `eslint .` with a flat `eslint.config.mjs` (`next lint` was removed in 16). Node 20.9+ is the floor (`engines` in `package.json`); CI uses 24. `npm audit` is clean; `npm audit fix --force` would still yank `next` / `eslint-config-next` off those exact pins.
+`next` and `eslint-config-next` are pinned to `16.3.2`. `react` / `react-dom` stay at `18.2.0` — Pages Router uses the React in `package.json`, and 16.3.2 still peers `react@^18.2`. Lint is `eslint .` with a flat `eslint.config.mjs` (`next lint` was removed in 16). Node is pinned to `24.x` (`engines` in `package.json`), which matches CI and overrides the Node version in Vercel Project Settings; a range there would let Vercel move to each new major on its own. `npm audit` is clean; `npm audit fix --force` would still yank `next` / `eslint-config-next` off those exact pins.
 
 ## Internals
 
