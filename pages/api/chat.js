@@ -190,7 +190,7 @@ export default async function handler(req, res) {
         echoedMessages: sentMessages,
         echoedTools: wantsTools ? WEATHER_TOOLS : null,
         echoedToolChoice: null,
-        usage: buildUsage([response.usage], response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
+        usage: buildUsage([response.usage], response.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot, wantsTools || undefined),
       });
     }
 
@@ -271,7 +271,7 @@ export default async function handler(req, res) {
       echoedMessages: round2Messages,
       echoedTools: WEATHER_TOOLS,
       echoedToolChoice: 'none',
-      usage: buildUsage([response.usage, round2.usage], round2.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot),
+      usage: buildUsage([response.usage, round2.usage], round2.model || process.env.OPENAI_MODEL || 'gpt-4o-mini', samplingSnapshot, true),
       toolCalls: calls,
       toolResults: results,
       toolCall: calls[0],
