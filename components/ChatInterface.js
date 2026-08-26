@@ -17,7 +17,7 @@ import { pruneForStorage } from '../lib/persistence';
 import { abortedFields, abortedTurn } from '../lib/abortedTurn';
 import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/contextWindow';
 import { knowledgeCutoff } from '../lib/modelFacts';
-import { formatTokenSummary } from '../lib/usage';
+import { formatTokenSummary, offeredTools, selectedReplyTokens } from '../lib/usage';
 import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
 
@@ -933,6 +933,12 @@ export default function ChatInterface() {
             const cutoffPrompt = [...messages.slice(0, index)]
               .reverse()
               .find((item) => item.role === 'user') ?? null;
+            const followingAssistant = message.role === 'user'
+              ? messages.slice(index + 1).find((item) => item.role === 'assistant')
+              : null;
+            const priorAssistant = message.role === 'user'
+              ? [...messages.slice(0, index)].reverse().find((item) => item.role === 'assistant' && item.usage?.prompt_tokens != null)
+              : null;
             const node = (
             <Message
               key={index}
@@ -944,6 +950,11 @@ export default function ChatInterface() {
               sessionBilled={message.role === 'assistant' ? billedThrough : null}
               replayedIn={message.role === 'assistant' ? replayedIn : null}
               addedIn={message.role === 'assistant' ? addedIn : null}
+              promptIn={roundPrompt(followingAssistant, 'first')}
+              toolsOffered={offeredTools(followingAssistant)}
+              replayedPromptIn={roundPrompt(priorAssistant, 'first')}
+              lastReplyTokens={selectedReplyTokens(priorAssistant)}
+              previousToolsOffered={offeredTools(priorAssistant)}
               tabsLocked={messages.slice(index + 1).some((item) => item.role === 'user')}
               tokenizer={tokenizer}
               forgotten={forgetting.truncated && index < forgetting.cutoffIndex}

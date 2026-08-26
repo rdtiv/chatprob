@@ -325,6 +325,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.user-message .token-usage {
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.reply-token-count {
+  display: inline;
+  margin-left: 0.6em;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.75;
+  color: var(--muted);
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .message-aborted-note {
   margin-top: 4px;
   font-size: var(--fs-1);

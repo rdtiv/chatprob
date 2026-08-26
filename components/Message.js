@@ -4,7 +4,7 @@ import CoachMark from './CoachMark';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
 import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceParts, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
-import { formatTokenSummary } from '../lib/usage';
+import { formatTokenSummary, formatUserTokenLine, offeredTools } from '../lib/usage';
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_TABS } from '../lib/coachCopy';
@@ -61,7 +61,7 @@ const tokenHeatStyle = (tokenData) => {
   return { '--conf-rgb': parts.rgb, '--conf-rgb-dark': parts.rgbDark, '--conf-a': parts.alpha, '--conf-on': 1 };
 };
 
-function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null }) {
+function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance, sessionBilled, replayedIn, addedIn, tabsLocked = false, tokenizer, forgotten = false, showCutoffDetail = false, cutoffPrompt = null, promptIn = null, toolsOffered = false, replayedPromptIn = null, lastReplyTokens = null, previousToolsOffered = false }) {
   const { role, completions, activeIndex = 0, content } = message;
   const isStreaming = !!message.isStreaming;
   const [hoveredToken, setHoveredToken] = useState(null);
@@ -323,6 +323,9 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
             </Fragment>
           );
         })}
+        {tokenProbabilities.length > 0 && (
+          <span className="reply-token-count">{tokenProbabilities.length} tokens</span>
+        )}
       </div>
     );
   };
@@ -348,6 +351,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                     const stats = tabStats[index];
                     const parts = [
                       `Response ${index + 1}`,
+                      stats?.tokenCount != null && `${stats.tokenCount} tokens`,
                       stats && formatPerplexity(stats.perplexity),
                     ].filter(Boolean);
                     return (
@@ -514,14 +518,26 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                   </button>
                 </span>
               )}
-              {role === 'user' && userChunks && (
-                <span
-                  className="token-usage"
-                  title="Counted with the same tokenizer the model family uses. The reply's 'new' number runs a little higher — the chat wrapper rides along with every turn."
-                >
-                  ≈ {userChunks.length} tokens
-                </span>
-              )}
+              {role === 'user' && userChunks && (() => {
+                const line = formatUserTokenLine({
+                  messageTokens: userChunks.length,
+                  promptTokens: promptIn,
+                  replayedTokens: replayedPromptIn,
+                  lastReplyTokens,
+                  toolsOffered,
+                  previousToolsOffered,
+                });
+                const title = !Number.isFinite(promptIn)
+                  ? 'Counted with the same tokenizer the model family uses. The reply\'s \'new\' number runs a little higher — the chat wrapper rides along with every turn.'
+                  : toolsOffered
+                    ? 'Each term is billed tokens except this message and last reply, which are the tokenizer cut of those bodies. The remainder is wrappers — and the tool schema, when it first rides along. They add up to the input tokens the API billed.'
+                    : 'Each term is billed tokens except this message and last reply, which are the tokenizer cut of those bodies. The remainder is the system prompt and the chat wrapper. They add up to the input tokens the API billed.';
+                return (
+                  <span className="token-usage" title={title}>
+                    {line}
+                  </span>
+                );
+              })()}
               {message.usage?.prompt_tokens != null && (() => {
                 const summary = formatTokenSummary(message.usage);
                 return (
@@ -545,6 +561,9 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
           {usageOpen && message.usage?.prompt_tokens != null && (
             <div id={usageId} className="token-usage-details">
               <span>{rounds ? `${message.usage.prompt_tokens} in — everything sent this turn, across two requests` : `${message.usage.prompt_tokens} in — everything sent this request`}</span>
+              {offeredTools(message) && (
+                <span>the weather tool schema rode with this request — counted in the prompt</span>
+              )}
               {rounds && rounds.length > 1 && rounds.map((r, i) => (
                 <span key={i}>
                   {r.prompt_tokens} in · {r.completion_tokens} out — {i === 0 ? 'first request, the one that ended in a tool call' : 'next request, the same prompt plus the tool call and its result'}

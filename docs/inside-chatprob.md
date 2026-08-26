@@ -52,9 +52,9 @@ Every piece of text that touches the model goes through this cut: your message, 
 
 ### Try it — step 1
 
-Type **strawberry** into the composer and send it. Nothing about the text changes while you type — the composer is a plain text box. The tokenizer does its work on the user bubble that appears once you send: the app runs the same `o200k_base` cut on your message and paints the pieces in alternating tints, with an `≈ N tokens` count underneath. *strawberry* arrives as three pieces, not ten letters. That is why "how many r's are in strawberry" is a hard question for a model: it has to reason about letters it never received, inside chunks it cannot see into.
+Type **strawberry** into the composer and send it. Nothing about the text changes while you type — the composer is a plain text box. The tokenizer does its work on the user bubble that appears once you send: the app runs the same `o200k_base` cut on your message and paints the pieces in alternating tints, with an `≈ N tokens` count underneath. Once the reply lands that line becomes an addition that sums to the billed input — `N this message + M system and wrappers = P input tokens`. Later sends insert last turn's input as `from earlier turns` and last turn's selected reply as `last reply`. *strawberry* arrives as three pieces, not ten letters. That is why "how many r's are in strawberry" is a hard question for a model: it has to reason about letters it never received, inside chunks it cannot see into.
 
-The count's tooltip carries an honesty note: the reply's own "new tokens" number in chapter 7 runs a little higher, because the API also counts the chat wrapper around each message.
+The count's tooltip carries an honesty note: the remainder is what the API bills but the tokenizer cannot name — the system prompt and the chat wrapper around each message.
 
 A `·` in a user bubble is a token that decoded to nothing printable on its own — a fragment of a multi-byte character.
 
@@ -312,7 +312,7 @@ The model is paid by the token, in both directions, and chapter 6 just showed yo
 
 Look at the card's header before opening **Details**. **Sent this turn** — something like `143 in · 13 out`. **Conversation so far** — a running token total. These are the two numbers that teach the lesson, and they are tokens, not money, on purpose. **[Input tokens](glossary.md#input-tokens)** (the API calls them prompt tokens) are everything in the request: system prompt, every replayed message, the chat wrapper around each one, your new message. **[Output tokens](glossary.md#output-tokens)** (completion tokens) are what the model wrote — and because each request draws three replies, the `out` number counts all three, not just the tab you are reading. Together they are the request's **[usage](glossary.md#usage)**, reported by the API at the end of every response.
 
-The same summary sits under each reply as `N in · M out`, with a `▾` that opens the itemized version: *everything sent this request*, *replayed — last turn's prompt, sent again*, *new — last reply plus your latest message*, *out this tab*, *total out this turn — all samples*, and the dollar figure for the turn at list price.
+The same billed input sits on the user bubble as an addition that sums to it — `N this message + M system and wrappers = P input tokens` on the first send, and `R from earlier turns + L last reply + N this message + W wrappers = P input tokens` after that — so you do not have to open the card to see how the request grew. Under each reply, `N in · M out` is the receipt for the whole turn, with a `▾` that opens the itemized version: *everything sent this request*, *replayed — last turn's prompt, sent again*, *new — last reply plus your latest message*, *out this tab*, *total out this turn — all samples*, and the dollar figure for the turn at list price. After the last word of the reply itself, a muted `N tokens` is the length of the tab you are reading — switch tabs and that number changes.
 
 ### The staircase
 
@@ -338,7 +338,7 @@ With the cost card open: read the two numbers; find the pale segment growing fro
 
 ### In this repo
 
-`buildUsage` and `formatTokenSummary` in `lib/usage.js` build the per-turn `usage` object from the API's `prompt_tokens`, `completion_tokens` and `prompt_tokens_details.cached_tokens`, and print the `N in · M out` line. `rateFor`, `turnCost`, `formatUsd` and `formatScale` in `lib/openaiRates.js` hold the rate card and the fraction-of-a-cent and million-chat formatters. `components/PromptStaircase.js` draws one bar per request and splits it against the previous request's prompt; `CostFooter` and `ConversationExplainer` in `components/ConversationExplainer.js` are the price lines and the teacher copy.
+`buildUsage` and `formatTokenSummary` in `lib/usage.js` build the per-turn `usage` object from the API's `prompt_tokens`, `completion_tokens` and `prompt_tokens_details.cached_tokens`, and print the `N in · M out` line. `formatUserTokenLine` is the user-bubble pair; `usage.tools` is set only when the server attached the weather schema. `rateFor`, `turnCost`, `formatUsd` and `formatScale` in `lib/openaiRates.js` hold the rate card and the fraction-of-a-cent and million-chat formatters. `components/PromptStaircase.js` draws one bar per request and splits it against the previous request's prompt; `CostFooter` and `ConversationExplainer` in `components/ConversationExplainer.js` are the price lines and the teacher copy.
 
 ## 8. What it cannot know
 
@@ -388,7 +388,7 @@ The first card's badge says **the model asked for a tool**. Beside it, `get_weat
 }
 ```
 
-The request went out as before — system prompt, conversation, your question — plus a `tools` array beside the messages holding that schema. Instead of a sentence, the model wrote a **[tool call](glossary.md#tool-call)**: a structured message saying *call this function with these arguments*. It emitted the function name and the JSON argument token by token, exactly the way it writes words, sampled from a distribution like anything else. It did not run anything. It cannot. It produced a request.
+The request went out as before — system prompt, conversation, your question — plus a `tools` array beside the messages holding that schema. The user bubble for this send names the schema in the remainder of the addition (`wrappers and the tool schema`); the first Denver send, tools off, does not. The schema is in that billed total even if a sample answers in prose and never calls the function. Instead of a sentence, the model wrote a **[tool call](glossary.md#tool-call)**: a structured message saying *call this function with these arguments*. It emitted the function name and the JSON argument token by token, exactly the way it writes words, sampled from a distribution like anything else. It did not run anything. It cannot. It produced a request.
 
 The card's note says the rest, and it is worth quoting because it includes a deliberate gap: *The API returns no probabilities for these tokens, so there is nothing to shade here.* The argument JSON is sampled text, but the API does not expose logprobs over tool-call arguments, so the card prints it plain rather than pretending to a heatmap it does not have. That absence was measured, not assumed.
 
@@ -429,7 +429,7 @@ Ask for two cities in one question and the model may emit two tool calls in a si
 
 ### In this repo
 
-`WEATHER_TOOLS` and `parseWeatherArguments` in `lib/weatherTool.js` are the schema the model is shown — the same object the panel renders — and the argument check. `getWeather` and `normalizeLocation` in `lib/weather.js` make the call; the key is read there and nowhere else. In `pages/api/chat.js`, round one sends `tools`, the route picks the first choice with `tool_calls`, `MAX_TOOL_CALLS` caps execution, and round two appends the `assistant` tool-call message and one `role: "tool"` message per call before sending `tool_choice: "none"`. `buildUsage` in `lib/usage.js` sums both rounds and keeps them under `usage.rounds`; the client sends `tools: true` and skips streaming in `components/ChatInterface.js`; the cards are in `components/Message.js`. `scripts/tool-spike.mjs` is the live check that tools, three replies and logprobs work together, and that logprobs are absent over tool-call arguments.
+`WEATHER_TOOLS` and `parseWeatherArguments` in `lib/weatherTool.js` are the schema the model is shown — the same object the panel renders — and the argument check. `getWeather` and `normalizeLocation` in `lib/weather.js` make the call; the key is read there and nowhere else. In `pages/api/chat.js`, round one sends `tools`, the route picks the first choice with `tool_calls`, `MAX_TOOL_CALLS` caps execution, and round two appends the `assistant` tool-call message and one `role: "tool"` message per call before sending `tool_choice: "none"`. `buildUsage` in `lib/usage.js` sums both rounds and keeps them under `usage.rounds`, and sets `usage.tools` so the user bubble can still name the schema after `echoedTools` is dropped; the client sends `tools: true` and skips streaming in `components/ChatInterface.js`; the cards are in `components/Message.js`. `scripts/tool-spike.mjs` is the live check that tools, three replies and logprobs work together, and that logprobs are absent over tool-call arguments.
 
 ## 10. What the page keeps
 
