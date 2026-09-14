@@ -20,7 +20,7 @@ The first token at which the three replies to one prompt differ. Everything befo
 
 ## frozen candidate set
 
-The rows of a word's card, fixed when the card opens from the logprobs the API returned: the top-5 candidates above half a percent plus the landed token. Moving the temperature slider never adds or removes a row, only rescales the what-if odds among them. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
+The rows of a word's card, fixed when the card opens from the logprobs the API returned: the top-5 candidates above half a percent plus the landed token. Moving the temperature slider never adds or removes a row, only rescales the what-if odds among them. Moving top-p is the same rule: rows stay, and the ones that fall outside the nucleus dim. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
 
 ## hidden state
 
@@ -36,7 +36,7 @@ The published per-million-token rate for a model, in three figures: input, outpu
 
 ## live odds
 
-The one thing on screen that moves with the temperature slider: the **What-if: only these** percentages on a pinned word's card. Settled words never recolor; the next reply is drawn at the new temperature but does not exist yet. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
+The things on a pinned word's card that move with the sampling sliders: the **What-if: only these** percentages when temperature changes, and which of those frozen rows stay in the nucleus when top-p changes. Settled words never recolor; the next reply is drawn at the new settings but does not exist yet. See [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
 
 ## logits
 
@@ -168,7 +168,7 @@ The five highest-probability alternatives the API reports beside every sampled t
 
 ## top-p (nucleus sampling)
 
-Keep only the smallest set of top candidates whose probabilities add up past `p`, then sample from that set. Sent as `top_p`; `1` cuts nothing, and the server floor is `0.01`. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
+Keep only the smallest set of top candidates whose probabilities add up past `p`, then sample from that set. Sent as `top_p`; `1` cuts nothing, and the server floor is `0.01`. On a pinned card it dims the tail of the frozen rows — temperature reshapes the odds; top-p cuts that tail. Only the shown candidates are used, so a kept row might still sit outside the real full-vocabulary nucleus; a dimmed row is definitely out. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds) and [chapter 4](inside-chatprob.md#4-what-else-it-weighed).
 
 ## training cutoff
 

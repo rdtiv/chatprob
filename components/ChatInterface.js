@@ -122,7 +122,11 @@ export default function ChatInterface() {
   const step3OpenedRef = useRef(false);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
-  const samplingValue = useMemo(() => ({ ...sampling, setSampling, setTemperature }), [sampling, setTemperature]);
+  const setTopP = useCallback((next) => setSampling((s) => ({ ...s, topP: next })), []);
+  const samplingValue = useMemo(
+    () => ({ ...sampling, setSampling, setTemperature, setTopP }),
+    [sampling, setTemperature, setTopP]
+  );
 
   // Update page title
   useEffect(() => {
