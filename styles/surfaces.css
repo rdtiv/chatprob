@@ -334,18 +334,6 @@
   color: var(--muted-3);
 }
 
-.token-probabilities-nucleus-line {
-  margin: 0;
-  padding: 0 16px 10px;
-  font-size: var(--fs-1);
-  line-height: 1.3;
-  color: var(--muted);
-}
-
-.token-probabilities-note + .token-probabilities-nucleus-line {
-  padding-top: 0;
-}
-
 .sampled-outside-top.is-tail {
   opacity: 0.55;
 }
@@ -390,7 +378,10 @@
   left: 8px;
   right: 8px;
   width: auto;
-  max-width: none;
+  /* Pointer-type sheets can appear on a wide tablet or a coarse-pointer
+     desktop; cap the column so the five rows stay a list, not a billboard. */
+  max-width: 400px;
+  margin-inline: auto;
   border-radius: var(--r-3) var(--r-3) 0 0;
 }
 
@@ -438,8 +429,17 @@
 
 .token-probabilities-card.is-sheet .token-probabilities-list {
   overflow-y: auto;
-  min-height: 0;
+  flex: 1 1 auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.token-probabilities-card.is-sheet .token-probabilities-note {
+  min-height: 0;
+  padding: 6px 16px 8px;
+}
+
+.token-probabilities-card.is-sheet .token-probabilities-sampled-line {
+  padding-bottom: 6px;
 }
 
 .token-probabilities-card.is-sheet .token-probabilities-row {
@@ -468,12 +468,18 @@
 }
 
 .token-probabilities-sheet-temp {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 16px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+  padding: 4px 16px 10px;
   border-top: 1px solid var(--line-2);
   flex-shrink: 0;
+}
+
+.token-probabilities-sheet-control {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .token-probabilities-sheet-temp-label {
@@ -484,7 +490,7 @@
 
 .token-probabilities-sheet-temp-range {
   width: 100%;
-  height: 44px;
+  height: 40px;
   accent-color: var(--blue);
 }
 

@@ -78,9 +78,9 @@ export default function TokenProbabilities({
     : (mode === 'among' && t !== sampledTemperature
         ? `Sampled at ${sampledTemperature.toFixed(1)} · showing what-if at ${t.toFixed(1)}`
         : `Sampled at ${sampledTemperature.toFixed(1)}`);
-  const nucleusLine = !showNucleusUi
-    ? null
-    : `Nucleus at top-p ${p.toFixed(2)} keeps ${keptCount} of these ${rows.length}. Only ${rows.length} ${rows.length === 1 ? 'is' : 'are'} shown: a kept row might still be outside the real full-vocabulary nucleus; a dimmed row is definitely out.`;
+  const nucleusBit = !showNucleusUi
+    ? ''
+    : ` Nucleus at top-p ${p.toFixed(2)} keeps ${keptCount} of these ${rows.length}. A kept row might still be outside the real full-vocabulary nucleus; a dimmed row is definitely out.`;
 
   return (
     <div
@@ -101,7 +101,10 @@ export default function TokenProbabilities({
           <button type="button" className="token-probabilities-sheet-close" aria-label="Close" onClick={onDismiss}>×</button>
         )}
       </div>
-      <ul className="token-probabilities-list">
+      <ul
+        className="token-probabilities-list"
+        style={isSheet ? { minHeight: `${Math.min(frozenSet.candidates.length, 5) * 34}px` } : undefined} // 34px = sheet row min-height
+      >
         {frozenSet.candidates.map((row, index) => (
           <CandidateRow
             key={row.token}
@@ -133,41 +136,44 @@ export default function TokenProbabilities({
         </div>
       )}
       {forkNote && <p className="token-probabilities-fork-note">{forkNote}</p>}
-      <p className="token-probabilities-note">{noteCopy}</p>
-      {nucleusLine && <p className="token-probabilities-nucleus-line">{nucleusLine}</p>}
+      <p className="token-probabilities-note">{noteCopy}{nucleusBit}</p>
       {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
       {isSheet && (
         <div className="token-probabilities-sheet-temp">
-          <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
-            Temp {t.toFixed(1)}{boring ? ' — locked by Make it boring' : ''}
-          </label>
-          <input
-            id="token-card-temperature"
-            className="token-probabilities-sheet-temp-range"
-            type="range"
-            min={TEMP_MIN}
-            max={TEMP_MAX}
-            step={TEMP_STEP}
-            value={t}
-            disabled={boring}
-            aria-disabled={boring}
-            onChange={(e) => setTemperature(Number(e.target.value))}
-            aria-label="Sampling temperature"
-          />
-          <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-top-p">
-            Top-p {p.toFixed(2)}
-          </label>
-          <input
-            id="token-card-top-p"
-            className="token-probabilities-sheet-temp-range"
-            type="range"
-            min={TOP_P_MIN}
-            max={TOP_P_MAX}
-            step={TOP_P_STEP}
-            value={p}
-            onChange={(e) => setTopP?.(Number(e.target.value))}
-            aria-label="Nucleus top-p"
-          />
+          <div className="token-probabilities-sheet-control">
+            <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-temperature">
+              Temp {t.toFixed(1)}{boring ? ' — locked' : ''}
+            </label>
+            <input
+              id="token-card-temperature"
+              className="token-probabilities-sheet-temp-range"
+              type="range"
+              min={TEMP_MIN}
+              max={TEMP_MAX}
+              step={TEMP_STEP}
+              value={t}
+              disabled={boring}
+              aria-disabled={boring}
+              onChange={(e) => setTemperature(Number(e.target.value))}
+              aria-label="Sampling temperature"
+            />
+          </div>
+          <div className="token-probabilities-sheet-control">
+            <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-top-p">
+              Top-p {p.toFixed(2)}
+            </label>
+            <input
+              id="token-card-top-p"
+              className="token-probabilities-sheet-temp-range"
+              type="range"
+              min={TOP_P_MIN}
+              max={TOP_P_MAX}
+              step={TOP_P_STEP}
+              value={p}
+              onChange={(e) => setTopP?.(Number(e.target.value))}
+              aria-label="Nucleus top-p"
+            />
+          </div>
         </div>
       )}
     </div>
