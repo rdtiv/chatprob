@@ -169,17 +169,17 @@ Two details. If the landed word was not among the top five — a real long shot 
 
 Click **What-if: only these**. The same rows are now rescaled as if these were the only tokens in the vocabulary, so they do add up to 100% — at the temperature currently on the slider. This is a different quantity from the first view, a what-if rather than a measurement, and the card's note says so: *What-if: rescaled as if only these 5 words existed, at temp 1.0.* (On a long-shot word the count includes its extra row.)
 
-This view is the **[live odds](glossary.md#live-odds)**. Open Controls, move the temperature slider, and watch the percentages move while the rows stay put. Slide toward `0` and the top row climbs to `100.0%` while every other row reads `<0.001%` — that is winner-take-all, drawn. Slide toward `1.8` and the rows flatten toward each other. A line at the bottom of the card keeps the record straight while you do this: *Sampled at 1.0 · showing what-if at 0.3.* The word on screen was drawn at the first number; you are looking at what the odds would have been at the second.
+This view is the **[live odds](glossary.md#live-odds)**. Move the temperature slider on the card (or in Controls), and watch the percentages move while the rows stay put. Slide toward `0` and the top row climbs to `100.0%` while every other row reads `<0.001%` — that is winner-take-all, drawn. Slide toward `1.8` and the rows flatten toward each other. A line at the bottom of the card keeps the record straight while you do this: *Sampled at 1.0 · showing what-if at 0.3.* The word on screen was drawn at the first number; you are looking at what the odds would have been at the second.
 
 The rescaling is a **[softmax](glossary.md#softmax)** — the same operation the model uses to turn its raw scores into a distribution — applied to just these rows, after dividing each logprob by the temperature. That is also why, mathematically, the what-if at `1.0` is nothing more than the first view's numbers divided by their sum: at the model's own temperature, renormalization is all that changes.
 
 ### Top-p, live
 
-The same frozen rows are where **[top-p](glossary.md#top-p-nucleus-sampling)** finally has something to move. Temperature reshapes the odds; top-p cuts the tail. Open Controls, move the top-p slider below `1`, and watch: the smallest prefix of these rows whose odds add up past `p` stays lit and marked **in**; the rest dim and read **tail**. The rows do not vanish. The percentages you already had — raw under **Of all words**, re-softmaxed under **What-if: only these** — stay the percentages; top-p only says which of them the draw would still be allowed to pick.
+The same frozen rows are where **[top-p](glossary.md#top-p-nucleus-sampling)** finally has something to move. Temperature reshapes the odds; top-p cuts the tail. The card carries both sliders so you can drag them while the five rows stay in view. Move top-p below `1` and watch: the smallest prefix of these rows whose odds add up past `p` stays lit and marked **in**; the rest dim and read **tail**. The rows do not vanish. The percentages you already had — raw under **Of all words**, re-softmaxed under **What-if: only these** — stay the percentages; top-p only says which of them the draw would still be allowed to pick.
 
 The card is honest about the limit. The API only ever returned these five (plus a landed long-shot, when there is one). A dimmed row is definitely outside the nucleus: the higher-ranked shown mass already covers `p`. A kept row might still sit outside the real full-vocabulary nucleus, because tokens the card does not have could have filled `p` first. The note says so: *Nucleus 0.50 keeps 2 of 5. A kept row might still be outside the real nucleus; a dimmed row is out.*
 
-At `1` nothing is cut and the labels stay off, which is why the card looks the way it did before you touched the slider. Top-p still does not earn a Controls chip — it is a secondary slider, like presence penalty — so the panel (or the sheet sliders on a phone) is where you read and move it.
+At `1` nothing is cut and the labels stay off, which is why the card looks the way it did before you touched the slider. Top-p still does not earn a Controls chip — it is a secondary slider, like presence penalty — so the card (or the Controls panel) is where you read and move it.
 
 ### Why the rows never change
 
@@ -205,7 +205,7 @@ One step covers chapters 3 and 4. Do it in this order, because the order is the 
 
 1. **Click a word** in the *strawberry* reply — a yellow or red one is most interesting — to pin its card. Read the **Of all words** rows and the note that they do not sum to 100%.
 2. Switch the card to **What-if: only these**.
-3. Open **Controls**. Stay in the **Sampling** group. Drag **Temperature** down toward `0` and watch the card: the top row goes to `100.0%`, the others to `<0.001%`. Drag it up toward `1.8` and watch them flatten. Read the *Sampled at … · showing what-if at …* line.
+3. On the card, drag **Temp** down toward `0` and watch the rows: the top row goes to `100.0%`, the others to `<0.001%`. Drag it up toward `1.8` and watch them flatten. Read the *Sampled at … · showing what-if at …* line.
 4. Leave the card pinned. Drag **Top-p** down from `1` and watch the tail dim: **in** stays, **tail** falls out. Drag temperature while top-p is low — the odds reshape, and which rows stay in the nucleus can change with them. Read the nucleus note.
 5. Switch back to **Of all words**. The percentages sit still no matter where temperature is; top-p still dims the tail among the raw odds.
 6. Look at the reply itself. Nothing on it changed: not a color, not a word.
