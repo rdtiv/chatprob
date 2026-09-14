@@ -295,24 +295,18 @@
 }
 
 .token-probabilities-row.is-tail {
-  color: var(--muted-3);
-}
-
-.token-probabilities-row.is-tail .token-probabilities-token,
-.token-probabilities-row.is-tail .token-probabilities-pct {
-  color: var(--muted-3);
+  opacity: 0.38;
 }
 
 .token-probabilities-row.is-tail .token-probabilities-bar-fill {
   background-image: none;
-  background-color: rgba(var(--slate-rgb), 0.14);
+  background-color: rgba(var(--slate-rgb), 0.16);
 }
 
 .token-probabilities-row.is-sampled.is-tail {
   background-color: transparent;
   background-image: none;
   box-shadow: none;
-  opacity: 0.55;
 }
 
 .token-probabilities-row.is-sampled.is-tail .token-probabilities-token,
@@ -328,6 +322,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--muted);
+  vertical-align: 1px;
 }
 
 .token-probabilities-row.is-sampled .token-probabilities-nucleus {
@@ -355,7 +350,7 @@
   opacity: 0.55;
 }
 
-.sampled-outside-top-pct .token-probabilities-nucleus {
+.sampled-outside-top-token .token-probabilities-nucleus {
   color: var(--warn-ink-2);
 }
 

@@ -119,15 +119,15 @@ export default function TokenProbabilities({
             <span className="sampled-outside-top-bar" aria-hidden="true">
               <span className="sampled-outside-top-bar-fill" style={{ width: `${Math.min(100, values[values.length - 1] * 100)}%` }} />
             </span>
-            <span className="sampled-outside-top-token">{formatToken(frozenSet.sampledOutside.token)}</span>
-            <span className="sampled-outside-top-pct">
-              {formatPercent(values[values.length - 1])}
+            <span className="sampled-outside-top-token">
+              {formatToken(frozenSet.sampledOutside.token)}
               {showNucleusUi && (
                 <span className="token-probabilities-nucleus">
                   {inNucleus[inNucleus.length - 1] ? 'in' : 'tail'}
                 </span>
               )}
             </span>
+            <span className="sampled-outside-top-pct">{formatPercent(values[values.length - 1])}</span>
           </div>
           <p className="sampled-outside-top-note">landed — not in the top 5</p>
         </div>
@@ -187,11 +187,11 @@ function CandidateRow({ token, probability, isSampled, inNucleus, showNucleusUi 
       <span className="token-probabilities-bar" aria-hidden="true">
         <span className="token-probabilities-bar-fill" style={{ width: `${Math.min(100, probability * 100)}%` }} />
       </span>
-      <span className="token-probabilities-token">{token}</span>
-      <span className="token-probabilities-pct">
-        {formatPercent(probability)}
+      <span className="token-probabilities-token">
+        {token}
         {nucleusLabel && <span className="token-probabilities-nucleus">{nucleusLabel}</span>}
       </span>
+      <span className="token-probabilities-pct">{formatPercent(probability)}</span>
     </li>
   );
 }
