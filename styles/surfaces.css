@@ -468,39 +468,31 @@
   margin-left: auto;
 }
 
-.token-probabilities-live-sliders {
+.token-probabilities-sheet-temp {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 14px;
-  padding: 4px 16px 10px;
+  padding: 4px 16px 12px;
   border-top: 1px solid var(--line-2);
   flex-shrink: 0;
 }
 
-.token-probabilities-live-control {
+.token-probabilities-sheet-control {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.token-probabilities-live-label {
+.token-probabilities-sheet-temp-label {
   font-size: var(--fs-1);
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
-.token-probabilities-live-range {
+.token-probabilities-sheet-temp-range {
   width: 100%;
-  height: 28px;
-  accent-color: var(--blue);
-}
-
-.token-probabilities-card.is-sheet .token-probabilities-live-range {
   height: 40px;
-}
-
-.token-probabilities-card.is-sheet .token-probabilities-live-sliders {
-  padding-bottom: 12px;
+  accent-color: var(--blue);
 }
 
 @media (prefers-reduced-motion: reduce) {
