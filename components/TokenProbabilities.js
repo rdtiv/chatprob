@@ -80,7 +80,7 @@ export default function TokenProbabilities({
         : `Sampled at ${sampledTemperature.toFixed(1)}`);
   const nucleusBit = !showNucleusUi
     ? ''
-    : ` Nucleus at top-p ${p.toFixed(2)} keeps ${keptCount} of these ${rows.length}. A kept row might still be outside the real full-vocabulary nucleus; a dimmed row is definitely out.`;
+    : ` Nucleus ${p.toFixed(2)} keeps ${keptCount} of ${rows.length}. A kept row might still be outside the real nucleus; a dimmed row is out.`;
 
   return (
     <div
