@@ -165,6 +165,8 @@
 
 .completion-tabs-wrap {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
   position: relative;
@@ -191,12 +193,14 @@
 
 .completion-tab {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
+  min-height: 20px;
+  height: auto;
+  padding: 3px 6px;
   border: none;
   background: transparent;
   border-radius: var(--r-pill);
@@ -206,6 +210,13 @@
   color: var(--muted);
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
+}
+
+.completion-tab-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .completion-tab-number {
@@ -218,6 +229,29 @@
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.completion-tab-odds {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-1);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.completion-tab.is-active .completion-tab-odds {
+  color: var(--ink);
+}
+
+.completion-path-note {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: right;
+  font-size: var(--fs-1);
+  line-height: 1.35;
+  color: var(--muted);
 }
 
 .completion-tab:hover:not(.is-active):not(:disabled) {
@@ -556,7 +590,8 @@
 
   .completion-tab {
     min-width: 28px;
-    height: 28px;
+    min-height: 28px;
+    height: auto;
   }
 
 }
@@ -564,7 +599,8 @@
 @media (pointer: coarse) {
   .completion-tab {
     min-width: 44px;
-    height: 44px;
+    min-height: 44px;
+    height: auto;
   }
 
   .completion-lock {

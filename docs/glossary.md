@@ -26,6 +26,10 @@ The rows of a word's card, fixed when the card opens from the logprobs the API r
 
 The vector the model's last layer produces at the newest position: its compressed account of everything in the context window so far, in a space no human labelled (the "latent space"). The logits are read off it. See [chapter 3](inside-chatprob.md#3-reshaping-the-odds).
 
+## joint path odds
+
+The product of the per-token probabilities along one reply: how likely this exact sequence was under the model, not how true the sentence is. The app prints it as *this path ~1 in 10^k under the model — not how true*, from the same logprobs as the heatmap, so a mostly-green reply can still be a one-in-a-trillion path. See [chapter 5](inside-chatprob.md#5-three-replies-from-one-prompt).
+
 ## input tokens
 
 The tokens in a request: system prompt, every replayed message, the chat wrapper around each, and the new message. The API calls them prompt tokens and reports them in `usage`. Billed at the input rate, or the cached-input rate for the part served from the prompt cache. See [chapter 7](inside-chatprob.md#7-what-a-conversation-costs).
