@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, nucleusMembership, formatPercent } from '../lib/resoftmax';
+import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, nucleusMembership, nucleusUiVisible, formatPercent } from '../lib/resoftmax';
 import { TEMP_MIN, TEMP_MAX, TEMP_STEP, TOP_P_MIN, TOP_P_MAX, TOP_P_STEP } from '../lib/sampling';
 import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
 import { useSampling } from './SamplingContext';
@@ -55,8 +55,7 @@ export default function TokenProbabilities({
   const p = typeof topP === 'number' && Number.isFinite(topP) ? topP : 1;
   const values = mode === 'among' ? oddsAmongCandidates(rows, t) : rawOdds(rows);
   const inNucleus = nucleusMembership(values, p);
-  const nucleusCuts = inNucleus.some((kept) => !kept);
-  const showNucleusUi = p < 1 || nucleusCuts;
+  const showNucleusUi = nucleusUiVisible(p);
   const keptCount = inNucleus.filter(Boolean).length;
 
   const formatToken = (token) => {
