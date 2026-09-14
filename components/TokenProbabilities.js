@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, formatPercent } from '../lib/resoftmax';
-import { TEMP_MIN, TEMP_MAX, TEMP_STEP } from '../lib/sampling';
+import { buildFrozenSet, frozenRows, rawOdds, oddsAmongCandidates, nucleusMembership, formatPercent } from '../lib/resoftmax';
+import { TEMP_MIN, TEMP_MAX, TEMP_STEP, TOP_P_MIN, TOP_P_MAX, TOP_P_STEP } from '../lib/sampling';
 import { useSheetMode, useAnchoredSurface } from './useAnchoredSurface';
 import { useSampling } from './SamplingContext';
 
@@ -19,9 +19,14 @@ export default function TokenProbabilities({
   const cardRef = useRef(null);
   const isSheet = useSheetMode();
   const [mode, setMode] = useState('raw');
-  const { temperature, setTemperature, boring } = useSampling();
+  const { temperature, setTemperature, topP, setTopP, boring } = useSampling();
 
-  useAnchoredSurface({ ref: cardRef, isSheet, anchor: position, remeasureKey: mode });
+  useAnchoredSurface({
+    ref: cardRef,
+    isSheet,
+    anchor: position,
+    remeasureKey: `${mode}:${typeof topP === 'number' && topP < 1 ? 'p' : 'f'}`,
+  });
 
   // The entrance animation scales the card. useAnchoredSurface measures
   // getBoundingClientRect() in a PASSIVE effect (after paint), and a scale()
@@ -36,7 +41,8 @@ export default function TokenProbabilities({
   useEffect(() => { setEntered(true); }, []);
 
   // Frozen at open. temperature MUST NOT be a dependency here: invariant 1 says rows
-  // never appear or disappear while the slider moves.
+  // never appear or disappear while the slider moves. top-p is the same rule —
+  // it dims the tail of this set; it does not add or remove a row.
   const frozenSet = useMemo(
     () => buildFrozenSet({ topLogprobs: probabilities, sampledToken: selectedToken, sampledLogprob: selectedLogprob }),
     [probabilities, selectedToken, selectedLogprob]
@@ -46,7 +52,12 @@ export default function TokenProbabilities({
   if (rows.length === 0) return null;
 
   const t = typeof temperature === 'number' ? temperature : 1;
+  const p = typeof topP === 'number' && Number.isFinite(topP) ? topP : 1;
   const values = mode === 'among' ? oddsAmongCandidates(rows, t) : rawOdds(rows);
+  const inNucleus = nucleusMembership(values, p);
+  const nucleusCuts = inNucleus.some((kept) => !kept);
+  const showNucleusUi = p < 1 || nucleusCuts;
+  const keptCount = inNucleus.filter(Boolean).length;
 
   const formatToken = (token) => {
     if (token === ' ') return '␣';
@@ -67,6 +78,9 @@ export default function TokenProbabilities({
     : (mode === 'among' && t !== sampledTemperature
         ? `Sampled at ${sampledTemperature.toFixed(1)} · showing what-if at ${t.toFixed(1)}`
         : `Sampled at ${sampledTemperature.toFixed(1)}`);
+  const nucleusLine = !showNucleusUi
+    ? null
+    : `Nucleus at top-p ${p.toFixed(2)} keeps ${keptCount} of these ${rows.length}. Only ${rows.length} ${rows.length === 1 ? 'is' : 'are'} shown: a kept row might still be outside the real full-vocabulary nucleus; a dimmed row is definitely out.`;
 
   return (
     <div
@@ -89,29 +103,38 @@ export default function TokenProbabilities({
       </div>
       <ul className="token-probabilities-list">
         {frozenSet.candidates.map((row, index) => (
-          <li key={row.token} className={`token-probabilities-row${row.isSampled ? ' is-sampled' : ''}`}>
-            <span className="token-probabilities-bar" aria-hidden="true">
-              <span className="token-probabilities-bar-fill" style={{ width: `${Math.min(100, values[index] * 100)}%` }} />
-            </span>
-            <span className="token-probabilities-token">{formatToken(row.token)}</span>
-            <span className="token-probabilities-pct">{formatPercent(values[index])}</span>
-          </li>
+          <CandidateRow
+            key={row.token}
+            token={formatToken(row.token)}
+            probability={values[index]}
+            isSampled={row.isSampled}
+            inNucleus={inNucleus[index]}
+            showNucleusUi={showNucleusUi}
+          />
         ))}
       </ul>
       {frozenSet.sampledOutside && (
-        <div className="sampled-outside-top">
+        <div className={`sampled-outside-top${showNucleusUi && !inNucleus[inNucleus.length - 1] ? ' is-tail' : ''}`}>
           <div className="sampled-outside-top-row">
             <span className="sampled-outside-top-bar" aria-hidden="true">
               <span className="sampled-outside-top-bar-fill" style={{ width: `${Math.min(100, values[values.length - 1] * 100)}%` }} />
             </span>
             <span className="sampled-outside-top-token">{formatToken(frozenSet.sampledOutside.token)}</span>
-            <span className="sampled-outside-top-pct">{formatPercent(values[values.length - 1])}</span>
+            <span className="sampled-outside-top-pct">
+              {formatPercent(values[values.length - 1])}
+              {showNucleusUi && (
+                <span className="token-probabilities-nucleus">
+                  {inNucleus[inNucleus.length - 1] ? 'in' : 'tail'}
+                </span>
+              )}
+            </span>
           </div>
           <p className="sampled-outside-top-note">landed — not in the top 5</p>
         </div>
       )}
       {forkNote && <p className="token-probabilities-fork-note">{forkNote}</p>}
       <p className="token-probabilities-note">{noteCopy}</p>
+      {nucleusLine && <p className="token-probabilities-nucleus-line">{nucleusLine}</p>}
       {sampledLine && <p className="token-probabilities-sampled-line">{sampledLine}</p>}
       {isSheet && (
         <div className="token-probabilities-sheet-temp">
@@ -131,8 +154,44 @@ export default function TokenProbabilities({
             onChange={(e) => setTemperature(Number(e.target.value))}
             aria-label="Sampling temperature"
           />
+          <label className="token-probabilities-sheet-temp-label" htmlFor="token-card-top-p">
+            Top-p {p.toFixed(2)}
+          </label>
+          <input
+            id="token-card-top-p"
+            className="token-probabilities-sheet-temp-range"
+            type="range"
+            min={TOP_P_MIN}
+            max={TOP_P_MAX}
+            step={TOP_P_STEP}
+            value={p}
+            onChange={(e) => setTopP?.(Number(e.target.value))}
+            aria-label="Nucleus top-p"
+          />
         </div>
       )}
     </div>
+  );
+}
+
+function CandidateRow({ token, probability, isSampled, inNucleus, showNucleusUi }) {
+  const tail = showNucleusUi && !inNucleus;
+  const nucleusLabel = showNucleusUi ? (inNucleus ? 'in' : 'tail') : null;
+  return (
+    <li
+      className={`token-probabilities-row${isSampled ? ' is-sampled' : ''}${tail ? ' is-tail' : ''}`}
+      aria-label={nucleusLabel
+        ? `${token} ${formatPercent(probability)}, ${inNucleus ? 'inside the nucleus' : 'outside the nucleus, in the tail'}`
+        : undefined}
+    >
+      <span className="token-probabilities-bar" aria-hidden="true">
+        <span className="token-probabilities-bar-fill" style={{ width: `${Math.min(100, probability * 100)}%` }} />
+      </span>
+      <span className="token-probabilities-token">{token}</span>
+      <span className="token-probabilities-pct">
+        {formatPercent(probability)}
+        {nucleusLabel && <span className="token-probabilities-nucleus">{nucleusLabel}</span>}
+      </span>
+    </li>
   );
 }
