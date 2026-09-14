@@ -32,7 +32,7 @@ The nine steps, in brief — each chapter repeats its own:
 
 1. Type **strawberry**.
 2. Send it; watch the reply arrive; read the colors.
-3. Click a word to pin its card; switch the card to **What-if: only these**; open Controls and move temperature; restore it to 1.0 afterward.
+3. Click a word to pin its card; switch the card to **What-if: only these**; open Controls and move temperature, then top-p; restore both afterward.
 4. Read the three reply tabs on that same reply.
 5. Turn **Stream the reply** off; send **Write two different metaphors for rain.**; turn streaming back on.
 6. Send **My name is Ada. Remember it.**; turn on **Forget older turns**; send **What is my name?**; turn **Forget older turns** off again.
@@ -173,9 +173,17 @@ This view is the **[live odds](glossary.md#live-odds)**. Open Controls, move the
 
 The rescaling is a **[softmax](glossary.md#softmax)** — the same operation the model uses to turn its raw scores into a distribution — applied to just these rows, after dividing each logprob by the temperature. That is also why, mathematically, the what-if at `1.0` is nothing more than the first view's numbers divided by their sum: at the model's own temperature, renormalization is all that changes.
 
+### Top-p, live
+
+The same frozen rows are where **[top-p](glossary.md#top-p-nucleus-sampling)** finally has something to move. Temperature reshapes the odds; top-p cuts the tail. Open Controls, move the top-p slider below `1`, and watch: the smallest prefix of these rows whose odds add up past `p` stays lit and marked **in**; the rest dim and read **tail**. The rows do not vanish. The percentages you already had — raw under **Of all words**, re-softmaxed under **What-if: only these** — stay the percentages; top-p only says which of them the draw would still be allowed to pick.
+
+The card is honest about the limit. The API only ever returned these five (plus a landed long-shot, when there is one). A dimmed row is definitely outside the nucleus: the higher-ranked shown mass already covers `p`. A kept row might still sit outside the real full-vocabulary nucleus, because tokens the card does not have could have filled `p` first. The note says so: *Nucleus at top-p 0.50 keeps 2 of these 5. Only 5 are shown: a kept row might still be outside the real full-vocabulary nucleus; a dimmed row is definitely out.*
+
+At `1` nothing is cut and the labels stay off, which is why the card looks the way it did before you touched the slider. Top-p still does not earn a Controls chip — it is a secondary slider, like presence penalty — so the panel (or the sheet sliders on a phone) is where you read and move it.
+
 ### Why the rows never change
 
-You may have noticed that moving the slider never makes a row appear or vanish. That is a rule, not an accident. The rows are a **[frozen candidate set](glossary.md#frozen-candidate-set)**, fixed when the card opens from the logprobs the API returned. Nothing you do afterward can add a candidate, because the app has no new information to add one from — it only ever had those five plus the landed word.
+You may have noticed that moving either slider never makes a row appear or vanish. That is a rule, not an accident. The rows are a **[frozen candidate set](glossary.md#frozen-candidate-set)**, fixed when the card opens from the logprobs the API returned. Nothing you do afterward can add a candidate, because the app has no new information to add one from — it only ever had those five plus the landed word. Temperature rescales the odds among them; top-p dims the ones that fall out of the nucleus.
 
 Freezing is safe because of a measured fact about the API: the logprobs it returns do not depend on the temperature the request was sampled at. A script in this repo asked the same prompt at `0.2` and at `1.8` and compared the top-5 logprobs at the first position; the largest difference was `0.0000`. So the candidate set and its raw probabilities are the model's, not the slider's, and one set serves both views at every temperature.
 
@@ -186,7 +194,7 @@ You have now seen all three things that the word *temperature* can be pointing a
 | What you are looking at | What it is | Does the slider move it? |
 | --- | --- | --- |
 | The color of a word in the reply | The probability the model gave the landed token, from the logprob the API returned when the reply was written | **No.** Settled words never recolor. |
-| The percentages under **What-if: only these** on a pinned card | The frozen candidate rows re-softmaxed at the slider's current temperature | **Yes.** This is the only live odds on screen. |
+| The percentages under **What-if: only these** on a pinned card | The frozen candidate rows re-softmaxed at the slider's current temperature | **Yes.** These are the live odds. Top-p does not change the numbers; it dims the tail. |
 | The next reply you send | A fresh draw at the slider's temperature, with its own landed words and its own colors | Yes — on the next send, not on anything already written. |
 
 If a sentence in your head merges two of these rows, stop and pull them apart. "Turning up the temperature makes the colors hotter" merges rows one and three, and it is false.
@@ -198,15 +206,16 @@ One step covers chapters 3 and 4. Do it in this order, because the order is the 
 1. **Click a word** in the *strawberry* reply — a yellow or red one is most interesting — to pin its card. Read the **Of all words** rows and the note that they do not sum to 100%.
 2. Switch the card to **What-if: only these**.
 3. Open **Controls**. Stay in the **Sampling** group. Drag **Temperature** down toward `0` and watch the card: the top row goes to `100.0%`, the others to `<0.001%`. Drag it up toward `1.8` and watch them flatten. Read the *Sampled at … · showing what-if at …* line.
-4. Switch back to **Of all words**. The percentages sit still no matter where the slider is.
-5. Look at the reply itself. Nothing on it changed: not a color, not a word.
-6. **Put the temperature back to `1.0` before you continue.** The next three sends are drawn at whatever the slider says, and at `0` they would come back as three near-identical replies, which would spoil chapter 5.
+4. Leave the card pinned. Drag **Top-p** down from `1` and watch the tail dim: **in** stays, **tail** falls out. Drag temperature while top-p is low — the odds reshape, and which rows stay in the nucleus can change with them. Read the nucleus note.
+5. Switch back to **Of all words**. The percentages sit still no matter where temperature is; top-p still dims the tail among the raw odds.
+6. Look at the reply itself. Nothing on it changed: not a color, not a word.
+7. **Put the temperature back to `1.0` and top-p back to `1` before you continue.** The next three sends are drawn at whatever the sliders say, and at `0` they would come back as three near-identical replies, which would spoil chapter 5.
 
 If the word you pinned is the first place the three replies differ, the card also carries a fork note. Chapter 5 explains it.
 
 ### In this repo
 
-`buildFrozenSet`, `rawOdds` and `oddsAmongCandidates` in `lib/resoftmax.js` are the frozen rows, the first view, and the second; `WINNER_TAKE_ALL_EPSILON` is the floor below which the second view stops dividing and simply picks the top row; `formatPercent` is what prints `<0.001%` rather than a false `0%`. The card is `components/TokenProbabilities.js`, which reads the live temperature through `components/SamplingContext.js` so a pinned card re-renders as the panel changes. The data comes from the API's `top_logprobs` field. The measurement behind the freeze is `scripts/temp-gate-check.mjs`, and its result is recorded at the top of `lib/resoftmax.js`.
+`buildFrozenSet`, `rawOdds` and `oddsAmongCandidates` in `lib/resoftmax.js` are the frozen rows, the first view, and the second; `nucleusMembership` is the top-p cut over those shown probabilities; `WINNER_TAKE_ALL_EPSILON` is the floor below which the second view stops dividing and simply picks the top row; `formatPercent` is what prints `<0.001%` rather than a false `0%`. The card is `components/TokenProbabilities.js`, which reads the live temperature and top-p through `components/SamplingContext.js` so a pinned card re-renders as the panel changes. The data comes from the API's `top_logprobs` field. The measurement behind the freeze is `scripts/temp-gate-check.mjs`, and its result is recorded at the top of `lib/resoftmax.js`.
 
 ## 5. Three replies from one prompt
 
