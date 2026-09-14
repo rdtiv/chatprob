@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
 
+const SHEET_POINTER = '(pointer: coarse), (hover: none)';
+const SHEET_NARROW = '(max-width: 640px)';
+
+function prefersSheet() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(SHEET_POINTER).matches && window.matchMedia(SHEET_NARROW).matches;
+}
+
 export function useSheetMode() {
-  const [isSheet, setIsSheet] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse), (hover: none)').matches
-  );
+  const [isSheet, setIsSheet] = useState(prefersSheet);
   useEffect(() => {
-    const media = window.matchMedia('(pointer: coarse), (hover: none)');
-    const sync = () => setIsSheet(media.matches);
+    const pointer = window.matchMedia(SHEET_POINTER);
+    const narrow = window.matchMedia(SHEET_NARROW);
+    const sync = () => setIsSheet(pointer.matches && narrow.matches);
     sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
+    pointer.addEventListener('change', sync);
+    narrow.addEventListener('change', sync);
+    return () => {
+      pointer.removeEventListener('change', sync);
+      narrow.removeEventListener('change', sync);
+    };
   }, []);
   return isSheet;
 }
