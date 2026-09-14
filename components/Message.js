@@ -139,7 +139,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
     if (!hoveredToken) return undefined;
     const onDocPointerDown = (event) => {
       // Interacting with the sampling surfaces must not dismiss a pinned card:
-      // adjusting temperature while watching the card's what-if IS the lesson.
+      // adjusting temperature or top-p while watching the card's what-if IS the lesson.
       if (event.target.closest('.sampling-panel, .sampling-button')) {
         return;
       }
