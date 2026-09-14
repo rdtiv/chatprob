@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 
-const SHEET_POINTER = '(pointer: coarse), (hover: none)';
-const SHEET_NARROW = '(max-width: 640px)';
+import { shouldUseSheet, SHEET_POINTER, SHEET_NARROW } from '../lib/sheetMode';
 
 function prefersSheet() {
   if (typeof window === 'undefined') return false;
-  return window.matchMedia(SHEET_POINTER).matches && window.matchMedia(SHEET_NARROW).matches;
+  return shouldUseSheet({
+    coarse: window.matchMedia(SHEET_POINTER).matches,
+    narrow: window.matchMedia(SHEET_NARROW).matches,
+  });
 }
 
 export function useSheetMode() {
@@ -13,7 +15,7 @@ export function useSheetMode() {
   useEffect(() => {
     const pointer = window.matchMedia(SHEET_POINTER);
     const narrow = window.matchMedia(SHEET_NARROW);
-    const sync = () => setIsSheet(pointer.matches && narrow.matches);
+    const sync = () => setIsSheet(shouldUseSheet({ coarse: pointer.matches, narrow: narrow.matches }));
     sync();
     pointer.addEventListener('change', sync);
     narrow.addEventListener('change', sync);
