@@ -1,0 +1,17 @@
+{
+  "name": "ChatProb",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "dev",
+      "description": "Next.js dev server on http://localhost:3000 (ChatProb UI).",
+      "command": "export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"; nvm use 24 >/dev/null; export PATH=\"$(dirname \"$(nvm which 24)\"):$PATH\"; npm run dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
