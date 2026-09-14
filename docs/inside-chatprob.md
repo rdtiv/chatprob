@@ -239,6 +239,12 @@ Hover a tab and its tooltip reads something like *Response 2 · picking from ~4 
 
 (A rare sentinel logprob near `-9999` means "unavailable"; the app excludes it from the mean.)
 
+### Joint path odds
+
+Perplexity is an average. The other number on each tab is the **[joint path odds](glossary.md#joint-path-odds)**: multiply the probability of every token in the reply and you get how likely this exact sequence was. Even a mostly-green reply is usually something like *this path ~1 in 10^12 under the model — not how true*. The words were expected one at a time; the particular path through them is vanishingly rare. This is the legend's *Likely ≠ true* made numerical: green is per-token expectation, not a verdict on the sentence, and the joint odds show why a confident-looking reply can still be a one-in-a-trillion draw.
+
+The number comes from the same logprobs as the heatmap — the app sums them and converts to a power of ten (`formatJointOdds` in `lib/completionStats.js`) so it never underflows to zero. No second request.
+
 ### Two settings that shape all three replies
 
 Two things in every request exist so that `n: 3` is a demonstration rather than three copies. The first is the **[system prompt](glossary.md#system-prompt)**: a message with the role `system`, placed before the conversation, that instructs the model without being part of what you said. This app's system prompt is short and you will read it verbatim in chapter 6; it asks the model to vary its wording and sentence openings and to keep answers to a sentence or two. The second is `max_tokens: 300`, a hard ceiling on reply length, which is why a reply here never runs to paragraphs. Both are set by the server on every request and neither is a control you can change.
@@ -259,14 +265,14 @@ On the *strawberry* reply, still on screen:
 
 1. Click tabs **1**, **2**, **3** and read all three. Note the dot on each.
 2. Find the ring and read the fork note by clicking the ringed word.
-3. Hover a tab for its *picking from ~N plausible words* line.
+3. Read the path odds on each tab — *~1 in 10^k* — and the line under the strip: *Path odds under the model — not how true.* Hover a tab for the longer *picking from ~N plausible words · this path ~1 in 10^k under the model — not how true* line.
 4. Leave whichever tab you like selected — that is the one the next request will carry.
 
 The second coach mark is on this strip: *This prompt was answered 3 times — try tab 2.* Picking a different tab advances it.
 
 ### In this repo
 
-`n: 3` is set in `pages/api/chat.js`, which also builds the outgoing assistant messages with `assistantText` from each reply's `activeIndex` — the selected tab, nothing else. `findForkIndex`, `completionStats` and `formatPerplexity` in `lib/completionStats.js` compute the ring, the mean logprob, the perplexity and the tab dots; `SENTINEL_LOGPROB_FLOOR` is the cutoff for bad values. `VARIETY_SYSTEM_PROMPT` and `max_tokens` are constants in the route. The lock is the `tabsLocked` prop that `components/ChatInterface.js` computes for any reply followed by a later user message, and `selectCompletion` there refuses the switch a second time even if the UI were bypassed.
+`n: 3` is set in `pages/api/chat.js`, which also builds the outgoing assistant messages with `assistantText` from each reply's `activeIndex` — the selected tab, nothing else. `findForkIndex`, `completionStats`, `formatPerplexity` and `formatJointOdds` in `lib/completionStats.js` compute the ring, the mean logprob, the perplexity, the joint path odds and the tab dots; `formatJointPathCopy` is the honesty phrase on the tooltip and the fork note; `SENTINEL_LOGPROB_FLOOR` is the cutoff for bad values. `VARIETY_SYSTEM_PROMPT` and `max_tokens` are constants in the route. The lock is the `tabsLocked` prop that `components/ChatInterface.js` computes for any reply followed by a later user message, and `selectCompletion` there refuses the switch a second time even if the UI were bypassed.
 
 ## 6. The model remembers nothing
 

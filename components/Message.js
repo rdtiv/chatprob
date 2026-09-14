@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useId, memo, Fragment } from 'rea
 import TokenProbabilities from './TokenProbabilities';
 import CoachMark from './CoachMark';
 import { tokenizeForDisplay, isPartialChunk } from '../lib/tokenizer';
-import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, confidenceColor, confidenceParts, confidenceBand } from '../lib/completionStats';
+import { sampledLogprob, findForkIndex, completionStats, formatPerplexity, formatJointOdds, formatJointPathCopy, confidenceColor, confidenceParts, confidenceBand } from '../lib/completionStats';
 import { rateFor, turnCost, formatUsd } from '../lib/openaiRates';
 import { formatTokenSummary, formatUserTokenLine, offeredTools } from '../lib/usage';
 import { knowledgeCutoff } from '../lib/modelFacts';
@@ -214,7 +214,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
 
   const activeStats = tabStats[safeIndex];
   const statsLine = activeStats
-    ? [formatPerplexity(activeStats.perplexity)].filter(Boolean).join(' · ')
+    ? [formatPerplexity(activeStats.perplexity), formatJointPathCopy(activeStats.jointLog10)].filter(Boolean).join(' · ')
     : '';
   const baseForkCopy = forkIndex === 0
     ? 'The replies split right here, at the very first word — they had nothing in common to begin with.'
@@ -349,32 +349,41 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                 >
                   {completions.map((_, index) => {
                     const stats = tabStats[index];
+                    const pathOdds = stats ? formatJointOdds(stats.jointLog10) : null;
                     const parts = [
                       `Response ${index + 1}`,
                       stats?.tokenCount != null && `${stats.tokenCount} tokens`,
                       stats && formatPerplexity(stats.perplexity),
+                      stats && formatJointPathCopy(stats.jointLog10),
                     ].filter(Boolean);
+                    const tabLabel = parts.join(' · ');
                     return (
                       <button
                         key={index}
                         type="button"
                         role="tab"
                         aria-selected={index === safeIndex}
+                        aria-label={isStreaming ? `Response ${index + 1}` : tabLabel}
                         disabled={tabsLocked || isStreaming}
                         className={`completion-tab${index === safeIndex ? ' is-active' : ''}`}
-                        title={tabsLocked ? 'This reply is locked into the conversation' : isStreaming ? undefined : parts.join(' · ')}
+                        title={tabsLocked ? 'This reply is locked into the conversation' : isStreaming ? undefined : tabLabel}
                         onClick={(e) => {
                           e.currentTarget.focus();
                           handleSelect(index);
                         }}
                       >
-                        <span className="completion-tab-number">{index + 1}</span>
-                        {!isStreaming && stats?.confidence != null && (
-                          <span
-                            className="completion-tab-dot"
-                            aria-hidden="true"
-                            style={{ backgroundColor: confidenceColor(stats.confidence, 0.9) }}
-                          />
+                        <span className="completion-tab-face">
+                          <span className="completion-tab-number">{index + 1}</span>
+                          {!isStreaming && stats?.confidence != null && (
+                            <span
+                              className="completion-tab-dot"
+                              aria-hidden="true"
+                              style={{ backgroundColor: confidenceColor(stats.confidence, 0.9) }}
+                            />
+                          )}
+                        </span>
+                        {!isStreaming && pathOdds && (
+                          <span className="completion-tab-odds" aria-hidden="true">{pathOdds}</span>
                         )}
                       </button>
                     );
@@ -413,6 +422,9 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                   >
                     ?
                   </button>
+                )}
+                {!isStreaming && tabStats.some((stats) => formatJointOdds(stats?.jointLog10)) && (
+                  <p className="completion-path-note">Path odds under the model — not how true.</p>
                 )}
               </div>
             )}
