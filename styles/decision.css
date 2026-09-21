@@ -66,9 +66,56 @@
   letter-spacing: 0.02em;
 }
 
-.decision-subject {
-  font-weight: 600;
+.decision-ticket-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.decision-ticket-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.decision-ticket-fields input,
+.decision-ticket-fields textarea {
+  font: inherit;
+  font-size: var(--fs-3);
   color: var(--ink-strong);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.decision-ticket-fields textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.decision-ticket-fields input:focus-visible,
+.decision-ticket-fields textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.decision-ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.decision-ticket-meta label {
+  flex: 1 1 140px;
+}
+
+.decision-speed {
+  color: var(--ink-2);
 }
 
 .decision-quote {

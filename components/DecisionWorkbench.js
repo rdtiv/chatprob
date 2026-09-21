@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { TRIAGE_SCENARIO, SEVERITY_MAX } from '../lib/triageFixture';
 import {
   THRESHOLD_DEFAULTS,
@@ -9,7 +9,9 @@ import {
   scoreCaption,
   formatPercent,
   formatElapsed,
+  speedVersusLlm,
 } from '../lib/decisionPlayground';
+import { resolveTicketState } from '../lib/evaluateTriage';
 import { DECISION_COACH } from '../lib/coachCopy';
 import { formatUsd } from '../lib/openaiRates';
 
@@ -146,30 +148,67 @@ function ThresholdField({ id, label, hint, min, max, step, value, disabled, onCh
   );
 }
 
-export default function DecisionWorkbench({ hidden = false }) {
+function cannedTicket() {
+  return {
+    subject: TRIAGE_SCENARIO.state.subject,
+    message: TRIAGE_SCENARIO.state.message,
+    plan: TRIAGE_SCENARIO.state.plan,
+    previousTickets: TRIAGE_SCENARIO.state.previousTickets,
+  };
+}
+
+const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false }, ref) {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [thresholds, setThresholds] = useState(THRESHOLD_DEFAULTS);
+  const [ticket, setTicket] = useState(cannedTicket);
+  const requestRef = useRef(0);
 
   const decision = result ? decideTriage(result.answers, thresholds) : null;
   const elapsed = formatElapsed(result?.timing?.elapsedMs);
+  const speedLine = speedVersusLlm(result?.timing?.elapsedMs);
   const costLabel = result?.cost?.usd > 0 ? formatUsd(result.cost.usd) : null;
 
   const setThreshold = (key, value) => {
     setThresholds((prev) => clampThresholds({ ...prev, [key]: value }));
   };
 
+  const setTicketField = (key, value) => {
+    setTicket((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const resetToCanned = useCallback(() => {
+    requestRef.current += 1;
+    setTicket(cannedTicket());
+    setThresholds(THRESHOLD_DEFAULTS);
+    setResult(null);
+    setError(null);
+    setStatus('idle');
+  }, []);
+
+  useImperativeHandle(ref, () => ({ reset: resetToCanned }), [resetToCanned]);
+
   const run = async () => {
+    const resolved = resolveTicketState(ticket, false);
+    if (!resolved.ok) {
+      setResult(null);
+      setStatus('error');
+      setError(resolved.error);
+      return;
+    }
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
     setStatus('loading');
     setError(null);
     try {
       const response = await fetch('/api/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify({ state: resolved.state }),
       });
       const data = await response.json().catch(() => ({}));
+      if (requestId !== requestRef.current) return;
       if (!response.ok) {
         setResult(null);
         setStatus('error');
@@ -179,13 +218,12 @@ export default function DecisionWorkbench({ hidden = false }) {
       setResult(data);
       setStatus('ready');
     } catch {
+      if (requestId !== requestRef.current) return;
       setResult(null);
       setStatus('error');
       setError('The judgment request did not complete.');
     }
   };
-
-  const { state } = TRIAGE_SCENARIO;
 
   return (
     <div
@@ -200,17 +238,56 @@ export default function DecisionWorkbench({ hidden = false }) {
         {DECISION_COACH.map((line) => <li key={line}>{line}</li>)}
       </ul>
 
-      <section className="decision-card" aria-label="Canned ticket">
+      <section className="decision-card" aria-label="Support ticket">
         <header className="decision-card-head">
           <h2>{TRIAGE_SCENARIO.title}</h2>
-          <span className="decision-type">not editable</span>
         </header>
-        <p className="decision-subject">{state.subject}</p>
-        <blockquote className="decision-quote">{state.message}</blockquote>
-        <p className="decision-meta-line">
-          <span>plan {state.plan}</span>
-          <span>{state.previousTickets} earlier tickets</span>
-        </p>
+        <div className="decision-ticket-fields">
+          <label htmlFor="ticket-subject">
+            Subject
+            <input
+              id="ticket-subject"
+              type="text"
+              value={ticket.subject}
+              maxLength={240}
+              onChange={(event) => setTicketField('subject', event.target.value)}
+            />
+          </label>
+          <label htmlFor="ticket-message">
+            Message
+            <textarea
+              id="ticket-message"
+              value={ticket.message}
+              maxLength={4000}
+              rows={3}
+              onChange={(event) => setTicketField('message', event.target.value)}
+            />
+          </label>
+          <div className="decision-ticket-meta">
+            <label htmlFor="ticket-plan">
+              Plan
+              <input
+                id="ticket-plan"
+                type="text"
+                value={ticket.plan}
+                maxLength={64}
+                onChange={(event) => setTicketField('plan', event.target.value)}
+              />
+            </label>
+            <label htmlFor="ticket-previous">
+              Earlier tickets
+              <input
+                id="ticket-previous"
+                type="number"
+                min={0}
+                max={9999}
+                step={1}
+                value={ticket.previousTickets}
+                onChange={(event) => setTicketField('previousTickets', event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
       </section>
 
       <div className="decision-run">
@@ -222,9 +299,6 @@ export default function DecisionWorkbench({ hidden = false }) {
         >
           {status === 'loading' ? 'Judging…' : result ? 'Run it again' : 'Run this judgment'}
         </button>
-        <p className="decision-key-note">
-          Needs <code>AI_GATEWAY_API_KEY</code>. The LLM tab keeps using <code>OPENAI_API_KEY</code>.
-        </p>
       </div>
 
       {error && (
@@ -248,6 +322,10 @@ export default function DecisionWorkbench({ hidden = false }) {
             </span>
           )}
         </p>
+      )}
+
+      {speedLine && (
+        <p className="decision-note decision-speed">{speedLine}</p>
       )}
 
       <div className="decision-questions">
@@ -324,4 +402,6 @@ export default function DecisionWorkbench({ hidden = false }) {
       </section>
     </div>
   );
-}
+});
+
+export default DecisionWorkbench;

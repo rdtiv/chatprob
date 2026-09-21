@@ -20,10 +20,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // The body is ignored. Day one judges the canned ticket only, so this
-  // route is not an open proxy to the gateway.
+  // Questions stay the canned map. Only `state` is read, and a missing
+  // state falls back to the canned Stripe ticket. This is still one
+  // scenario, not an open proxy for a different question schema.
+  const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
   const outcome = await runCannedEvaluation({
     env: process.env,
+    state: Object.prototype.hasOwnProperty.call(body, 'state') ? body.state : undefined,
     evaluate: (args) => experimental_evaluate(args),
   });
   return res.status(outcome.status).json(outcome.body);

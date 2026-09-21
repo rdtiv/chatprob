@@ -4,11 +4,11 @@ The other tab. Not a chat, and not a second copy of the LLM lesson.
 
 **LLM** samples the next token and shows you the draw: logprobs, three replies, temperature. That path is `POST /api/chat`, OpenAI Chat Completions, and it stays off the AI Gateway and off Edge because those drop logprobs. It needs `OPENAI_API_KEY`.
 
-**Decision** asks typed questions about one shared state and gets probabilities back. There is no prose. The model is Jev, TypeSafe's System One model, called as `typesafe-ai/jev` through the AI SDK's `experimental_evaluate` in `POST /api/evaluate`. It needs `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects a token. A missing key leaves the canned ticket on screen and says to set the key. It does not take down the LLM tab.
+**Decision** asks typed questions about one shared state and gets probabilities back. There is no prose. The model is Jev, TypeSafe's System One model, called as `typesafe-ai/jev` through the AI SDK's `experimental_evaluate` in `POST /api/evaluate`. It needs `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects a token. A missing key is an error after Run. It does not take down the LLM tab, and it is not a line on the tab when the key is present.
 
 ## The one ticket
 
-Day one judges a single support ticket: a broken Stripe sync, a refund ask, a pro plan, two earlier tickets. The browser does not edit that state, and the route ignores the POST body, so the endpoint is not an open proxy to the gateway.
+One support ticket: by default a broken Stripe sync, a refund ask, a pro plan, two earlier tickets. Subject, message, plan, and earlier-ticket count are editable. **Run this judgment** posts that text as `state`. **Reset**, top-right, is two clicks like **Clear** and restores the canned ticket plus the default threshold lines. Questions stay the fixture, so the endpoint is not an open proxy for a different schema. A body with no `state` still judges the canned ticket. A `state` that fails the shape check is a 400 and is not silently replaced.
 
 Three questions go out together:
 
@@ -22,7 +22,7 @@ Choice and score may also carry a separate confidence in `providerMetadata.types
 
 Auto, escalate, and reject are sliders in the browser over the probabilities that already came back. Dragging them does not send another request. They are there so you can see a threshold policy as a thing your code would own, not as something the model decided. Schema ≠ truth: you wrote the options, and a high probability on one of them can still be the wrong queue. Calibration is what you would learn by running many labeled tickets, not by trusting this one.
 
-Latency is the route's own clock. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
+Latency is the route's own clock, shown as a chip and as one sentence: this call's measured elapsed, set next to the several seconds a chat reply usually takes because it writes tokens. The sentence appears only after a result that includes that clock. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
 
 ## What this route is not
 

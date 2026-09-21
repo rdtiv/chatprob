@@ -30,13 +30,13 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 
 | | LLM | Decision |
 | --- | --- | --- |
-| What you see | The chat this README describes | One canned support ticket and the probabilities on it |
+| What you see | The chat this README describes | One support ticket, editable, and the probabilities on it |
 | Route | `POST /api/chat` | `POST /api/evaluate` |
 | Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` |
 | Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` |
 | Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it |
 
-The Decision request body is ignored. The server always judges the same ticket, so the route is not an open proxy. A threshold strip (auto / escalate / reject) is drawn in the browser over the probabilities that came back. Moving it does not call the model again, and it is a lesson, not a policy. The three lines on that tab — no prose, schema ≠ truth, calibration over many calls — are the same honesty as **Likely ≠ true.**
+`POST /api/evaluate` sends the ticket on screen as `state`. The canned Stripe ticket is the default, and **Reset** (two clicks, same as **Clear**) puts that subject, message, plan, and earlier-ticket count back. Questions stay fixed on the server, so the route is not an open proxy for a different schema. A missing gateway key shows up as an error after Run, not as a line that sits on the tab. A threshold strip (auto / escalate / reject) is drawn in the browser over the probabilities that came back. Moving it does not call the model again, and it is a lesson, not a policy. The three lines on that tab — no prose, schema ≠ truth, calibration over many calls — are the same honesty as **Likely ≠ true.** After a judgment, the timing chip is joined by the measured elapsed next to the usual multi-second cost of writing a chat reply.
 
 [Decision](docs/decision.md) is the short note. The rest of this README stays about the LLM tab.
 
