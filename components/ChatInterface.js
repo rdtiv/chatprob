@@ -20,6 +20,7 @@ import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary, offeredTools, selectedReplyTokens } from '../lib/usage';
 import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
+import DecisionWorkbench from './DecisionWorkbench';
 
 // There is deliberately no "watch it be confidently wrong" chip. Every version
 // of that demo depends on the model being bad at something, and gpt-4o-mini is
@@ -96,6 +97,7 @@ export default function ChatInterface() {
   const [lessonOpen, setLessonOpen] = useState(false);
   const [tokenizer, setTokenizer] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [mode, setMode] = useState('llm');
   const [panelAnchor, setPanelAnchor] = useState({ x: 0, y: 0 });
   const panelId = useId();
   const messagesEndRef = useRef(null);
@@ -128,10 +130,9 @@ export default function ChatInterface() {
     [sampling, setTemperature, setTopP]
   );
 
-  // Update page title
   useEffect(() => {
-    document.title = 'ChatProb';
-  }, []);
+    document.title = mode === 'decision' ? 'ChatProb — Decision' : 'ChatProb';
+  }, [mode]);
 
   const scrollToBottom = (behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -705,7 +706,7 @@ export default function ChatInterface() {
       observer?.disconnect();
       window.removeEventListener('resize', apply);
     };
-  }, [legendWhyOpen, followupKind]);
+  }, [legendWhyOpen, followupKind, mode]);
 
   let coachTargetIndex = -1;
   let coach = null;
@@ -838,6 +839,36 @@ export default function ChatInterface() {
       <div className="chat-container" ref={chatContainerRef}>
         <div className="chat-header glass">
           <div className="header-actions">
+            <div className="mode-tabs" role="tablist" aria-label="What you are looking at">
+              <button
+                type="button"
+                role="tab"
+                id="mode-tab-llm"
+                className={`mode-tab${mode === 'llm' ? ' is-active' : ''}`}
+                aria-selected={mode === 'llm'}
+                aria-controls="mode-panel-llm"
+                onClick={() => setMode('llm')}
+              >
+                LLM
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="mode-tab-decision"
+                className={`mode-tab${mode === 'decision' ? ' is-active' : ''}`}
+                aria-selected={mode === 'decision'}
+                aria-controls="mode-panel-decision"
+                onClick={() => {
+                  setMode('decision');
+                  setPanelOpen(false);
+                  setLegendWhyOpen(false);
+                }}
+              >
+                Decision
+              </button>
+            </div>
+            {mode === 'llm' ? (
+            <>
             <div className="legend-inline">
               <span className="legend-item">
                 <span className="legend-swatch legend-swatch-high" />
@@ -892,10 +923,22 @@ export default function ChatInterface() {
           >
             {clearArmed ? 'Clear?' : 'Clear'}
           </button>
+            </>
+            ) : (
+              <span className="legend-honesty decision-honesty">Schema ≠ truth.</span>
+            )}
           </div>
         </div>
-        {legendWhyOpen && <p className="why-note glass">{COACH_TEXT_COLOR}</p>}
-        <div className="messages-container" ref={messagesContainerRef}>
+        {mode === 'llm' && legendWhyOpen && <p className="why-note glass">{COACH_TEXT_COLOR}</p>}
+        <DecisionWorkbench hidden={mode !== 'decision'} />
+        <div
+          className="messages-container"
+          id="mode-panel-llm"
+          role="tabpanel"
+          aria-labelledby="mode-tab-llm"
+          hidden={mode !== 'llm'}
+          ref={messagesContainerRef}
+        >
           {messages.length === 0 && !isLoading && (
             <div className="empty-start">
               <ConversationExplainer inSeries={[]} lastAssistant={null} />
@@ -982,7 +1025,7 @@ export default function ChatInterface() {
           )}
           <div ref={messagesEndRef} />
         </div>
-        {followup && (
+        {mode === 'llm' && followup && (
           <div className="prompt-chips glass" aria-label="Follow-up prompt">
             <button
               type="button"
@@ -1005,7 +1048,7 @@ export default function ChatInterface() {
             </button>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="message-form">
+        <form onSubmit={handleSubmit} className="message-form" hidden={mode !== 'llm'}>
           <div className="composer-row glass">
             <textarea
               ref={composerRef}
@@ -1051,7 +1094,7 @@ export default function ChatInterface() {
             )}
           </div>
         </form>
-        {panelOpen && (
+        {mode === 'llm' && panelOpen && (
           <SamplingPanel id={panelId} anchor={panelAnchor} onClose={closeSamplingPanel} />
         )}
       </div>
