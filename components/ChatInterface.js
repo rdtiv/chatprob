@@ -19,7 +19,7 @@ import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/cont
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary, offeredTools, selectedReplyTokens } from '../lib/usage';
 import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
-import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST, CODE_HONESTY } from '../lib/coachCopy';
+import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST, CODE_HONESTY, MODE_SUBTITLE } from '../lib/coachCopy';
 import DecisionWorkbench from './DecisionWorkbench';
 import CodeWorkbench from './CodeWorkbench';
 
@@ -137,10 +137,10 @@ export default function ChatInterface() {
 
   useEffect(() => {
     document.title = mode === 'decision'
-      ? 'ChatProb — Decision'
+      ? 'ChatProb — Evaluate'
       : mode === 'code'
-        ? 'ChatProb — Code'
-        : 'ChatProb';
+        ? 'ChatProb — Analyze'
+        : 'ChatProb — Generate';
   }, [mode]);
 
   const scrollToBottom = (behavior = 'smooth') => {
@@ -868,7 +868,7 @@ export default function ChatInterface() {
       <div className="chat-container" ref={chatContainerRef}>
         <div className="chat-header glass">
           <div className="header-actions">
-            <div className="mode-tabs" role="tablist" aria-label="What you are looking at">
+            <div className="mode-tabs" role="tablist" aria-label="What you are looking at" aria-describedby="mode-subtitle">
               <button
                 type="button"
                 role="tab"
@@ -881,7 +881,7 @@ export default function ChatInterface() {
                   disarmReset();
                 }}
               >
-                LLM
+                Generate
               </button>
               <button
                 type="button"
@@ -897,7 +897,7 @@ export default function ChatInterface() {
                   disarmReset();
                 }}
               >
-                Decision
+                Evaluate
               </button>
               <button
                 type="button"
@@ -913,7 +913,7 @@ export default function ChatInterface() {
                   disarmReset();
                 }}
               >
-                Code
+                Analyze
               </button>
             </div>
             {mode === 'llm' ? (
@@ -984,14 +984,15 @@ export default function ChatInterface() {
                 className="refresh-button is-text glass-chip decision-reset"
                 aria-label={
                   mode === 'code'
-                    ? (resetArmed ? 'Confirm reset code tab' : 'Reset code tab')
-                    : (resetArmed ? 'Confirm reset decision workbench' : 'Reset decision workbench')
+                    ? (resetArmed ? 'Confirm reset Analyze' : 'Reset Analyze')
+                    : (resetArmed ? 'Confirm reset Evaluate' : 'Reset Evaluate')
                 }
               >
                 {resetArmed ? 'Reset?' : 'Reset'}
               </button>
               </>
             )}
+            <p className="mode-subtitle" id="mode-subtitle">{MODE_SUBTITLE}</p>
           </div>
         </div>
         {mode === 'llm' && legendWhyOpen && <p className="why-note glass">{COACH_TEXT_COLOR}</p>}

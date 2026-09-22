@@ -500,6 +500,14 @@
   outline-offset: 2px;
 }
 
+.mode-subtitle {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
 .decision-honesty {
   margin-right: auto;
 }

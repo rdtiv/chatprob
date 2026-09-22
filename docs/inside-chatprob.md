@@ -1,6 +1,6 @@
 # Inside ChatProb
 
-A walkthrough of the **LLM** tab, from the first word you type to the moment the model asks our server to look something up for it. Ten chapters, one sitting, every term defined the first time you need it. The header's other tabs are separate benches. **Decision** is four short situations, no chat, in [Decision](decision.md). **Code** is four saved tables: you ask, the model writes the count, and this page runs it, in [Code](code.md).
+A walkthrough of **Generate**, from the first word you type to the moment the model asks our server to look something up for it. Ten chapters, one sitting, every term defined the first time you need it. Generate is where large language models (LLMs) write token by token. The header's other tabs are separate benches. **Evaluate** is four short situations, no chat, in [Evaluate](decision.md). **Analyze** is four saved tables: you ask, the model writes the count, and this page runs it, in [Analyze](code.md).
 
 The [README](../README.md) is the catalogue: what is true of the app, feature by feature. This document is the path: the order to meet those features in so that each one explains the next. When a feature changes, the README changes first and the matching chapter follows.
 

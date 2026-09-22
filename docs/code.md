@@ -1,12 +1,12 @@
-# Code
+# Analyze
 
-The third tab. Not a second copy of Decision, and not the LLM chat.
+The third tab. Not a second copy of Evaluate, and not the Generate chat.
 
-**Decision** judges one inquiry: a ticket, a mail, or a question, with Choice, Score, and boolean probabilities from Jev. **Code** looks at a saved table from the same kind of work. You ask what to count. The model writes TypeScript. This page runs that code on the saved table and writes the result back as markdown.
+**Evaluate** judges one inquiry: a ticket, a mail, or a question, with Choice, Score, and boolean probabilities from Jev. **Analyze** looks at a saved table from the same kind of work. You ask what to count. The model writes TypeScript. This page runs that code on the saved table and writes the result back as markdown. The chip is **Numbers ≠ narrative**.
 
 ## The four tables
 
-Four cards, in the same order as Decision. Each card has a title, a short blurb, and one coach line. The rows are synthetic constants in `data/code/`. No customer names. The visitor does not upload a table, and a request cannot replace the rows.
+Four cards, in the same order as Evaluate. Each card has a title, a short blurb, and one coach line. The rows are synthetic constants in `data/code/`. No customer names. The visitor does not upload a table, and a request cannot replace the rows.
 
 | Card | Constant | Suggested first ask |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ Picking a card fills the box with that question. You can edit it. **Ask** sends 
 
 ## What one ask does
 
-`POST /api/code` uses the same stack as the LLM tab: the `openai` package, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` when that is set. It is not the AI Gateway and not Jev. The model is `OPENAI_MODEL` or `gpt-4o-mini`.
+`POST /api/code` uses the same stack as Generate: the `openai` package, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` when that is set. It is not the AI Gateway and not Jev. The model is `OPENAI_MODEL` or `gpt-4o-mini`.
 
 1. The server loads the named constant for that id. A body that includes rows, a schema, or code is a 400.
 2. The model is asked to write one TypeScript function, `analyze`, that reads only that constant.
@@ -28,7 +28,7 @@ Picking a card fills the box with that question. You can edit it. **Ask** sends 
 5. A second model call writes short markdown from that JSON. Every number in the write-up has to appear in the JSON. If the draft invents a count, the page throws the draft away and builds a table from the run instead.
 6. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash.
 
-A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as the LLM tab and the Decision tab. It returns to the four cards and clears the thread.
+A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as Generate and Evaluate. It returns to the four cards and clears the thread.
 
 The header chip says **Numbers ≠ narrative**. The two lines on the tab are “You ask. The model writes the counting code. This page runs it on the saved table.” and “The counts come from that run. The write-up can still tell the wrong story — same honesty as Likely ≠ true.”
 
