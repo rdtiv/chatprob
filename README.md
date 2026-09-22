@@ -2,7 +2,7 @@
 
 An educational chat UI that shows how a language model samples text: token-by-token confidence, the other words it considered, how your own message is chopped into tokens, where three replies to the same prompt part ways, and what the whole conversation costs.
 
-The header switches two tabs. **LLM** is that chat. **Decision** is not a chat: one canned support ticket, judged by Jev (System One) as typed probabilities. See [LLM and Decision](#llm-and-decision).
+The header switches three tabs. **LLM** is that chat. **Decision** judges one situation. **Code** counts a saved table over time. See [LLM, Decision, and Code](#llm-decision-and-code).
 
 ![Turn 2: the staircase and the heatmap](public/readme/turn2.png)
 
@@ -26,19 +26,19 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 - **Green means expected, not true.** A flat `Likely ≠ true.` stands in the legend beside the swatches, and the three sample tabs are what back it up: one prompt, three replies, each one confident and green, each one different. There is deliberately no chip that tries to catch the model in a mistake. Every version of that demo depends on the model being bad at something, and `gpt-4o-mini` is well calibrated on the questions that used to work — it corrects the famous myths, solves the classic riddles at 95–100% confidence, and opens a judgment call with “this can vary by context” in 18 of 21 replies. The lessons that survive a better model are the mechanical ones: sampling, temperature, forgetting, and the tool round trip.
 - **It remembers your conversation, not your candidates.** The conversation is saved in `localStorage` and survives a reload; **Clear** is deliberately two clicks — the button arms into `Clear?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading. The app works on desktop and mobile alike: a bottom sheet on a narrow touch screen, an anchored 300px popover on desktop (and on any wide viewport), so a coarse pointer cannot stretch the card across the window.
 
-## LLM and Decision
+## LLM, Decision, and Code
 
-| | LLM | Decision |
-| --- | --- | --- |
-| What you see | The chat this README describes | Four situations you pick, then the probabilities on that one |
-| Route | `POST /api/chat` | `POST /api/evaluate` |
-| Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` |
-| Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` |
-| Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it |
+| | LLM | Decision | Code |
+| --- | --- | --- | --- |
+| What you see | The chat this README describes | Four situations you pick, then the probabilities on that one | Four saved tables you pick, then a fixed count over time |
+| Route | `POST /api/chat` | `POST /api/evaluate` | `POST /api/code` |
+| Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` | None. A fixed function over a CSV |
+| Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` | Not `eval` of anything the browser sends |
+| Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it | None |
 
 `POST /api/evaluate` sends the text on screen as `state` plus a situation id. Decision opens on four cards — Can’t get in, Cancel my plan, Parts came back, Should we call the tool? — and picking one expands that ticket, mail, or question. The first card is still the canned lockout, subject “Can’t sign in after password reset.” **Reset** (two clicks, same as **Clear**) returns to the four cards and aborts a judgment still in flight. After a judgment, the header says “Edit the subject or message, then run again.” On the mail and the weather question that line names those fields instead. That line is not sent. Questions stay on the server, chosen by the situation id. A body that includes `questions` is a 400, so the route is not an open proxy for a schema the browser sends. A missing gateway key shows up as an error after Run, not as a line that sits on the tab. A threshold strip (auto / escalate / reject) is drawn in the browser over the probabilities that came back. Moving it does not call the model again, and it is a lesson, not a policy. The two lines on that tab are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as **Likely ≠ true.**” The header still says **Scores ≠ answers**. After a judgment, the timing chip is joined by the measured elapsed and a note that a chat reply usually takes seconds because it writes tokens.
 
-[Decision](docs/decision.md) is the short note. The rest of this README stays about the LLM tab.
+[Decision](docs/decision.md) is the short note for that tab. [Code](docs/code.md) is the short note for the third tab: Phase 1 is the four canned checks; Phase 2, a TypeScript sandbox for a follow-up question, is not built. The rest of this README stays about the LLM tab.
 
 Ops, not used by the app: TypeSafe's REST is `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`.
 
@@ -68,10 +68,10 @@ Truncation is purely client-side — `lib/contextWindow.js` decides what leaves 
 
 ## Stack
 
-- Next.js 16.3.2 pages router, React 18, hand-written CSS in `styles/`. `styles/globals.css` is now just the `@import` entry that `pages/_app.js` loads; the sheet lives in `tokens.css`, `base.css`, `glass.css`, `shell.css`, `cost.css`, `surfaces.css`, `transcript.css`, `composer.css`, `panels.css`, and `decision.css` is imported last for the Decision tab only. The import order in the entry file *is* the old source order — several equal-specificity rules depend on it, so the files are cut, never reshuffled. `tokens.css` holds the whole palette: type scale (`--fs-1`…`--fs-5`), radii (`--r-1`…`--r-4`, `--r-pill`), and semantic colours (`--ink*`, `--muted*`, `--line*`, `--surface*`, `--ground`, `--blue`/`--accent*`, `--violet*`, `--warn-*`, `--danger-*`, `--shadow-*`), plus a `prefers-color-scheme: dark` block that redefines those tokens and nothing else
+- Next.js 16.3.2 pages router, React 18, hand-written CSS in `styles/`. `styles/globals.css` is now just the `@import` entry that `pages/_app.js` loads; the sheet lives in `tokens.css`, `base.css`, `glass.css`, `shell.css`, `cost.css`, `surfaces.css`, `transcript.css`, `composer.css`, `panels.css`, `decision.css` is the Decision tab, and `code.css` is imported after it for the Code tab only. The import order in the entry file *is* the old source order — several equal-specificity rules depend on it, so the files are cut, never reshuffled. `tokens.css` holds the whole palette: type scale (`--fs-1`…`--fs-5`), radii (`--r-1`…`--r-4`, `--r-pill`), and semantic colours (`--ink*`, `--muted*`, `--line*`, `--surface*`, `--ground`, `--blue`/`--accent*`, `--violet*`, `--warn-*`, `--danger-*`, `--shadow-*`), plus a `prefers-color-scheme: dark` block that redefines those tokens and nothing else
 - `geist` — Geist Sans and Geist Mono, self-hosted via `next/font/local`; every token count, price, and JSON block is set in the mono face so numbers line up column to column. Under Turbopack (Next 16's default `next build` / `next dev`) `transpilePackages: ['geist']` is not needed. The webpack “collecting page data” path (`next build --webpack`) still resolves geist's `next/font/local` through Node's ESM loader — put the transpile line back if that fallback is ever used. `pages/_app.js` puts the font variable classes on `document.body` after mount, so the server markup stays plain and the first paint falls back to the system stack declared in `styles/base.css`
 - `gpt-tokenizer` for the composer’s `o200k_base` count, dynamically imported on first use so its ~1 MB table never enters the initial bundle
-- Two serverless routes, both Node, neither Edge. `POST /api/chat` (`maxDuration` 60) answers with JSON or an NDJSON stream and is not the Vercel AI Gateway — those paths drop logprobs. `POST /api/evaluate` (`maxDuration` 30) is the Decision tab only: AI SDK `experimental_evaluate` with `typesafe-ai/jev`, which does go through the Gateway.
+- Three serverless routes, all Node, none Edge. `POST /api/chat` (`maxDuration` 60) answers with JSON or an NDJSON stream and is not the Vercel AI Gateway — those paths drop logprobs. `POST /api/evaluate` (`maxDuration` 30) is the Decision tab only: AI SDK `experimental_evaluate` with `typesafe-ai/jev`, which does go through the Gateway. `POST /api/code` (`maxDuration` 10) is the Code tab only: a dataset id selects a fixed function over a CSV, and it does not call a model.
 - OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3` on the LLM tab. The `ai` package is a dependency of `/api/evaluate` only.
 
 ### Design
@@ -138,7 +138,7 @@ npm run lint
 node --test "lib/*.test.js"
 ```
 
-The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals and their one-line summary, the fraction-of-a-cent and million-chat formatters, the cutoff-relevance test, and the model-facts table — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
+The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals and their one-line summary, the fraction-of-a-cent and million-chat formatters, the cutoff-relevance test, the model-facts table, and the Code tab’s planted counts and picker reset — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
 
 `next` and `eslint-config-next` are pinned to `16.3.2`. `react` / `react-dom` stay at `18.2.0` — Pages Router uses the React in `package.json`, and 16.3.2 still peers `react@^18.2`. Lint is `eslint .` with a flat `eslint.config.mjs` (`next lint` was removed in 16). Node is pinned to `24.x` (`engines` in `package.json`), which matches CI and overrides the Node version in Vercel Project Settings; a range there would let Vercel move to each new major on its own. `npm audit` is clean; `npm audit fix --force` would still yank `next` / `eslint-config-next` off those exact pins.
 
@@ -215,21 +215,26 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | `lib/weatherTool.js` | The tool schema the model is told — single source for the panel and the route |
 | `lib/modelFacts.js` | Published training cutoffs; `null` for unknown models |
 | `lib/cutoffRelevance.js` | Whether a prompt earns the long cutoff note, and whether it mentioned weather |
-| `lib/coachCopy.js` | The three coach sentences, shared by the marks and the `?` buttons |
+| `lib/coachCopy.js` | The three coach sentences, shared by the marks and the `?` buttons, plus the Decision and Code lines |
 | `pages/api/chat.js` | OpenAI Chat Completions + logprobs, JSON and NDJSON |
 | `pages/api/evaluate.js` | Canned Jev judgment via `experimental_evaluate` |
+| `pages/api/code.js` | Code tab, phase 1: one canned check per saved table |
 | `components/DecisionWorkbench.js` | Decision tab: ticket, distributions, threshold playground |
+| `components/CodeWorkbench.js` | Code tab: four tables, one canned check, the punchline as teaching |
+| `lib/codeAnalysis/` | The four checks over `data/code/*.csv` |
+| `lib/codeSession.js` | Picker, run, and reset for the Code tab |
+| `data/code/` | Synthetic CSVs. No customer names |
 | `lib/triageFixture.js` | The one canned ticket and the question map sent to Jev |
 | `lib/decisionPlayground.js` | Client-side auto / escalate / reject lines |
 | `lib/evaluateTriage.js` | Auth check, cost, and the JSON the route returns |
 | `pages/_document.js` | The inline `#lg-refract` SVG displacement filter, in the DOM before first paint |
-| `styles/` | The stylesheet: `globals.css` is the `@import` entry, the rules live in nine files behind it |
+| `styles/` | The stylesheet: `globals.css` is the `@import` entry, the rules live in the files imported after it |
 | `scripts/` | Manual live-API gates — run by hand, never in CI |
 | `docs/` | [Inside ChatProb](docs/inside-chatprob.md), the ten-chapter walkthrough, and the [glossary](docs/glossary.md) it collects |
 
 ## Deploy
 
-A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Set `AI_GATEWAY_API_KEY` as well if the Decision tab should call Jev (Gateway OIDC covers it when that is already enabled). `WEATHER_API_KEY` must be set in the Vercel project environment alongside the OpenAI key for the weather tool to work in preview and production. Keep both functions on the Node runtime: the chat route needs it so logprobs survive, and `experimental_evaluate` is a Node call.
+A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Set `AI_GATEWAY_API_KEY` as well if the Decision tab should call Jev (Gateway OIDC covers it when that is already enabled). `WEATHER_API_KEY` must be set in the Vercel project environment alongside the OpenAI key for the weather tool to work in preview and production. Keep the functions on the Node runtime: the chat route needs it so logprobs survive, `experimental_evaluate` is a Node call, and the Code route reads the CSVs from disk. The Code route needs no key.
 
 ## License
 

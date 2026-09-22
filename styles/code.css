@@ -1,0 +1,83 @@
+/* Code tab. Imported after decision.css. Reuses the Decision picker
+   chrome and only adds the coach line, the count list, and the teaching
+   block. The teaching block is a lesson, not a success badge. */
+
+.code-pick {
+  min-height: 128px;
+}
+
+.code-pick-coach {
+  font-size: var(--fs-2);
+  line-height: 1.45;
+  color: var(--ink-2);
+  padding-left: 10px;
+  border-left: 2px solid var(--warn-line);
+}
+
+.code-question {
+  margin: 10px 0 0;
+  font-size: var(--fs-3);
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.code-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.code-line {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) 1.4fr;
+  gap: 8px 12px;
+  align-items: baseline;
+}
+
+.code-line dt {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.code-line dd {
+  margin: 0;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-2);
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.code-teaching {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--warn-line);
+  border-radius: var(--r-2);
+  padding: 12px 14px;
+}
+
+.code-teaching h2 {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--warn-ink);
+  margin-bottom: 6px;
+}
+
+.code-teaching p {
+  margin: 0;
+  font-size: var(--fs-3);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.code-phase2 {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .code-line {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

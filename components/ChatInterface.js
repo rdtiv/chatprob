@@ -19,8 +19,9 @@ import { buildOutboundMessages, KEEP_ALL, KEEP_TURNS_DEFAULT } from '../lib/cont
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { formatTokenSummary, offeredTools, selectedReplyTokens } from '../lib/usage';
 import { needsCutoffNote, mentionsWeather } from '../lib/cutoffRelevance';
-import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST } from '../lib/coachCopy';
+import { COACH_TEXT_COLOR, COACH_TEXT_TABS, COACH_TEXT_COST, CODE_HONESTY } from '../lib/coachCopy';
 import DecisionWorkbench from './DecisionWorkbench';
+import CodeWorkbench from './CodeWorkbench';
 
 // There is deliberately no "watch it be confidently wrong" chip. Every version
 // of that demo depends on the model being bad at something, and gpt-4o-mini is
@@ -124,6 +125,7 @@ export default function ChatInterface() {
   const clearArmedTimeoutRef = useRef(null);
   const resetArmedTimeoutRef = useRef(null);
   const decisionRef = useRef(null);
+  const codeRef = useRef(null);
   const step3OpenedRef = useRef(false);
 
   const setTemperature = useCallback((t) => setSampling((s) => ({ ...s, temperature: t })), []);
@@ -134,7 +136,11 @@ export default function ChatInterface() {
   );
 
   useEffect(() => {
-    document.title = mode === 'decision' ? 'ChatProb — Decision' : 'ChatProb';
+    document.title = mode === 'decision'
+      ? 'ChatProb — Decision'
+      : mode === 'code'
+        ? 'ChatProb — Code'
+        : 'ChatProb';
   }, [mode]);
 
   const scrollToBottom = (behavior = 'smooth') => {
@@ -621,14 +627,19 @@ export default function ChatInterface() {
     clearArmedTimeoutRef.current = setTimeout(() => setClearArmed(false), 3000);
   };
 
+  const disarmReset = () => {
+    if (resetArmedTimeoutRef.current) {
+      clearTimeout(resetArmedTimeoutRef.current);
+      resetArmedTimeoutRef.current = null;
+    }
+    setResetArmed(false);
+  };
+
   const handleResetClick = () => {
     if (resetArmed) {
-      if (resetArmedTimeoutRef.current) {
-        clearTimeout(resetArmedTimeoutRef.current);
-        resetArmedTimeoutRef.current = null;
-      }
-      setResetArmed(false);
-      decisionRef.current?.reset();
+      disarmReset();
+      if (mode === 'code') codeRef.current?.reset();
+      else decisionRef.current?.reset();
       return;
     }
     setResetArmed(true);
@@ -867,11 +878,7 @@ export default function ChatInterface() {
                 aria-controls="mode-panel-llm"
                 onClick={() => {
                   setMode('llm');
-                  if (resetArmedTimeoutRef.current) {
-                    clearTimeout(resetArmedTimeoutRef.current);
-                    resetArmedTimeoutRef.current = null;
-                  }
-                  setResetArmed(false);
+                  disarmReset();
                 }}
               >
                 LLM
@@ -887,9 +894,26 @@ export default function ChatInterface() {
                   setMode('decision');
                   setPanelOpen(false);
                   setLegendWhyOpen(false);
+                  disarmReset();
                 }}
               >
                 Decision
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="mode-tab-code"
+                className={`mode-tab${mode === 'code' ? ' is-active' : ''}`}
+                aria-selected={mode === 'code'}
+                aria-controls="mode-panel-code"
+                onClick={() => {
+                  setMode('code');
+                  setPanelOpen(false);
+                  setLegendWhyOpen(false);
+                  disarmReset();
+                }}
+              >
+                Code
               </button>
             </div>
             {mode === 'llm' ? (
@@ -951,12 +975,18 @@ export default function ChatInterface() {
             </>
             ) : (
               <>
-              <span className="legend-honesty decision-honesty">Scores ≠ answers</span>
+              <span className="legend-honesty decision-honesty">
+                {mode === 'code' ? CODE_HONESTY : 'Scores ≠ answers'}
+              </span>
               <button
                 type="button"
                 onClick={handleResetClick}
                 className="refresh-button is-text glass-chip decision-reset"
-                aria-label={resetArmed ? 'Confirm reset decision workbench' : 'Reset decision workbench'}
+                aria-label={
+                  mode === 'code'
+                    ? (resetArmed ? 'Confirm reset code tab' : 'Reset code tab')
+                    : (resetArmed ? 'Confirm reset decision workbench' : 'Reset decision workbench')
+                }
               >
                 {resetArmed ? 'Reset?' : 'Reset'}
               </button>
@@ -966,6 +996,7 @@ export default function ChatInterface() {
         </div>
         {mode === 'llm' && legendWhyOpen && <p className="why-note glass">{COACH_TEXT_COLOR}</p>}
         <DecisionWorkbench ref={decisionRef} hidden={mode !== 'decision'} />
+        <CodeWorkbench ref={codeRef} hidden={mode !== 'code'} />
         <div
           className="messages-container"
           id="mode-panel-llm"
