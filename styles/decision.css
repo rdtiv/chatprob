@@ -59,6 +59,23 @@
   color: var(--ink-strong);
 }
 
+.decision-ticket-head {
+  flex-wrap: wrap;
+}
+
+.decision-ticket-head h2 {
+  flex: 0 0 auto;
+}
+
+.decision-ticket-hint {
+  margin: 0 0 0 auto;
+  max-width: 18rem;
+  font-size: var(--fs-2);
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: right;
+}
+
 .decision-type {
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--fs-1);

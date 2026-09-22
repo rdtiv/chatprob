@@ -253,8 +253,11 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
       </ul>
 
       <section className="decision-card" aria-label="Support ticket">
-        <header className="decision-card-head">
+        <header className="decision-card-head decision-ticket-head">
           <h2>{TRIAGE_SCENARIO.title}</h2>
+          {status === 'ready' && result && (
+            <p className="decision-ticket-hint">Edit the subject or message, then run again.</p>
+          )}
         </header>
         <div className="decision-ticket-fields">
           <label htmlFor="ticket-subject">
