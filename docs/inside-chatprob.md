@@ -26,7 +26,7 @@ Every **Try it** in this document is one step in a single scripted conversation.
 
 - **Do not click any of the empty-screen chips.** They are good prompts, but clicking one skips the tokenizer lesson in chapter 1, and clicking the Denver one first moves chapters 8 and 9 to the front of the sitting.
 - **Inside Controls, stay in the Sampling group until a step says otherwise.** Delivery is touched in step 5, Memory in step 6, and Tools never by hand — a chip turns it on for you in step 8. Flip Tools early and the weather question becomes a tool call before you have seen the model admit it cannot know.
-- **Do not Clear.** The chips you skipped do not come back mid-conversation, and the script never needs them.
+- **Do not Reset.** The chips you skipped do not come back mid-conversation, and the script never needs them.
 
 The nine steps, in brief — each chapter repeats its own:
 
@@ -454,15 +454,15 @@ Three things about what survives are worth knowing; two are windows, easy to con
 
 **The controls are not saved.** After the reload, Controls is back at its defaults: temperature `1.0`, streaming on, memory off, tools off. The `tool on` chip is gone. If you send now, the request goes out with no tools array, and the conversation — including the tool turn, as a single assistant sentence — is replayed in full.
 
-Two smaller protections. A reload in the middle of a streaming reply does not leave a half-finished reply that looks finished: the interrupted turn is healed into an aborted note, kept on screen, never resent. And **Clear** takes two clicks — the button arms into `Clear?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading.
+Two smaller protections. A reload in the middle of a streaming reply does not leave a half-finished reply that looks finished: the interrupted turn is healed into an aborted note, kept on screen, never resent. And **Reset** takes two clicks — the button arms into `Reset?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading.
 
 ### Try it — step 9
 
-Reload. Confirm the transcript, the tool cards, and the absent coach marks. Pin a word on the *strawberry* reply: the card still has its rows, because this conversation is well inside the twenty-reply window. Open **Controls** and read the defaults. Press **Clear** once and watch it ask; let it disarm.
+Reload. Confirm the transcript, the tool cards, and the absent coach marks. Pin a word on the *strawberry* reply: the card still has its rows, because this conversation is well inside the twenty-reply window. Open **Controls** and read the defaults. Press **Reset** once and watch it ask; let it disarm.
 
 ### In this repo
 
-`pruneForStorage` and `KEEP_FULL_TURNS` in `lib/persistence.js` strip alternatives from turns beyond the window and mark them `alternativesPruned`; the card copy for those is in `components/TokenProbabilities.js`. The save and restore, the streaming heal, the echoed-request drop on the next send, and the two-click Clear are all in `components/ChatInterface.js`, under the storage keys `chatMessages` and `chatprobCoach`.
+`pruneForStorage` and `KEEP_FULL_TURNS` in `lib/persistence.js` strip alternatives from turns beyond the window and mark them `alternativesPruned`; the card copy for those is in `components/TokenProbabilities.js`. The save and restore, the streaming heal, the echoed-request drop on the next send, and the two-click Reset are all in `components/ChatInterface.js`, under the storage keys `chatMessages` and `chatprobCoach`.
 
 ---
 

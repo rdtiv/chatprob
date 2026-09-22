@@ -8,7 +8,7 @@ The other tab. Not a chat, and not a second copy of the LLM lesson.
 
 ## Four situations
 
-Decision opens on four cards. Nothing is expanded until you pick one. The card fades open into the text you are about to judge. **Run this judgment** posts that text as `state` plus the situation id. While the judgment is in flight the text and the lines are locked. When the probabilities land, the text stays read-only for a moment, then you can edit it. **Reset**, top-right, is two clicks like **Clear**. It returns to the four cards, restores the default lines, and aborts a judgment that has not come back yet.
+Decision opens on four cards. Nothing is expanded until you pick one. The card fades open into the text you are about to judge. **Run this judgment** posts that text as `state` plus the situation id. While the judgment is in flight the text and the lines are locked. When the probabilities land, the text stays read-only for a moment, then you can edit it. **Reset**, top-right, is two clicks, same as the LLM tab. It returns to the four cards, restores the default lines, and aborts a judgment that has not come back yet.
 
 A body with no situation id and no `state` still judges the first card, the canned lockout ticket. A `state` that fails that situation’s shape check is a 400 and is not silently replaced. A body that includes `questions` is a 400. The question list is chosen on the server from the situation id, so the route is not an open proxy for a schema the browser sends.
 

@@ -28,7 +28,7 @@ Picking a card fills the box with that question. You can edit it. **Ask** sends 
 5. A second model call writes short markdown from that JSON. Every number in the write-up has to appear in the JSON. If the draft invents a count, the page throws the draft away and builds a table from the run instead.
 6. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash.
 
-A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as **Clear** and the Decision reset. It returns to the four cards and clears the thread.
+A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as the LLM tab and the Decision tab. It returns to the four cards and clears the thread.
 
 The header chip says **Numbers ≠ narrative**. The two lines on the tab are “You ask. The model writes the counting code. This page runs it on the saved table.” and “The counts come from that run. The write-up can still tell the wrong story — same honesty as Likely ≠ true.”
 

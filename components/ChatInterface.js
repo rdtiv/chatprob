@@ -967,10 +967,10 @@ export default function ChatInterface() {
             </button>
           <button
             onClick={handleClearClick}
-            className="refresh-button is-text glass-chip"
-            aria-label={clearArmed ? 'Confirm clear chat history' : 'Clear chat history'}
+            className="refresh-button is-text glass-chip decision-reset"
+            aria-label={clearArmed ? 'Confirm reset chat history' : 'Reset chat history'}
           >
-            {clearArmed ? 'Clear?' : 'Clear'}
+            {clearArmed ? 'Reset?' : 'Reset'}
           </button>
             </>
             ) : (
