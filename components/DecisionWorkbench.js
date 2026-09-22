@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { TRIAGE_SCENARIO, SEVERITY_MAX } from '../lib/triageFixture';
 import {
   THRESHOLD_DEFAULTS,
@@ -11,7 +11,7 @@ import {
   formatElapsed,
   speedVersusLlm,
 } from '../lib/decisionPlayground';
-import { resolveTicketState } from '../lib/evaluateTriage';
+import { resolveTicketState } from '../lib/ticketState';
 import { DECISION_COACH } from '../lib/coachCopy';
 import { formatUsd } from '../lib/openaiRates';
 
@@ -163,6 +163,12 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
   const [thresholds, setThresholds] = useState(THRESHOLD_DEFAULTS);
   const [ticket, setTicket] = useState(cannedTicket);
   const requestRef = useRef(0);
+  const abortRef = useRef(null);
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    requestRef.current += 1;
+  }, []);
 
   const decision = result ? decideTriage(result.answers, thresholds) : null;
   const elapsed = formatElapsed(result?.timing?.elapsedMs);
@@ -178,6 +184,8 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
   };
 
   const resetToCanned = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     requestRef.current += 1;
     setTicket(cannedTicket());
     setThresholds(THRESHOLD_DEFAULTS);
@@ -189,13 +197,18 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
   useImperativeHandle(ref, () => ({ reset: resetToCanned }), [resetToCanned]);
 
   const run = async () => {
+    abortRef.current?.abort();
     const resolved = resolveTicketState(ticket, false);
     if (!resolved.ok) {
+      abortRef.current = null;
+      requestRef.current += 1;
       setResult(null);
       setStatus('error');
       setError(resolved.error);
       return;
     }
+    const controller = new AbortController();
+    abortRef.current = controller;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     setStatus('loading');
@@ -205,6 +218,7 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: resolved.state }),
+        signal: controller.signal,
       });
       const data = await response.json().catch(() => ({}));
       if (requestId !== requestRef.current) return;
@@ -216,8 +230,9 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
       }
       setResult(data);
       setStatus('ready');
-    } catch {
+    } catch (error) {
       if (requestId !== requestRef.current) return;
+      if (error?.name === 'AbortError') return;
       setResult(null);
       setStatus('error');
       setError('The judgment request did not complete.');
