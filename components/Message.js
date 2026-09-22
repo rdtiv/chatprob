@@ -8,6 +8,7 @@ import { formatTokenSummary, formatUserTokenLine, offeredTools } from '../lib/us
 import { knowledgeCutoff } from '../lib/modelFacts';
 import { mentionsWeather } from '../lib/cutoffRelevance';
 import { COACH_TEXT_TABS } from '../lib/coachCopy';
+import { formatDurationMs, formatReplyTiming } from '../lib/replyTiming';
 
 const EMPTY_TOP_LOGPROBS = {};
 
@@ -455,7 +456,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                           <span className="tool-card-badge">our server called the weather API</span>
                           <span className="tool-card-status">
                             {result.ok ? (result.status ?? 'ok') : 'failed'}
-                            {Number.isFinite(result.durationMs) ? ` · ${(result.durationMs / 1000).toFixed(1)}s` : ''}
+                            {formatDurationMs(result.durationMs) ? ` · ${formatDurationMs(result.durationMs)}` : ''}
                           </span>
                         </div>
                         <pre className="tool-code">{result.content}</pre>
@@ -493,15 +494,7 @@ function Message({ message, onSelect, messageIndex, coach = null, onCoachAdvance
                   className="token-usage message-timing"
                   title={message.timing.streamed ? undefined : 'Nothing renders until the whole reply arrives, so the first token and the last arrive together.'}
                 >
-                  {(() => {
-                    const b = (message.timing.totalMs / 1000).toFixed(1);
-                    if (!message.timing.streamed) return `reply ${b}s`;
-                    // A stream can reach done with zero deltas (e.g. a content
-                    // filter) — no first token existed, so don't invent "0.0s".
-                    if (message.timing.ttftMs == null) return `reply ${b}s · streamed`;
-                    const a = (message.timing.ttftMs / 1000).toFixed(1);
-                    return a === b ? `reply ${b}s · streamed` : `first token ${a}s · all replies ${b}s`;
-                  })()}
+                  {formatReplyTiming(message.timing)}
                 </span>
               )}
               {showCutoffPill && (

@@ -2,6 +2,8 @@
 
 An educational chat UI that shows how a language model samples text: token-by-token confidence, the other words it considered, how your own message is chopped into tokens, where three replies to the same prompt part ways, and what the whole conversation costs.
 
+The header switches two tabs. **LLM** is that chat. **Decision** is not a chat: one canned support ticket, judged by Jev (System One) as typed probabilities. See [LLM and Decision](#llm-and-decision).
+
 ![Turn 2: the staircase and the heatmap](public/readme/turn2.png)
 
 Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC London 2025](https://www.youtube.com/watch?v=kYUicaho5k8).
@@ -20,9 +22,25 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 - **Fractions of a cent, spelled out.** A turn on `gpt-4o-mini` costs far less than a cent, and `$0.00` teaches nothing. `formatUsd` in `lib/openaiRates.js` prints `$0.02` at or above a cent, `$0.01` for anything from about two-thirds of a cent up (that *is* “about a cent”), `≈ 1/167 of a cent` below that, and `less than 1/10,000 of a cent` at the floor. Beside the conversation total, `formatScale` multiplies the last turn by a million to give the number a size a person can hold: `a million chats like this ≈ $60.00`.
 - **No memory, made visible.** The model has no memory of its own; the app replays the transcript every request. Turn on **Forget older turns** and the request stops carrying the top of the chat — a line appears in the transcript, the turns above it dim, and the model can no longer answer a question about a fact you seeded before the line. The transcript and your saved conversation keep everything; only the request shrinks. The system prompt never falls off, because the server adds it every time. The empty screen offers the demo as a path rather than a puzzle: a **Give it a fact to remember** chip seeds “My name is Ada. Remember it.”, and once that reply settles a **Now make it forget** chip appears, flips **Exchanges replayed** to `0`, and asks “What is my name?” in one click. The weather question has the same shape: after any reply to a prompt that mentions weather, with the tool off, a **Now give it the tool** chip turns the tool on and re-sends the same question, so the two replies sit side by side.
 - **A cutoff, and a way past it.** The model's knowledge stops at its training cutoff — for `gpt-4o-mini`, around October 2023. Ask it for today's weather and it tells you, confidently, that it cannot know: a fact problem, not a memory problem. A knowledge-cutoff pill appears on every settled reply where no tool ran and the served model has a published cutoff in `lib/modelFacts.js` — an unknown model gets no pill rather than a guessed date. The long note underneath it opens by itself once per conversation, but only where it is *relevant*: `lib/cutoffRelevance.js` asks whether the prompt that produced the reply mentions `today`, `right now`, `currently`, `current`, `latest`, `this week`, or `weather`. Ask what 2 + 2 is and you get the pill and nothing more. The pill's `?` opens or closes the same note on any reply, and the note's “today's weather included” clause is itself conditional — it appears only when the prompt actually said weather. Turn on **Let it call a weather tool** and the same question runs a loop you can watch, using one weather tool that's off by default and shown exactly as the model receives it. The model never executes anything; it emits a structured request — a function name and JSON arguments it sampled token by token — our server makes the HTTP call, and the result comes back as more context tokens, shown inline as tool-call and tool-result cards. The transcript shows all three in order, and the exact-request disclosure proves it: the second request literally contains the tool's answer.
-- **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen, with the heatmap filling in as tokens arrive over NDJSON. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 0.4s · all replies 2.1s` streamed, `reply 2.1s` when the whole thing lands at once.
+- **Streaming vs waiting.** The reply is built one token at a time either way; streaming only changes whether you watch it happen, with the heatmap filling in as tokens arrive over NDJSON. The toggle switches between them and the timing line tells you what it cost you in perceived latency: `first token 400 ms · all replies 2100 ms` streamed, `reply 2100 ms` when the whole thing lands at once.
 - **Green means expected, not true.** A flat `Likely ≠ true.` stands in the legend beside the swatches, and the three sample tabs are what back it up: one prompt, three replies, each one confident and green, each one different. There is deliberately no chip that tries to catch the model in a mistake. Every version of that demo depends on the model being bad at something, and `gpt-4o-mini` is well calibrated on the questions that used to work — it corrects the famous myths, solves the classic riddles at 95–100% confidence, and opens a judgment call with “this can vary by context” in 18 of 21 replies. The lessons that survive a better model are the mechanical ones: sampling, temperature, forgetting, and the tool round trip.
 - **It remembers your conversation, not your candidates.** The conversation is saved in `localStorage` and survives a reload; **Clear** is deliberately two clicks — the button arms into `Clear?` and disarms itself after three seconds — because a stray tap should not cost you the transcript you were reading. The app works on desktop and mobile alike: a bottom sheet on a narrow touch screen, an anchored 300px popover on desktop (and on any wide viewport), so a coarse pointer cannot stretch the card across the window.
+
+## LLM and Decision
+
+| | LLM | Decision |
+| --- | --- | --- |
+| What you see | The chat this README describes | One support ticket, editable, and the probabilities on it |
+| Route | `POST /api/chat` | `POST /api/evaluate` |
+| Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` |
+| Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` |
+| Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it |
+
+`POST /api/evaluate` sends the ticket on screen as `state`. The canned ticket is a locked-out customer who is not asking for money back, and **Reset** (two clicks, same as **Clear**) puts that subject, message, plan, and earlier-ticket count back. Questions stay fixed on the server, so the route is not an open proxy for a different schema. A missing gateway key shows up as an error after Run, not as a line that sits on the tab. A threshold strip (auto / escalate / reject) is drawn in the browser over the probabilities that came back. Moving it does not call the model again, and it is a lesson, not a policy. The two lines on that tab are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as **Likely ≠ true.**” The header still says **Schema ≠ truth.** After a judgment, the timing chip is joined by the measured elapsed and a note that a chat reply usually takes seconds because it writes tokens.
+
+[Decision](docs/decision.md) is the short note. The rest of this README stays about the LLM tab.
+
+Ops, not used by the app: TypeSafe's REST is `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`.
 
 ## Glossary
 
@@ -50,11 +68,11 @@ Truncation is purely client-side — `lib/contextWindow.js` decides what leaves 
 
 ## Stack
 
-- Next.js 16.3.2 pages router, React 18, hand-written CSS in `styles/`. `styles/globals.css` is now just the `@import` entry that `pages/_app.js` loads; the sheet lives in `tokens.css`, `base.css`, `glass.css`, `shell.css`, `cost.css`, `surfaces.css`, `transcript.css`, `composer.css`, `panels.css`, and the import order in the entry file *is* the old source order — several equal-specificity rules depend on it, so the files are cut, never reshuffled. `tokens.css` holds the whole palette: type scale (`--fs-1`…`--fs-5`), radii (`--r-1`…`--r-4`, `--r-pill`), and semantic colours (`--ink*`, `--muted*`, `--line*`, `--surface*`, `--ground`, `--blue`/`--accent*`, `--violet*`, `--warn-*`, `--danger-*`, `--shadow-*`), plus a `prefers-color-scheme: dark` block that redefines those tokens and nothing else
+- Next.js 16.3.2 pages router, React 18, hand-written CSS in `styles/`. `styles/globals.css` is now just the `@import` entry that `pages/_app.js` loads; the sheet lives in `tokens.css`, `base.css`, `glass.css`, `shell.css`, `cost.css`, `surfaces.css`, `transcript.css`, `composer.css`, `panels.css`, and `decision.css` is imported last for the Decision tab only. The import order in the entry file *is* the old source order — several equal-specificity rules depend on it, so the files are cut, never reshuffled. `tokens.css` holds the whole palette: type scale (`--fs-1`…`--fs-5`), radii (`--r-1`…`--r-4`, `--r-pill`), and semantic colours (`--ink*`, `--muted*`, `--line*`, `--surface*`, `--ground`, `--blue`/`--accent*`, `--violet*`, `--warn-*`, `--danger-*`, `--shadow-*`), plus a `prefers-color-scheme: dark` block that redefines those tokens and nothing else
 - `geist` — Geist Sans and Geist Mono, self-hosted via `next/font/local`; every token count, price, and JSON block is set in the mono face so numbers line up column to column. Under Turbopack (Next 16's default `next build` / `next dev`) `transpilePackages: ['geist']` is not needed. The webpack “collecting page data” path (`next build --webpack`) still resolves geist's `next/font/local` through Node's ESM loader — put the transpile line back if that fallback is ever used. `pages/_app.js` puts the font variable classes on `document.body` after mount, so the server markup stays plain and the first paint falls back to the system stack declared in `styles/base.css`
 - `gpt-tokenizer` for the composer’s `o200k_base` count, dynamically imported on first use so its ~1 MB table never enters the initial bundle
-- One serverless route: `POST /api/chat` (`maxDuration` 60), answering with JSON or an NDJSON stream. Not Edge, and not the Vercel AI Gateway — those paths drop logprobs.
-- OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3`
+- Two serverless routes, both Node, neither Edge. `POST /api/chat` (`maxDuration` 60) answers with JSON or an NDJSON stream and is not the Vercel AI Gateway — those paths drop logprobs. `POST /api/evaluate` (`maxDuration` 30) is the Decision tab only: AI SDK `experimental_evaluate` with `typesafe-ai/jev`, which does go through the Gateway.
+- OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3` on the LLM tab. The `ai` package is a dependency of `/api/evaluate` only.
 
 ### Design
 
@@ -84,6 +102,14 @@ npm install
 ```bash
 OPENAI_API_KEY=your_api_key_here
 ```
+
+The Decision tab needs a separate key. Without it the tab still renders the canned ticket and says so; the LLM tab does not read this variable.
+
+```bash
+AI_GATEWAY_API_KEY=your_gateway_key_here
+```
+
+On Vercel, Gateway OIDC is enough when the project already has it. A local `VERCEL_OIDC_TOKEN` from `vercel env pull` expires after about 12 hours.
 
 Optional:
 
@@ -191,6 +217,11 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | `lib/cutoffRelevance.js` | Whether a prompt earns the long cutoff note, and whether it mentioned weather |
 | `lib/coachCopy.js` | The three coach sentences, shared by the marks and the `?` buttons |
 | `pages/api/chat.js` | OpenAI Chat Completions + logprobs, JSON and NDJSON |
+| `pages/api/evaluate.js` | Canned Jev judgment via `experimental_evaluate` |
+| `components/DecisionWorkbench.js` | Decision tab: ticket, distributions, threshold playground |
+| `lib/triageFixture.js` | The one canned ticket and the question map sent to Jev |
+| `lib/decisionPlayground.js` | Client-side auto / escalate / reject lines |
+| `lib/evaluateTriage.js` | Auth check, cost, and the JSON the route returns |
 | `pages/_document.js` | The inline `#lg-refract` SVG displacement filter, in the DOM before first paint |
 | `styles/` | The stylesheet: `globals.css` is the `@import` entry, the rules live in nine files behind it |
 | `scripts/` | Manual live-API gates — run by hand, never in CI |
@@ -198,7 +229,7 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 
 ## Deploy
 
-A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. `WEATHER_API_KEY` must be set in the Vercel project environment alongside it for the weather tool to work in preview and production. Keep the function on the Node runtime so logprobs survive.
+A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Set `AI_GATEWAY_API_KEY` as well if the Decision tab should call Jev (Gateway OIDC covers it when that is already enabled). `WEATHER_API_KEY` must be set in the Vercel project environment alongside the OpenAI key for the weather tool to work in preview and production. Keep both functions on the Node runtime: the chat route needs it so logprobs survive, and `experimental_evaluate` is a Node call.
 
 ## License
 

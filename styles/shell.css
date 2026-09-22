@@ -93,7 +93,8 @@
   left: 0;
   right: 0;
   z-index: 3;
-  height: 56px;
+  height: auto;
+  min-height: 56px;
   padding: 0 16px;
   border: 0; /* no rule: the blur is the edge (see .message-form) */
   display: flex;
@@ -153,10 +154,12 @@
 }
 
 .header-actions {
-  /* The header's only child now: legend pinned left, buttons right. */
+  /* Legend pinned left, buttons right. Mode tabs sit in front of the legend.
+     Wrap rather than clip when Controls is carrying extra chips. */
   width: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   flex-shrink: 0;
 }
