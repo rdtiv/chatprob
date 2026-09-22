@@ -22,7 +22,7 @@ Choice and score may also carry a separate confidence in `providerMetadata.types
 
 Auto, escalate, and reject are sliders in the browser over the probabilities that already came back. Dragging them does not send another request. They are there so you can see a threshold policy as a thing your code would own, not as something the model decided. Schema ≠ truth: you wrote the options, and a high probability on one of them can still be the wrong queue. Calibration is what you would learn by running many labeled tickets, not by trusting this one.
 
-Latency is the route's own clock, shown as a chip and as one sentence: this call's measured elapsed, set next to the several seconds a chat reply usually takes because it writes tokens. The sentence appears only after a result that includes that clock. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
+Latency is the route's own clock, shown as a chip and as `{elapsed} — a chat reply usually takes seconds because it writes tokens.` Under a second the elapsed is milliseconds, the same formatter as the chip. The sentence appears only after a result that includes that clock. The two coach lines are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as Likely ≠ true.” The header chip still says Schema ≠ truth. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
 
 ## What this route is not
 

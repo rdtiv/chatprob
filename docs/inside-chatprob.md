@@ -88,9 +88,9 @@ The panel copy says exactly what streaming changes: *the reply is built one toke
 
 The timing line has three shapes, and which one you get depends on the reply:
 
-- `first token 0.4s · all replies 2.1s` — streamed, and the first token arrived measurably before the last.
-- `reply 0.8s · streamed` — streamed, but the reply was short enough that first and last token round to the same tenth of a second. Short replies to *strawberry* often print this one.
-- `reply 2.1s` — not streamed. First and last token arrived together because nothing was shown until everything had.
+- `first token 400 ms · all replies 2100 ms` — streamed, and the first token arrived measurably before the last.
+- `reply 800 ms · streamed` — streamed, but the first and last token landed on the same millisecond. Short replies to *strawberry* often print this one.
+- `reply 2100 ms` — not streamed. First and last token arrived together because nothing was shown until everything had.
 
 You will get to compare the first two against the third in step 5, when the sitting turns streaming off for exactly one send. Do not toggle it now; chapter 6 needs the transcript the way it is.
 

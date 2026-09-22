@@ -82,8 +82,7 @@ function QuestionCard({ id, question, answer, confidence }) {
           </p>
           <BooleanAxis probability={answer.probability} />
           <p className="decision-note">
-            Boolean here is TypeSafe&apos;s noul: one number, the probability the statement is true.
-            0.02 is a strong no, not a shy yes.
+            P(true) only — 0.02 is a strong no, not a shy yes.
           </p>
         </>
       )}
@@ -113,12 +112,12 @@ function QuestionCard({ id, question, answer, confidence }) {
       )}
       {!answer && question.type === 'boolean' && (
         <p className="decision-note">
-          A boolean question is TypeSafe&apos;s noul. The answer will be P(true), not a sentence.
+          P(true) only — 0.02 is a strong no, not a shy yes.
         </p>
       )}
       {id === 'department' && Number.isFinite(confidence) && (
         <p className="decision-note">
-          Confidence is how peaked that distribution is. It is not the picked option&apos;s probability, and these lines do not read it.
+          Confidence = how peaked the bar is — not the same as the pick %. These lines ignore it.
         </p>
       )}
     </article>
@@ -349,11 +348,10 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
             </span>
           )}
         </header>
-        <p className="decision-note">
-          {decision
-            ? decision.reasons.join(' ')
-            : 'Run the judgment first. These lines only move over probabilities that already came back.'}
-        </p>
+        <p className="decision-note">Drag the lines over this result. No new model call. Not a policy.</p>
+        {decision && (
+          <p className="decision-note">{decision.reasons.join(' ')}</p>
+        )}
         <ThresholdField
           id="threshold-reject"
           label="Reject a queue below"
@@ -398,7 +396,6 @@ const DecisionWorkbench = forwardRef(function DecisionWorkbench({ hidden = false
           disabled={!result}
           onChange={(value) => setThreshold('refundYes', value)}
         />
-        <p className="decision-note">Moving these does not call the model again. Not a production policy.</p>
       </section>
     </div>
   );
