@@ -12,7 +12,7 @@ import {
   speedVersusLlm,
 } from '../lib/decisionPlayground';
 import { resolveTicketState } from '../lib/ticketState';
-import { DECISION_COACH } from '../lib/coachCopy';
+import { DECISION_BOOLEAN_NOTE, DECISION_COACH } from '../lib/coachCopy';
 import { formatUsd } from '../lib/openaiRates';
 
 const ACTION_LABEL = {
@@ -81,9 +81,7 @@ function QuestionCard({ id, question, answer, confidence }) {
             P(true) <strong>{formatPercent(answer.probability)}</strong>
           </p>
           <BooleanAxis probability={answer.probability} />
-          <p className="decision-note">
-            P(true) only — 0.02 is a strong no, not a shy yes.
-          </p>
+          <p className="decision-note">{DECISION_BOOLEAN_NOTE}</p>
         </>
       )}
       {rows.length > 0 && (
@@ -111,9 +109,7 @@ function QuestionCard({ id, question, answer, confidence }) {
         </ul>
       )}
       {!answer && question.type === 'boolean' && (
-        <p className="decision-note">
-          P(true) only — 0.02 is a strong no, not a shy yes.
-        </p>
+        <p className="decision-note">{DECISION_BOOLEAN_NOTE}</p>
       )}
       {id === 'department' && Number.isFinite(confidence) && (
         <p className="decision-note">
