@@ -1,26 +1,37 @@
 # Code
 
-The third tab. Not a chat, and not a second copy of Decision.
+The third tab. Not a second copy of Decision, and not the LLM chat.
 
-**Decision** judges one inquiry: a ticket, a mail, or a question, with Choice, Score, and boolean probabilities from Jev. **Code** looks at a saved table from the same kind of work and counts what happened over time. It does not reuse those prompts.
+**Decision** judges one inquiry: a ticket, a mail, or a question, with Choice, Score, and boolean probabilities from Jev. **Code** looks at a saved table from the same kind of work. You ask what to count. The model writes TypeScript. This page runs that code on the saved table and writes the result back as markdown.
 
-## Phase 1
+## The four tables
 
-Phase 1 is the page that ships. Four cards, in the same order as Decision: support weeks, cancel cohorts, a return log, and stored weather. Each card has a title, a short blurb, and one coach line. Pick a card and it opens. **Run this check** posts only the table id to `POST /api/code`. The server runs a fixed function over a fixed CSV in `data/code/`. The same id always returns the same counts. There is no model call and no key.
+Four cards, in the same order as Decision. Each card has a title, a short blurb, and one coach line. The rows are synthetic constants in `data/code/`. No customer names. The visitor does not upload a table, and a request cannot replace the rows.
 
-The punchline under the counts is the lesson, not a trophy. **Reset** is two clicks, same as **Clear** and the Decision reset. It returns to the four cards and aborts a check that has not come back yet.
+| Card | Constant | Suggested first ask |
+| --- | --- | --- |
+| A busy support week | `supportWeeks` | Which week jumped, and which queue takes the longest to close? |
+| Who cancels, and when | `cancelCohorts` | Which month do people leave, and does the new plan leave faster? |
+| Returns over twelve weeks | `rmaLog` | What piled up in the return log, and did remakes and repeats move with it? |
+| Weather we already stored | `weatherHistory` | What was the weather lately — and what is it right now? |
 
-The header chip says **Numbers ≠ narrative**. The two lines on the tab are “A table in. A count out. No model in this step.” and “The numbers are the table’s. The story you tell about them can still be the wrong one — same honesty as Likely ≠ true.”
+Picking a card fills the box with that question. You can edit it. **Ask** sends the table id, the question, and earlier turns on that same table. It does not send the rows.
 
-The tables are synthetic. No customer names. The functions live in `lib/codeAnalysis/` and are ordinary JavaScript. A request that sends anything besides the table id is a 400. Nothing on this tab evaluates a string.
+## What one ask does
 
-The four checks:
+`POST /api/code` uses the same stack as the LLM tab: the `openai` package, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` when that is set. It is not the AI Gateway and not Jev. The model is `OPENAI_MODEL` or `gpt-4o-mini`.
 
-1. **A busy support week.** Which week jumped, and which queue takes the longest to close? Week 8 is a billing jump. Technical tickets are the slow ones every week. Those are two stories.
-2. **Who cancels, and when.** Which month do people leave, and does the new plan leave faster? Month 3 is the leak on both plans. The new plan is faster in every month on the table.
-3. **Returns over twelve weeks.** What piled up, and did remakes and repeats move with it? Weeks 7–9 pile up on adhesive and clip. Remake’s share climbs. Repeats are common in that pile and rare in the rest of the log.
-4. **Weather we already stored.** What was the weather lately — and what is it right now? The file remembers a hot stretch and a mild last day. It does not know right now. Stored history and a live look are different questions.
+1. The server loads the named constant for that id. A body that includes rows, a schema, or code is a 400.
+2. The model is asked to write one TypeScript function, `analyze`, that reads only that constant.
+3. The page shows that TypeScript.
+4. A sandbox runs it. The timeout is one second. There is no network and no disk. `eval` and building functions from strings are off. The table is parsed inside the sandbox, so the code cannot reach back into the server through a row object. The only value that comes back is the JSON from `analyze`.
+5. A second model call writes short markdown from that JSON. Every number in the write-up has to appear in the JSON. If the draft invents a count, the page throws the draft away and builds a table from the run instead.
+6. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash.
 
-## Phase 2
+A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as **Clear** and the Decision reset. It returns to the four cards and clears the thread.
 
-Phase 2 is not built. A follow-up question would be new code, written as TypeScript for that same table and run in a sandbox. This repo does not include that executor. The expanded card says so. Do not add `eval`, `new Function`, or a visitor-supplied script to `POST /api/code` to get there.
+The header chip says **Numbers ≠ narrative**. The two lines on the tab are “You ask. The model writes the counting code. This page runs it on the saved table.” and “The counts come from that run. The write-up can still tell the wrong story — same honesty as Likely ≠ true.”
+
+## Fixtures
+
+`lib/codeAnalysis/` still has a fixed function per table. Tests use those to lock the planted counts in the CSVs: the billing jump in week 8, the month-3 leak, the adhesive-and-clip pile in weeks 7–9, and a stored Denver file that does not know right now. The page does not call them. The lesson on screen comes from the sandbox run.

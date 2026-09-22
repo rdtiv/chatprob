@@ -2,7 +2,7 @@
 
 An educational chat UI that shows how a language model samples text: token-by-token confidence, the other words it considered, how your own message is chopped into tokens, where three replies to the same prompt part ways, and what the whole conversation costs.
 
-The header switches three tabs. **LLM** is that chat. **Decision** judges one situation. **Code** counts a saved table over time. See [LLM, Decision, and Code](#llm-decision-and-code).
+The header switches three tabs. **LLM** is that chat. **Decision** judges one situation. **Code** asks the model to write a count over a saved table, then runs that count here. See [LLM, Decision, and Code](#llm-decision-and-code).
 
 ![Turn 2: the staircase and the heatmap](public/readme/turn2.png)
 
@@ -30,15 +30,15 @@ Inspired by [Scott Hanselman's "AI without the BS, for humans" keynote at NDC Lo
 
 | | LLM | Decision | Code |
 | --- | --- | --- | --- |
-| What you see | The chat this README describes | Four situations you pick, then the probabilities on that one | Four saved tables you pick, then a fixed count over time |
+| What you see | The chat this README describes | Four situations you pick, then the probabilities on that one | Four saved tables you pick, then a question, the TypeScript, and a write-up |
 | Route | `POST /api/chat` | `POST /api/evaluate` | `POST /api/code` |
-| Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` | None. A fixed function over a CSV |
-| Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` | Not `eval` of anything the browser sends |
-| Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it | None |
+| Model call | OpenAI Chat Completions, direct. `logprobs`, `top_logprobs: 5`, `n: 3` | AI SDK `experimental_evaluate`, model `typesafe-ai/jev` | OpenAI Chat Completions, direct, same key and host as the LLM tab. The model writes TypeScript; a sandbox runs it |
+| Where it must not go | Not the Vercel AI Gateway, not Edge — those paths drop logprobs | Not an OpenAI-compatible chat endpoint, and not a hand-rolled `POST …/v1/evaluate` | Not the AI Gateway, not Jev, and not `eval` of a visitor string outside the sandbox |
+| Key | `OPENAI_API_KEY` | `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects it | `OPENAI_API_KEY` |
 
 `POST /api/evaluate` sends the text on screen as `state` plus a situation id. Decision opens on four cards — Can’t get in, Cancel my plan, Parts came back, Should we call the tool? — and picking one expands that ticket, mail, or question. The first card is still the canned lockout, subject “Can’t sign in after password reset.” **Reset** (two clicks, same as **Clear**) returns to the four cards and aborts a judgment still in flight. After a judgment, the header says “Edit the subject or message, then run again.” On the mail and the weather question that line names those fields instead. That line is not sent. Questions stay on the server, chosen by the situation id. A body that includes `questions` is a 400, so the route is not an open proxy for a schema the browser sends. A missing gateway key shows up as an error after Run, not as a line that sits on the tab. A threshold strip (auto / escalate / reject) is drawn in the browser over the probabilities that came back. Moving it does not call the model again, and it is a lesson, not a policy. The two lines on that tab are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as **Likely ≠ true.**” The header still says **Scores ≠ answers**. After a judgment, the timing chip is joined by the measured elapsed and a note that a chat reply usually takes seconds because it writes tokens.
 
-[Decision](docs/decision.md) is the short note for that tab. [Code](docs/code.md) is the short note for the third tab: Phase 1 is the four canned checks; Phase 2, a TypeScript sandbox for a follow-up question, is not built. The rest of this README stays about the LLM tab.
+[Decision](docs/decision.md) is the short note for that tab. [Code](docs/code.md) is the short note for the third tab: four saved tables, a question, model-written TypeScript, a sandbox run, and markdown that may use only numbers that run returned. A follow-up stays on the same table. **Reset** (two clicks) returns to the four cards and clears the thread. The header chip says **Numbers ≠ narrative**. The rest of this README stays about the LLM tab.
 
 Ops, not used by the app: TypeSafe's REST is `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`.
 
@@ -71,7 +71,7 @@ Truncation is purely client-side — `lib/contextWindow.js` decides what leaves 
 - Next.js 16.3.2 pages router, React 18, hand-written CSS in `styles/`. `styles/globals.css` is now just the `@import` entry that `pages/_app.js` loads; the sheet lives in `tokens.css`, `base.css`, `glass.css`, `shell.css`, `cost.css`, `surfaces.css`, `transcript.css`, `composer.css`, `panels.css`, `decision.css` is the Decision tab, and `code.css` is imported after it for the Code tab only. The import order in the entry file *is* the old source order — several equal-specificity rules depend on it, so the files are cut, never reshuffled. `tokens.css` holds the whole palette: type scale (`--fs-1`…`--fs-5`), radii (`--r-1`…`--r-4`, `--r-pill`), and semantic colours (`--ink*`, `--muted*`, `--line*`, `--surface*`, `--ground`, `--blue`/`--accent*`, `--violet*`, `--warn-*`, `--danger-*`, `--shadow-*`), plus a `prefers-color-scheme: dark` block that redefines those tokens and nothing else
 - `geist` — Geist Sans and Geist Mono, self-hosted via `next/font/local`; every token count, price, and JSON block is set in the mono face so numbers line up column to column. Under Turbopack (Next 16's default `next build` / `next dev`) `transpilePackages: ['geist']` is not needed. The webpack “collecting page data” path (`next build --webpack`) still resolves geist's `next/font/local` through Node's ESM loader — put the transpile line back if that fallback is ever used. `pages/_app.js` puts the font variable classes on `document.body` after mount, so the server markup stays plain and the first paint falls back to the system stack declared in `styles/base.css`
 - `gpt-tokenizer` for the composer’s `o200k_base` count, dynamically imported on first use so its ~1 MB table never enters the initial bundle
-- Three serverless routes, all Node, none Edge. `POST /api/chat` (`maxDuration` 60) answers with JSON or an NDJSON stream and is not the Vercel AI Gateway — those paths drop logprobs. `POST /api/evaluate` (`maxDuration` 30) is the Decision tab only: AI SDK `experimental_evaluate` with `typesafe-ai/jev`, which does go through the Gateway. `POST /api/code` (`maxDuration` 10) is the Code tab only: a dataset id selects a fixed function over a CSV, and it does not call a model.
+- Three serverless routes, all Node, none Edge. `POST /api/chat` (`maxDuration` 60) answers with JSON or an NDJSON stream and is not the Vercel AI Gateway — those paths drop logprobs. `POST /api/evaluate` (`maxDuration` 30) is the Decision tab only: AI SDK `experimental_evaluate` with `typesafe-ai/jev`, which does go through the Gateway. `POST /api/code` (`maxDuration` 60) is the Code tab only: direct OpenAI writes TypeScript for one saved table, and a sandbox runs it. It is not the Gateway.
 - OpenAI Chat Completions with `logprobs`, `top_logprobs: 5`, and `n: 3` on the LLM tab. The `ai` package is a dependency of `/api/evaluate` only.
 
 ### Design
@@ -138,7 +138,7 @@ npm run lint
 node --test "lib/*.test.js"
 ```
 
-The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals and their one-line summary, the fraction-of-a-cent and million-chat formatters, the cutoff-relevance test, the model-facts table, and the Code tab’s planted counts and picker reset — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
+The unit tests cover the pure modules in `lib/` — re-softmax, tokenizer chunking, completion statistics, rates, sampling clamps, context truncation, storage pruning, the weather fetch (with a stubbed `fetch`), the tool schema, the two-round usage totals and their one-line summary, the fraction-of-a-cent and million-chat formatters, the cutoff-relevance test, the model-facts table, the Code tab’s planted counts, the sandbox’s refusal of the network and the disk, a follow-up that stays on the same table, reset back to the four cards, and a write-up that may use only the sandbox JSON — and make no network calls. The three files in `scripts/` are the opposite: manual gates that hit the live API, so run them by hand and never in CI.
 
 `next` and `eslint-config-next` are pinned to `16.3.2`. `react` / `react-dom` stay at `18.2.0` — Pages Router uses the React in `package.json`, and 16.3.2 still peers `react@^18.2`. Lint is `eslint .` with a flat `eslint.config.mjs` (`next lint` was removed in 16). Node is pinned to `24.x` (`engines` in `package.json`), which matches CI and overrides the Node version in Vercel Project Settings; a range there would let Vercel move to each new major on its own. `npm audit` is clean; `npm audit fix --force` would still yank `next` / `eslint-config-next` off those exact pins.
 
@@ -218,11 +218,16 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 | `lib/coachCopy.js` | The three coach sentences, shared by the marks and the `?` buttons, plus the Decision and Code lines |
 | `pages/api/chat.js` | OpenAI Chat Completions + logprobs, JSON and NDJSON |
 | `pages/api/evaluate.js` | Canned Jev judgment via `experimental_evaluate` |
-| `pages/api/code.js` | Code tab, phase 1: one canned check per saved table |
+| `pages/api/code.js` | Code tab: direct OpenAI, then the sandbox, on one saved table |
 | `components/DecisionWorkbench.js` | Decision tab: ticket, distributions, threshold playground |
-| `components/CodeWorkbench.js` | Code tab: four tables, one canned check, the punchline as teaching |
-| `lib/codeAnalysis/` | The four checks over `data/code/*.csv` |
-| `lib/codeSession.js` | Picker, run, and reset for the Code tab |
+| `components/CodeWorkbench.js` | Code tab: four tables, the question, the TypeScript, the write-up |
+| `components/CodeMarkdown.js` | The write-up, rendered as text |
+| `lib/codeDatasets.js` | The four cards and the constant names |
+| `lib/codeRun.js` | One ask: TypeScript, sandbox, grounded markdown |
+| `lib/codeSandbox.js` | Runs `analyze` with a timeout, no network, and no disk |
+| `lib/codeMarkdown.js` | Keeps a write-up only when every number is in the run |
+| `lib/codeAnalysis/` | Fixture counts that lock the planted CSVs. The page does not call them |
+| `lib/codeSession.js` | Picker, follow-up on the same table, and reset |
 | `data/code/` | Synthetic CSVs. No customer names |
 | `lib/triageFixture.js` | The one canned ticket and the question map sent to Jev |
 | `lib/decisionPlayground.js` | Client-side auto / escalate / reject lines |
@@ -234,7 +239,7 @@ This 20-turn window is not the one **Forget older turns** moves. Storage pruning
 
 ## Deploy
 
-A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Set `AI_GATEWAY_API_KEY` as well if the Decision tab should call Jev (Gateway OIDC covers it when that is already enabled). `WEATHER_API_KEY` must be set in the Vercel project environment alongside the OpenAI key for the weather tool to work in preview and production. Keep the functions on the Node runtime: the chat route needs it so logprobs survive, `experimental_evaluate` is a Node call, and the Code route reads the CSVs from disk. The Code route needs no key.
+A standard Next.js deploy on Vercel works. Set `OPENAI_API_KEY` in the project environment. Set `AI_GATEWAY_API_KEY` as well if the Decision tab should call Jev (Gateway OIDC covers it when that is already enabled). `WEATHER_API_KEY` must be set in the Vercel project environment alongside the OpenAI key for the weather tool to work in preview and production. Keep the functions on the Node runtime: the chat route needs it so logprobs survive, `experimental_evaluate` is a Node call, and the Code route reads the CSVs from disk and runs the sandbox. The Code route uses `OPENAI_API_KEY`, the same key as the LLM tab.
 
 ## License
 

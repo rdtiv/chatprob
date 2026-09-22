@@ -1,19 +1,22 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { CODE_DATASETS, PHASE_2_NOTE, getDataset } from '../lib/codeAnalysis/datasets';
+import { CODE_DATASETS, getDataset } from '../lib/codeDatasets';
 import {
   beginRun,
+  historyFromTurns,
   initialCodeSession,
   markRunFailed,
-  markRunFinished,
+  noteFollowUp,
   pickDataset,
+  recordTurn,
   resetToPicker,
 } from '../lib/codeSession';
 import { CODE_COACH } from '../lib/coachCopy';
+import CodeMarkdown from './CodeMarkdown';
 
 const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref) {
   const [session, setSession] = useState(initialCodeSession);
+  const [draft, setDraft] = useState('');
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
   const requestRef = useRef(0);
   const abortRef = useRef(null);
 
@@ -29,24 +32,34 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
     abortRef.current = next.controller;
     requestRef.current += 1;
     setSession(next.session);
-    setResult(null);
+    setDraft('');
     setError(null);
   }, []);
 
   useImperativeHandle(ref, () => ({ reset }), [reset]);
 
   const pick = (id) => {
-    if (!getDataset(id) || session.status === 'loading') return;
+    const card = getDataset(id);
+    if (!card || session.status === 'loading') return;
     abortRef.current?.abort();
     abortRef.current = null;
     requestRef.current += 1;
-    setResult(null);
     setError(null);
+    setDraft(card.question);
     setSession(pickDataset(initialCodeSession(), id));
   };
 
-  const run = async () => {
+  const ask = async () => {
     if (!dataset) return;
+    const message = draft.trim();
+    if (!message || session.status === 'loading') return;
+    if (session.turns.length) {
+      const follow = noteFollowUp(session, dataset.id);
+      if (!follow.ok) {
+        setError(follow.error);
+        return;
+      }
+    }
     const started = beginRun(session, abortRef.current);
     abortRef.current = started.controller;
     const requestId = requestRef.current + 1;
@@ -57,29 +70,33 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
       const response = await fetch('/api/code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ datasetId: dataset.id }),
+        body: JSON.stringify({
+          datasetId: dataset.id,
+          message,
+          history: historyFromTurns(session.turns),
+        }),
         signal: started.controller.signal,
       });
       const data = await response.json().catch(() => ({}));
       if (requestId !== requestRef.current) return;
       if (!response.ok) {
-        setResult(null);
         setSession(markRunFailed(started.session));
-        setError(data.error || 'The check did not finish.');
+        setError(data.error || 'The model did not answer. Try again.');
         return;
       }
-      setResult(data);
-      setSession((prev) => (
-        prev.phase === 'dataset' && prev.datasetId === dataset.id
-          ? markRunFinished(prev)
-          : prev
-      ));
+      setDraft('');
+      setSession(recordTurn(started.session, {
+        user: message,
+        typescript: data.typescript || '',
+        markdown: data.markdown || '',
+        error: data.sandbox?.ok ? '' : (data.sandbox?.error || ''),
+        output: data.sandbox?.ok ? data.sandbox.output : null,
+      }));
     } catch (fetchError) {
       if (requestId !== requestRef.current) return;
       if (fetchError?.name === 'AbortError') return;
-      setResult(null);
       setSession(markRunFailed(started.session));
-      setError('The check did not finish.');
+      setError('The model did not answer. Try again.');
     }
   };
 
@@ -119,50 +136,67 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
             </header>
             <p className="decision-pick-blurb">{dataset.blurb}</p>
             <p className="code-pick-coach">{dataset.coach}</p>
-            <p className="code-question">{dataset.question}</p>
-            <p className="decision-note">{dataset.tableLine}</p>
+            <p className="decision-note">
+              {dataset.tableLine} The code already has it as <code>{dataset.constant}</code>. You do not upload it.
+            </p>
           </section>
 
-          <div className="decision-run">
+          {session.turns.map((turn, index) => (
+            <article className="code-turn" key={`${turn.user}-${index}`}>
+              <h3 className="code-ask-label">You asked</h3>
+              <p className="code-question">{turn.user}</p>
+              {turn.typescript && (
+                <>
+                  <h3 className="code-ask-label">The code it wrote</h3>
+                  <pre className="code-ts"><code>{turn.typescript}</code></pre>
+                </>
+              )}
+              {turn.error && (
+                <section className="code-teaching" aria-label="What the code did">
+                  <h2>What the code did</h2>
+                  <p>{turn.error}</p>
+                </section>
+              )}
+              {turn.markdown && (
+                <section className="decision-card" aria-label="What the run showed">
+                  <header className="decision-card-head">
+                    <h2>What the run showed</h2>
+                  </header>
+                  <CodeMarkdown markdown={turn.markdown} />
+                </section>
+              )}
+            </article>
+          ))}
+
+          <form
+            className="code-ask"
+            onSubmit={(event) => {
+              event.preventDefault();
+              ask();
+            }}
+          >
+            <label htmlFor="code-ask">
+              {session.turns.length ? 'Ask a follow-up about this same table' : 'The question'}
+              <textarea
+                id="code-ask"
+                rows={3}
+                value={draft}
+                maxLength={2000}
+                disabled={session.status === 'loading'}
+                onChange={(event) => setDraft(event.target.value)}
+              />
+            </label>
             <button
-              type="button"
+              type="submit"
               className="decision-run-button glass-chip"
-              onClick={run}
-              disabled={session.status === 'loading'}
+              disabled={session.status === 'loading' || !draft.trim()}
             >
-              {session.status === 'loading' ? 'Checking the table…' : result ? 'Run it again' : 'Run this check'}
+              {session.status === 'loading' ? 'Writing the count…' : 'Ask'}
             </button>
-          </div>
+          </form>
 
           {error && (
             <p className="decision-error" role="alert">{error}</p>
-          )}
-
-          {result && (
-            <>
-              <p className="decision-meta-line decision-result-meta">
-                <span>Saved table</span>
-                <span>No model call</span>
-              </p>
-              <section className="decision-card" aria-label="What the check counted">
-                <header className="decision-card-head">
-                  <h2>What the check counted</h2>
-                </header>
-                <dl className="code-lines">
-                  {result.lines.map((line) => (
-                    <div key={line.label} className="code-line">
-                      <dt>{line.label}</dt>
-                      <dd>{line.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-              <section className="code-teaching" aria-label="What this table is teaching">
-                <h2>What this table is teaching</h2>
-                <p>{result.punchline}</p>
-              </section>
-              <p className="decision-note code-phase2">{PHASE_2_NOTE}</p>
-            </>
           )}
         </div>
       )}
