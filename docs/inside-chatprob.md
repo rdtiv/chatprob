@@ -1,6 +1,6 @@
 # Inside ChatProb
 
-A walkthrough of the **LLM** tab, from the first word you type to the moment the model asks our server to look something up for it. Ten chapters, one sitting, every term defined the first time you need it. The header's other tab, **Decision**, is a separate bench — one canned ticket, no chat — and lives in [Decision](decision.md).
+A walkthrough of the **LLM** tab, from the first word you type to the moment the model asks our server to look something up for it. Ten chapters, one sitting, every term defined the first time you need it. The header's other tab, **Decision**, is a separate bench — four short situations, no chat — and lives in [Decision](decision.md).
 
 The [README](../README.md) is the catalogue: what is true of the app, feature by feature. This document is the path: the order to meet those features in so that each one explains the next. When a feature changes, the README changes first and the matching chapter follows.
 

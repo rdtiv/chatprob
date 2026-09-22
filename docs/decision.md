@@ -6,15 +6,22 @@ The other tab. Not a chat, and not a second copy of the LLM lesson.
 
 **Decision** asks typed questions about one shared state and gets probabilities back. There is no prose. The model is Jev, TypeSafe's System One model, called as `typesafe-ai/jev` through the AI SDK's `experimental_evaluate` in `POST /api/evaluate`. It needs `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects a token. A missing key is an error after Run. It does not take down the LLM tab, and it is not a line on the tab when the key is present.
 
-## The one ticket
+## Four situations
 
-One support ticket: by default the subject is “Can’t sign in after password reset.” The customer is not asking for money back, is on the family plan, and has three earlier tickets. Subject, message, plan, and earlier-ticket count are editable. **Run this judgment** posts that text as `state`. **Reset**, top-right, is two clicks like **Clear** and restores that subject, message, plan, and earlier-ticket count, plus the default threshold lines. After a judgment is on screen, the ticket header adds “Edit the subject or message, then run again.” Idle, loading, and Reset (no result) hide that line. It stays in the browser and is not part of `state`. Questions stay the fixture, so the endpoint is not an open proxy for a different schema. A body with no `state` still judges the canned ticket. A `state` that fails the shape check is a 400 and is not silently replaced.
+Decision opens on four cards. Nothing is expanded until you pick one. The card fades open into the text you are about to judge. **Run this judgment** posts that text as `state` plus the situation id. While the judgment is in flight the text and the lines are locked. When the probabilities land, the text stays read-only for a moment, then you can edit it. **Reset**, top-right, is two clicks like **Clear**. It returns to the four cards, restores the default lines, and aborts a judgment that has not come back yet.
 
-Three questions go out together:
+A body with no situation id and no `state` still judges the first card, the canned lockout ticket. A `state` that fails that situation’s shape check is a 400 and is not silently replaced. A body that includes `questions` is a 400. The question list is chosen on the server from the situation id, so the route is not an open proxy for a schema the browser sends.
 
-- **choice** — which queue (billing, technical, account, other), with a probability for every option
-- **score** — severity on a four-step rubric, as a fractional score plus a distribution over the steps
-- **boolean** — whether the customer asked for money back. In TypeSafe's API this primitive is called noul. The SDK names it `boolean`. The number is P(true): 0.98 is a strong yes, 0.02 is a strong no, 0.50 is a coin flip. It is not "confidence."
+After a judgment is on screen, the header adds a line about editing and running again. On a ticket that line is “Edit the subject or message, then run again.” On the plant mail it names the subject or body. On the weather question it names the question. Idle, loading, and Reset (no result) hide that line. It stays in the browser and is not part of `state`.
+
+The cards, in order:
+
+1. **Can’t get in.** Subject “Can’t sign in after password reset.” Password reset failed, a trip tomorrow, not asking for money back, family plan, three earlier tickets. Questions: queue (billing, technical, account, other), severity on a four-step rubric, and whether they asked for money back.
+2. **Cancel my plan.** They say cancel unless streaming is fixed, and they might have been charged twice. Same three questions. The voice is mixed on purpose: pause, refund, or just mad.
+3. **Parts came back.** Inbound mail, not a form. From `ops@customerco.example`, subject about last week’s shipment, body about parts back on the dock. No person and no customer name in that note. Questions: which desk (quality, sales-credit, ops-shipping, unclear), severity, whether this is a repeat return, and whether they want a credit rather than a remake.
+4. **Should we call the tool?** The same Denver weather question as the LLM demo. Questions: does a fair answer need a live look, and is the next move memory, the tool, or a refusal.
+
+Choice, score, and boolean are the three shapes. In TypeSafe's API the boolean primitive is called noul. The SDK names it `boolean`. The number is P(true): 0.98 is a strong yes, 0.02 is a strong no, 0.50 is a coin flip. It is not "confidence."
 
 Choice and score may also carry a separate confidence in `providerMetadata.typesafe.confidence`. That statistic says how peaked the distribution is. The playground does not read it.
 
