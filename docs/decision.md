@@ -8,7 +8,7 @@ The other tab. Not a chat, and not a second copy of the LLM lesson.
 
 ## The one ticket
 
-One support ticket: by default a customer who can’t sign in after a password reset, is not asking for money back, is on the family plan, and has three earlier tickets. Subject, message, plan, and earlier-ticket count are editable. **Run this judgment** posts that text as `state`. **Reset**, top-right, is two clicks like **Clear** and restores the canned ticket plus the default threshold lines. Questions stay the fixture, so the endpoint is not an open proxy for a different schema. A body with no `state` still judges the canned ticket. A `state` that fails the shape check is a 400 and is not silently replaced.
+One support ticket: by default the subject is “Can’t sign in after password reset.” The customer is not asking for money back, is on the family plan, and has three earlier tickets. Subject, message, plan, and earlier-ticket count are editable. **Run this judgment** posts that text as `state`. **Reset**, top-right, is two clicks like **Clear** and restores that subject, message, plan, and earlier-ticket count, plus the default threshold lines. After a judgment is on screen, the ticket header adds “Edit the subject or message, then run again.” Idle, loading, and Reset (no result) hide that line. It stays in the browser and is not part of `state`. Questions stay the fixture, so the endpoint is not an open proxy for a different schema. A body with no `state` still judges the canned ticket. A `state` that fails the shape check is a 400 and is not silently replaced.
 
 Three questions go out together:
 
