@@ -951,7 +951,7 @@ export default function ChatInterface() {
             </>
             ) : (
               <>
-              <span className="legend-honesty decision-honesty">Schema ≠ truth.</span>
+              <span className="legend-honesty decision-honesty">Scores ≠ answers</span>
               <button
                 type="button"
                 onClick={handleResetClick}

@@ -16,10 +16,10 @@ After a judgment is on screen, the header adds a line about editing and running 
 
 The cards, in order:
 
-1. **Can’t get in.** Subject “Can’t sign in after password reset.” Password reset failed, a trip tomorrow, not asking for money back, family plan, three earlier tickets. Questions: queue (billing, technical, account, other), severity on a four-step rubric, and whether they asked for money back.
-2. **Cancel my plan.** They say cancel unless streaming is fixed, and they might have been charged twice. Same three questions. The voice is mixed on purpose: pause, refund, or just mad.
-3. **Parts came back.** Inbound mail, not a form. From `ops@customerco.example`, subject about last week’s shipment, body about parts back on the dock. No person and no customer name in that note. Questions: which desk (quality, sales-credit, ops-shipping, unclear), severity, whether this is a repeat return, and whether they want a credit rather than a remake.
-4. **Should we call the tool?** The same Denver weather question as the LLM demo. Questions: does a fair answer need a live look, and is the next move memory, the tool, or a refusal.
+1. **Can’t get in.** Subject “Can’t sign in after password reset.” Locked out after a password reset, a trip tomorrow, no refund ask, family plan, three earlier tickets. Questions: queue (billing, technical, account, other), severity on a four-step rubric, and whether they asked for money back.
+2. **Cancel my plan.** Subject “Please cancel my plan.” They want out, or a pause, or a double charge fixed, and it is hard to tell. Same three questions.
+3. **Parts came back.** Inbound mail, not a form. From `ops@customerco.example`, subject “Returned cartons from last week’s shipment,” body about open cartons on the dock. No person and no customer name in that note. Questions: which desk (quality, sales-credit, ops-shipping, unclear), severity, whether this is a repeat return, and whether they want a credit rather than a remake.
+4. **Should we call the tool?** “What’s the weather in Denver right now?” Questions: does a fair answer need a live look, and is the next move memory, the tool, or a refusal.
 
 Choice, score, and boolean are the three shapes. In TypeSafe's API the boolean primitive is called noul. The SDK names it `boolean`. The number is P(true): 0.98 is a strong yes, 0.02 is a strong no, 0.50 is a coin flip. It is not "confidence."
 
@@ -27,9 +27,9 @@ Choice and score may also carry a separate confidence in `providerMetadata.types
 
 ## The lines
 
-Auto, escalate, and reject are sliders in the browser over the probabilities that already came back. Dragging them does not send another request. They are there so you can see a threshold policy as a thing your code would own, not as something the model decided. Schema ≠ truth: you wrote the options, and a high probability on one of them can still be the wrong queue. Calibration is what you would learn by running many labeled tickets, not by trusting this one.
+Auto, escalate, and reject are sliders in the browser over the probabilities that already came back. Dragging them does not send another request. They are there so you can see a threshold policy as a thing your code would own, not as something the model decided. Scores ≠ answers: you wrote the options, and a high probability on one of them can still be the wrong queue. Calibration is what you would learn by running many labeled tickets, not by trusting this one.
 
-Latency is the route's own clock, shown as a chip and as `{elapsed} — a chat reply usually takes seconds because it writes tokens.` Under a second the elapsed is milliseconds, the same formatter as the chip. The sentence appears only after a result that includes that clock. The two coach lines are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as Likely ≠ true.” The header chip still says Schema ≠ truth. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
+Latency is the route's own clock, shown as a chip and as `{elapsed} — a chat reply usually takes seconds because it writes tokens.` Under a second the elapsed is milliseconds, the same formatter as the chip. The sentence appears only after a result that includes that clock. The two coach lines are “Context in. Probabilities out. No tokens generated.” and “A high score can still be the wrong queue — same honesty as Likely ≠ true.” The header chip still says Scores ≠ answers. Cost is the gateway's reported cost when the response includes one, otherwise the published list price for Jev ($0.042 per 1M input tokens; output tokens are not charged), labelled as a list price.
 
 ## What this route is not
 
