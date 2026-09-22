@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   }
 
   // Questions stay the canned map. Only `state` is read, and a missing
-  // state falls back to the canned Stripe ticket. This is still one
+  // state falls back to the canned lockout ticket. This is still one
   // scenario, not an open proxy for a different question schema.
   const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
   const outcome = await runCannedEvaluation({
