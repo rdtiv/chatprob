@@ -22,7 +22,7 @@ Picking a card fills the box with that question. You can edit it. **Ask** sends 
 `POST /api/code` uses the same stack as Generate: the `openai` package, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` when that is set. It is not the AI Gateway and not Jev. The model is `OPENAI_MODEL` or `gpt-4o-mini`.
 
 1. The server loads the named constant for that id. A body that includes rows, a schema, or code is a 400.
-2. The model writes one TypeScript function, `analyze`, that reads only that constant. The page streams that text as NDJSON `code` events, so the function grows on screen.
+2. The model writes one TypeScript function, `analyze`, that reads only that constant. The page streams that text as NDJSON `code` events, so the function grows on screen in color (keywords, strings, comments, and types). The block is labeled TypeScript. Copy stays quiet until that function has finished, then it copies the source. The same bar keeps the phase line: Writing the code…, Running it…, Writing it up….
 3. When that reply finishes, the page sends `running` and runs a sandbox. The timeout is one second. There is no network and no disk. `eval` and building functions from strings are off. The table is parsed inside the sandbox, so the code cannot reach back into the server through a row object. The only value that comes back is the JSON from `analyze`, in a `result` event.
 4. A second model call streams the markdown as `markdown` events. Every number in the settled write-up has to appear in that JSON. If the draft invents a count, a `markdown` event with `replace: true` swaps in a table built from the run. `done` ends the turn.
 5. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash. **Reset**, or a new ask, aborts the stream.

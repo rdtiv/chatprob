@@ -89,14 +89,76 @@
   color: var(--muted);
 }
 
-.code-ts.is-live {
-  border-color: var(--warn-line);
-}
-
 .code-running {
   margin: 0;
   font-size: var(--fs-2);
   color: var(--muted);
+}
+
+.code-fence {
+  --ts-keyword: #6d28d9;
+  --ts-string: #9a3412;
+  --ts-comment: var(--muted);
+  --ts-function: #1d4ed8;
+  --ts-number: #0f766e;
+  --ts-type: #0369a1;
+  --ts-punct: #64748b;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.code-fence.is-live {
+  border-color: var(--warn-line);
+}
+
+.code-fence-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-wash);
+}
+
+.code-fence-lang,
+.code-fence-status {
+  font-size: var(--fs-1);
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.code-fence-lang {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.code-fence-copy {
+  margin-left: auto;
+  font: inherit;
+  font-size: var(--fs-1);
+  line-height: 1.3;
+  color: var(--ink-2);
+  border-radius: var(--r-1);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.code-fence-copy:disabled {
+  opacity: 1;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: default;
+  transform: none;
+}
+
+.code-fence-copy:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .code-ts {
@@ -104,13 +166,32 @@
   padding: 12px 14px;
   overflow: auto;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
+  border: 0;
+  border-radius: 0;
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--fs-1);
   line-height: 1.5;
   color: var(--ink-strong);
   white-space: pre;
+}
+
+.code-fence .ts-keyword { color: var(--ts-keyword); }
+.code-fence .ts-string { color: var(--ts-string); }
+.code-fence .ts-comment { color: var(--ts-comment); font-style: italic; }
+.code-fence .ts-function { color: var(--ts-function); }
+.code-fence .ts-number { color: var(--ts-number); }
+.code-fence .ts-type { color: var(--ts-type); }
+.code-fence .ts-punct { color: var(--ts-punct); }
+
+@media (prefers-color-scheme: dark) {
+  .code-fence {
+    --ts-keyword: #c4b5fd;
+    --ts-string: #fbbf24;
+    --ts-function: #93c5fd;
+    --ts-number: #5eead4;
+    --ts-type: #7dd3fc;
+    --ts-punct: #94a3b8;
+  }
 }
 
 .code-ask {

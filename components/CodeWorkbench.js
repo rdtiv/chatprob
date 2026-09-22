@@ -11,6 +11,7 @@ import {
 } from '../lib/codeSession';
 import { CODE_COACH } from '../lib/coachCopy';
 import { applyCodeEvent, readCodeStream, visibleTypeScript } from '../lib/codeStream';
+import CodeFence from './CodeFence';
 import CodeMarkdown from './CodeMarkdown';
 
 function askLabel(turn, loading) {
@@ -189,7 +190,11 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
               {code && (
                 <>
                   <h3 className="code-ask-label">The code it wrote</h3>
-                  <pre className={`code-ts${turn.live && turn.livePhase === 'code' ? ' is-live' : ''}`}><code>{code}</code></pre>
+                  <CodeFence
+                    source={code}
+                    writing={Boolean(turn.live && turn.livePhase === 'code')}
+                    status={turn.live ? askLabel(turn, true) : ''}
+                  />
                 </>
               )}
               {turn.live && turn.livePhase === 'running' && (
