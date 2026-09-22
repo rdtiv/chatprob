@@ -1,14 +1,14 @@
-# Decision
+# Evaluate
 
-The other tab. Not a chat, and not a second copy of the LLM lesson.
+The other tab. Not a chat, and not a second copy of Generate.
 
-**LLM** samples the next token and shows you the draw: logprobs, three replies, temperature. That path is `POST /api/chat`, OpenAI Chat Completions, and it stays off the AI Gateway and off Edge because those drop logprobs. It needs `OPENAI_API_KEY`.
+**Generate** is where large language models (LLMs) write token by token. It samples the next token and shows you the draw: logprobs, three replies, temperature. That path is `POST /api/chat`, OpenAI Chat Completions, and it stays off the AI Gateway and off Edge because those drop logprobs. It needs `OPENAI_API_KEY`. The chip on that tab is **Likely ≠ true.**
 
-**Decision** asks typed questions about one shared state and gets probabilities back. There is no prose. The model is Jev, TypeSafe's System One model, called as `typesafe-ai/jev` through the AI SDK's `experimental_evaluate` in `POST /api/evaluate`. It needs `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects a token. A missing key is an error after Run. It does not take down the LLM tab, and it is not a line on the tab when the key is present.
+**Evaluate** asks typed questions about one shared state and gets probabilities back. There is no prose. The model is Jev, TypeSafe's System One model, called as `typesafe-ai/jev` through the AI SDK's `experimental_evaluate` in `POST /api/evaluate`. It needs `AI_GATEWAY_API_KEY`, or Gateway OIDC when Vercel already injects a token. A missing key is an error after Run. It does not take down Generate, and it is not a line on the tab when the key is present. The chip is **Scores ≠ answers**.
 
 ## Four situations
 
-Decision opens on four cards. Nothing is expanded until you pick one. The card fades open into the text you are about to judge. **Run this judgment** posts that text as `state` plus the situation id. While the judgment is in flight the text and the lines are locked. When the probabilities land, the text stays read-only for a moment, then you can edit it. **Reset**, top-right, is two clicks like **Clear**. It returns to the four cards, restores the default lines, and aborts a judgment that has not come back yet.
+Evaluate opens on four cards. Nothing is expanded until you pick one. The card fades open into the text you are about to judge. **Run this judgment** posts that text as `state` plus the situation id. While the judgment is in flight the text and the lines are locked. When the probabilities land, the text stays read-only for a moment, then you can edit it. **Reset**, top-right, is two clicks, same as Generate. It returns to the four cards, restores the default lines, and aborts a judgment that has not come back yet.
 
 A body with no situation id and no `state` still judges the first card, the canned lockout ticket. A `state` that fails that situation’s shape check is a 400 and is not silently replaced. A body that includes `questions` is a 400. The question list is chosen on the server from the situation id, so the route is not an open proxy for a schema the browser sends.
 
@@ -33,6 +33,6 @@ Latency is the route's own clock, shown as a chip and as `{elapsed} — a chat r
 
 ## What this route is not
 
-`experimental_evaluate` is the app path. Do not point the Decision tab at an OpenAI-compatible chat completions URL. Do not invent `POST …/v1/evaluate`.
+`experimental_evaluate` is the app path. Do not point Evaluate at an OpenAI-compatible chat completions URL. Do not invent `POST …/v1/evaluate`.
 
 TypeSafe's REST, if you are calling it from ops tooling rather than from this app, is `POST https://ai-gateway.vercel.sh/typesafe/v1/systemone`.

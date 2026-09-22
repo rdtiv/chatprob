@@ -1,0 +1,281 @@
+/* Code tab. Imported after decision.css. Reuses the Decision picker
+   chrome and adds the ask, the TypeScript, the write-up, and the
+   teaching block. The teaching block is a lesson, not a success badge. */
+
+.code-pick {
+  min-height: 128px;
+}
+
+.code-pick-coach {
+  font-size: var(--fs-2);
+  line-height: 1.45;
+  color: var(--ink-2);
+  padding-left: 10px;
+  border-left: 2px solid var(--warn-line);
+}
+
+.code-question {
+  margin: 10px 0 0;
+  font-size: var(--fs-3);
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.code-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.code-line {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.8fr) 1.4fr;
+  gap: 8px 12px;
+  align-items: baseline;
+}
+
+.code-line dt {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.code-line dd {
+  margin: 0;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-2);
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.code-teaching {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--warn-line);
+  border-radius: var(--r-2);
+  padding: 12px 14px;
+}
+
+.code-teaching h2 {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--warn-ink);
+  margin-bottom: 6px;
+}
+
+.code-teaching p {
+  margin: 0;
+  font-size: var(--fs-3);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.code-phase2 {
+  margin: 0;
+}
+
+.code-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.code-ask-label {
+  margin: 0;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.code-running {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--muted);
+}
+
+.code-fence {
+  --ts-keyword: #6d28d9;
+  --ts-string: #9a3412;
+  --ts-comment: var(--muted);
+  --ts-function: #1d4ed8;
+  --ts-number: #0f766e;
+  --ts-type: #0369a1;
+  --ts-punct: #64748b;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.code-fence.is-live {
+  border-color: var(--warn-line);
+}
+
+.code-fence-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-wash);
+}
+
+.code-fence-lang,
+.code-fence-status {
+  font-size: var(--fs-1);
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.code-fence-lang {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.code-fence-copy {
+  margin-left: auto;
+  font: inherit;
+  font-size: var(--fs-1);
+  line-height: 1.3;
+  color: var(--ink-2);
+  border-radius: var(--r-1);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.code-fence-copy:disabled {
+  opacity: 1;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: default;
+  transform: none;
+}
+
+.code-fence-copy:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.code-ts {
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-1);
+  line-height: 1.5;
+  color: var(--ink-strong);
+  white-space: pre;
+}
+
+.code-fence .ts-keyword { color: var(--ts-keyword); }
+.code-fence .ts-string { color: var(--ts-string); }
+.code-fence .ts-comment { color: var(--ts-comment); font-style: italic; }
+.code-fence .ts-function { color: var(--ts-function); }
+.code-fence .ts-number { color: var(--ts-number); }
+.code-fence .ts-type { color: var(--ts-type); }
+.code-fence .ts-punct { color: var(--ts-punct); }
+
+@media (prefers-color-scheme: dark) {
+  .code-fence {
+    --ts-keyword: #c4b5fd;
+    --ts-string: #fbbf24;
+    --ts-function: #93c5fd;
+    --ts-number: #5eead4;
+    --ts-type: #7dd3fc;
+    --ts-punct: #94a3b8;
+  }
+}
+
+.code-ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.code-ask label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.code-ask textarea {
+  font: inherit;
+  font-size: var(--fs-3);
+  line-height: 1.45;
+  color: var(--ink-strong);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.code-ask textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.code-markdown p,
+.code-markdown ul {
+  margin: 0 0 8px;
+  font-size: var(--fs-3);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.code-markdown h3 {
+  margin: 0 0 6px;
+  font-size: var(--fs-3);
+  color: var(--ink-strong);
+}
+
+.code-markdown ul {
+  padding-left: 1.2rem;
+}
+
+.code-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+.code-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.code-markdown th,
+.code-markdown td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-strong);
+  white-space: nowrap;
+}
+
+.code-markdown th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .code-line {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
