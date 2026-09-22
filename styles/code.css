@@ -89,6 +89,16 @@
   color: var(--muted);
 }
 
+.code-ts.is-live {
+  border-color: var(--warn-line);
+}
+
+.code-running {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--muted);
+}
+
 .code-ts {
   margin: 0;
   padding: 12px 14px;

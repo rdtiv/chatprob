@@ -7,11 +7,18 @@ import {
   markRunFailed,
   noteFollowUp,
   pickDataset,
-  recordTurn,
   resetToPicker,
 } from '../lib/codeSession';
 import { CODE_COACH } from '../lib/coachCopy';
+import { applyCodeEvent, readCodeStream, visibleTypeScript } from '../lib/codeStream';
 import CodeMarkdown from './CodeMarkdown';
+
+function askLabel(turn, loading) {
+  if (!loading) return 'Ask';
+  if (turn?.livePhase === 'running') return 'Running it…';
+  if (turn?.livePhase === 'markdown' || turn?.livePhase === 'result') return 'Writing it up…';
+  return 'Writing the code…';
+}
 
 const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref) {
   const [session, setSession] = useState(initialCodeSession);
@@ -64,8 +71,23 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
     abortRef.current = started.controller;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
-    setSession(started.session);
+    const history = historyFromTurns(session.turns);
+    const live = {
+      user: message,
+      typescript: '',
+      markdown: '',
+      error: '',
+      output: null,
+      live: true,
+      livePhase: 'code',
+    };
+    setSession({
+      ...started.session,
+      turns: [...started.session.turns, live],
+    });
+    setDraft('');
     setError(null);
+    let sawDone = false;
     try {
       const response = await fetch('/api/code', {
         method: 'POST',
@@ -73,29 +95,46 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
         body: JSON.stringify({
           datasetId: dataset.id,
           message,
-          history: historyFromTurns(session.turns),
+          history,
         }),
         signal: started.controller.signal,
       });
-      const data = await response.json().catch(() => ({}));
       if (requestId !== requestRef.current) return;
-      if (!response.ok) {
-        setSession(markRunFailed(started.session));
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
+        setSession(markRunFailed({
+          ...started.session,
+          turns: started.session.turns,
+        }));
+        setDraft(message);
         setError(data.error || 'The model did not answer. Try again.');
         return;
       }
-      setDraft('');
-      setSession(recordTurn(started.session, {
-        user: message,
-        typescript: data.typescript || '',
-        markdown: data.markdown || '',
-        error: data.sandbox?.ok ? '' : (data.sandbox?.error || ''),
-        output: data.sandbox?.ok ? data.sandbox.output : null,
-      }));
+      await readCodeStream(response.body, (event) => {
+        if (requestId !== requestRef.current) return;
+        if (event.type === 'done') sawDone = true;
+        setSession((current) => {
+          if (current.phase !== 'dataset') return current;
+          const turns = current.turns.slice();
+          const last = turns[turns.length - 1];
+          if (!last) return current;
+          turns[turns.length - 1] = applyCodeEvent(last, event);
+          let status = current.status;
+          if (event.type === 'done') status = 'ready';
+          if (event.type === 'error') status = 'error';
+          return { ...current, status, turns };
+        });
+      }, started.controller.signal);
+      if (requestId !== requestRef.current) return;
+      if (!sawDone) {
+        setSession((current) => markRunFailed(current));
+        setError('The model did not answer. Try again.');
+      }
     } catch (fetchError) {
       if (requestId !== requestRef.current) return;
       if (fetchError?.name === 'AbortError') return;
       setSession(markRunFailed(started.session));
+      setDraft(message);
       setError('The model did not answer. Try again.');
     }
   };
@@ -141,15 +180,20 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
             </p>
           </section>
 
-          {session.turns.map((turn, index) => (
+          {session.turns.map((turn, index) => {
+            const code = visibleTypeScript(turn.typescript);
+            return (
             <article className="code-turn" key={`${turn.user}-${index}`}>
               <h3 className="code-ask-label">You asked</h3>
               <p className="code-question">{turn.user}</p>
-              {turn.typescript && (
+              {code && (
                 <>
                   <h3 className="code-ask-label">The code it wrote</h3>
-                  <pre className="code-ts"><code>{turn.typescript}</code></pre>
+                  <pre className={`code-ts${turn.live && turn.livePhase === 'code' ? ' is-live' : ''}`}><code>{code}</code></pre>
                 </>
+              )}
+              {turn.live && turn.livePhase === 'running' && (
+                <p className="code-running">Running that count on the saved table.</p>
               )}
               {turn.error && (
                 <section className="code-teaching" aria-label="What the code did">
@@ -166,7 +210,8 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
                 </section>
               )}
             </article>
-          ))}
+            );
+          })}
 
           <form
             className="code-ask"
@@ -191,7 +236,7 @@ const CodeWorkbench = forwardRef(function CodeWorkbench({ hidden = false }, ref)
               className="decision-run-button glass-chip"
               disabled={session.status === 'loading' || !draft.trim()}
             >
-              {session.status === 'loading' ? 'Writing the count…' : 'Ask'}
+              {askLabel(session.turns[session.turns.length - 1], session.status === 'loading')}
             </button>
           </form>
 

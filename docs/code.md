@@ -22,11 +22,10 @@ Picking a card fills the box with that question. You can edit it. **Ask** sends 
 `POST /api/code` uses the same stack as Generate: the `openai` package, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` when that is set. It is not the AI Gateway and not Jev. The model is `OPENAI_MODEL` or `gpt-4o-mini`.
 
 1. The server loads the named constant for that id. A body that includes rows, a schema, or code is a 400.
-2. The model is asked to write one TypeScript function, `analyze`, that reads only that constant.
-3. The page shows that TypeScript.
-4. A sandbox runs it. The timeout is one second. There is no network and no disk. `eval` and building functions from strings are off. The table is parsed inside the sandbox, so the code cannot reach back into the server through a row object. The only value that comes back is the JSON from `analyze`.
-5. A second model call writes short markdown from that JSON. Every number in the write-up has to appear in the JSON. If the draft invents a count, the page throws the draft away and builds a table from the run instead.
-6. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash.
+2. The model writes one TypeScript function, `analyze`, that reads only that constant. The page streams that text as NDJSON `code` events, so the function grows on screen.
+3. When that reply finishes, the page sends `running` and runs a sandbox. The timeout is one second. There is no network and no disk. `eval` and building functions from strings are off. The table is parsed inside the sandbox, so the code cannot reach back into the server through a row object. The only value that comes back is the JSON from `analyze`, in a `result` event.
+4. A second model call streams the markdown as `markdown` events. Every number in the settled write-up has to appear in that JSON. If the draft invents a count, a `markdown` event with `replace: true` swaps in a table built from the run. `done` ends the turn.
+5. If the code cannot run, the page shows the TypeScript and a short teaching line. It does not crash. **Reset**, or a new ask, aborts the stream.
 
 A follow-up stays on the same table. The next call sees the earlier question and the JSON the sandbox returned. **Reset** is two clicks, same as Generate and Evaluate. It returns to the four cards and clears the thread.
 
