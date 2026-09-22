@@ -402,6 +402,13 @@
   margin-right: auto;
 }
 
+/* "Reset" and "Reset?" stay the same width, so the confirm click lands
+   on the same chip. */
+.decision-reset {
+  min-width: 76px;
+  justify-content: center;
+}
+
 @media (max-width: 768px) {
   .mode-tabs {
     margin-right: auto;

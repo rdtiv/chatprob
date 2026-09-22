@@ -955,7 +955,7 @@ export default function ChatInterface() {
               <button
                 type="button"
                 onClick={handleResetClick}
-                className="refresh-button is-text glass-chip"
+                className="refresh-button is-text glass-chip decision-reset"
                 aria-label={resetArmed ? 'Confirm reset decision workbench' : 'Reset decision workbench'}
               >
                 {resetArmed ? 'Reset?' : 'Reset'}
